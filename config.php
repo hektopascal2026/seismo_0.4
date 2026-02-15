@@ -40,7 +40,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 4);
+define('SCHEMA_VERSION', 5);
 
 /**
  * Initialize database tables
