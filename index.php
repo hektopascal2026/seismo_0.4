@@ -12,6 +12,24 @@ initDatabase();
 $action = $_GET['action'] ?? 'index';
 $pdo = getDbConnection();
 
+// Release session lock early for read-only pages (prevents blocking concurrent requests).
+// The hosting provider rate-limits concurrent HTTP requests per IP (~5); holding the
+// PHP session file lock causes overlapping requests to queue, easily hitting that limit.
+$readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'mail', 'substack', 'magnitu', 'settings', 'about', 'beta', 'styleguide',
+                    'api_tags', 'api_substack_tags', 'api_email_tags', 'api_all_tags', 'api_items', 'api_stats',
+                    'download_rss_config', 'download_substack_config', 'download_lex_config',
+                    'magnitu_entries', 'magnitu_status'];
+if (in_array($action, $readOnlyActions)) {
+    // Consume flash messages from session, write the cleaned state, then release the lock
+    $flashSuccess = $_SESSION['success'] ?? null;
+    $flashError   = $_SESSION['error']   ?? null;
+    unset($_SESSION['success'], $_SESSION['error']);
+    session_write_close();
+    // Restore in-memory so views can still render them (won't persist since session is closed)
+    if ($flashSuccess !== null) $_SESSION['success'] = $flashSuccess;
+    if ($flashError   !== null) $_SESSION['error']   = $flashError;
+}
+
 switch ($action) {
     case 'index':
         // Show main page with entries only (no feeds section)
@@ -970,6 +988,16 @@ switch ($action) {
         $stmt = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND source_type = 'substack' ORDER BY category");
         $tags = $stmt->fetchAll(PDO::FETCH_COLUMN);
         echo json_encode($tags);
+        break;
+    
+    case 'api_all_tags':
+        // Combined endpoint: returns all tag lists in one response (avoids concurrent requests)
+        session_write_close();
+        header('Content-Type: application/json');
+        $rssTags = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND (source_type = 'rss' OR source_type IS NULL) ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
+        $substackTags = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND source_type = 'substack' ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
+        $emailTags = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag")->fetchAll(PDO::FETCH_COLUMN);
+        echo json_encode(['rss' => $rssTags, 'substack' => $substackTags, 'email' => $emailTags]);
         break;
         
     case 'update_feed_tag':

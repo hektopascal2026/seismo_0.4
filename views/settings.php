@@ -796,29 +796,15 @@
             let activeInput = null;
             let suggestionList = null;
             
-            // Load all tags on page load
-            fetch('?action=api_tags')
+            // Load all tags in a single request (avoids concurrent request rate limit)
+            fetch('?action=api_all_tags')
                 .then(response => response.json())
-                .then(tags => {
-                    allTags = tags;
+                .then(data => {
+                    allTags = data.rss || [];
+                    allEmailTags = data.email || [];
+                    allSubstackTags = data.substack || [];
                 })
                 .catch(err => console.error('Error loading tags:', err));
-            
-            // Load all email tags on page load
-            fetch('?action=api_email_tags')
-                .then(response => response.json())
-                .then(tags => {
-                    allEmailTags = tags;
-                })
-                .catch(err => console.error('Error loading email tags:', err));
-            
-            // Load all substack tags on page load
-            fetch('?action=api_substack_tags')
-                .then(response => response.json())
-                .then(tags => {
-                    allSubstackTags = tags;
-                })
-                .catch(err => console.error('Error loading substack tags:', err));
             
             // Create suggestion dropdown
             function createSuggestionList() {
@@ -961,9 +947,8 @@
                                 }, 2000);
                                 this.blur();
                                 hideSuggestions();
-                                // Refresh both RSS and Substack tags
-                                fetch('?action=api_tags').then(r => r.json()).then(t => { allTags = t; });
-                                fetch('?action=api_substack_tags').then(r => r.json()).then(t => { allSubstackTags = t; });
+                                // Refresh all tags
+                                fetch('?action=api_all_tags').then(r => r.json()).then(d => { allTags = d.rss||[]; allSubstackTags = d.substack||[]; allEmailTags = d.email||[]; });
                             } else {
                                 this.classList.remove('feed-tag-saving');
                                 alert('Error: ' + (data.error || 'Failed to update tag'));
@@ -1072,14 +1057,8 @@
                             this.blur();
                             hideSuggestions();
                             
-                            // Reload relevant tags list
-                            if (isEmailTag) {
-                                fetch('?action=api_email_tags').then(r => r.json()).then(t => { allEmailTags = t; });
-                            } else if (isSubstackTag) {
-                                fetch('?action=api_substack_tags').then(r => r.json()).then(t => { allSubstackTags = t; });
-                            } else {
-                                fetch('?action=api_tags').then(r => r.json()).then(t => { allTags = t; });
-                            }
+                            // Reload all tags
+                            fetch('?action=api_all_tags').then(r => r.json()).then(d => { allTags = d.rss||[]; allSubstackTags = d.substack||[]; allEmailTags = d.email||[]; });
                         } else {
                             this.classList.remove('feed-tag-saving');
                             alert('Error: ' + (data.error || 'Failed to rename tag'));
