@@ -121,11 +121,15 @@
                                 <span><?= $pill['emoji'] ?> <?= $pill['label'] ?></span>
                             </label>
                             <?php endforeach; ?>
-                            <?php if (!empty($scraperItemsForFeed)): ?>
-                            <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #FFDBBB;">
-                                <input type="checkbox" checked disabled>
-                                <span>🌐 Scraper</span>
+                            <?php if (!empty($scraperFeedsForIndex)): ?>
+                            <?php foreach ($scraperFeedsForIndex as $scPill):
+                                $scSelected = in_array($scPill['id'], $selectedScraperPills ?? []);
+                            ?>
+                            <label class="tag-filter-pill<?= $scSelected ? ' tag-filter-pill-active' : '' ?>"<?= $scSelected ? ' style="background-color: #FFDBBB;"' : '' ?>>
+                                <input type="checkbox" name="scraper_sources[]" value="<?= $scPill['id'] ?>" <?= $scSelected ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span>🌐 <?= htmlspecialchars($scPill['name']) ?></span>
                             </label>
+                            <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
                     </div>

@@ -83,12 +83,25 @@
                     $showSourceTag = count($activeScraperIds) > 1;
                 ?>
                 <?php foreach ($scraperItems as $item): ?>
+                    <?php
+                        $entryScore = $scraperScoreMap[$item['id']] ?? null;
+                        $relevanceScore = $entryScore ? (float)$entryScore['relevance_score'] : null;
+                        $predictedLabel = $entryScore['predicted_label'] ?? null;
+                        $scoreBadgeClass = '';
+                        if ($predictedLabel === 'investigation_lead') $scoreBadgeClass = 'magnitu-badge-investigation';
+                        elseif ($predictedLabel === 'important') $scoreBadgeClass = 'magnitu-badge-important';
+                        elseif ($predictedLabel === 'background') $scoreBadgeClass = 'magnitu-badge-background';
+                        elseif ($predictedLabel === 'noise') $scoreBadgeClass = 'magnitu-badge-noise';
+                    ?>
                     <div class="entry-card">
                         <div class="entry-header">
                             <?php if ($showSourceTag): ?>
                                 <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">
                                     🌐 <?= htmlspecialchars($item['feed_name']) ?>
                                 </span>
+                            <?php endif; ?>
+                            <?php if ($relevanceScore !== null): ?>
+                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title">

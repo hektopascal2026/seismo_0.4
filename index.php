@@ -162,18 +162,49 @@ switch ($action) {
             $substackItems = [];
         }
         
-        // Fetch Scraper items for the main timeline
+        // Fetch Scraper sources and items for the main timeline
         $scraperItemsForFeed = [];
+        $scraperFeedsForIndex = []; // grouped by name for pills
         try {
-            $scraperItemsStmt = $pdo->query("
-                SELECT fi.*, f.title as feed_name, f.url as source_url
-                FROM feed_items fi
-                JOIN feeds f ON fi.feed_id = f.id
-                WHERE f.source_type = 'scraper' AND f.disabled = 0
-                ORDER BY fi.published_date DESC
-                LIMIT 30
-            ");
-            $scraperItemsForFeed = $scraperItemsStmt->fetchAll();
+            $allScraperFeedsIdx = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' AND f.disabled = 0 ORDER BY f.title")->fetchAll();
+            $scraperNameToIds = [];
+            foreach ($allScraperFeedsIdx as $sf) {
+                $n = $sf['name'];
+                if (!isset($scraperNameToIds[$n])) {
+                    $scraperNameToIds[$n] = [];
+                    $scraperFeedsForIndex[] = ['id' => $sf['id'], 'name' => $n];
+                }
+                $scraperNameToIds[$n][] = $sf['id'];
+            }
+            
+            // Determine selected scraper sources from query params
+            if ($tagsSubmitted) {
+                $selectedScraperPills = isset($_GET['scraper_sources']) ? array_map('intval', (array)$_GET['scraper_sources']) : [];
+            } else {
+                $selectedScraperPills = array_column($scraperFeedsForIndex, 'id');
+            }
+            // Expand pill IDs to all feed IDs for that name
+            $activeScraperFeedIds = [];
+            foreach ($scraperFeedsForIndex as $src) {
+                if (in_array($src['id'], $selectedScraperPills)) {
+                    $activeScraperFeedIds = array_merge($activeScraperFeedIds, $scraperNameToIds[$src['name']]);
+                }
+            }
+            $activeScraperFeedIds = array_values(array_unique($activeScraperFeedIds));
+            
+            if (!empty($activeScraperFeedIds)) {
+                $ph = implode(',', array_fill(0, count($activeScraperFeedIds), '?'));
+                $scraperStmt = $pdo->prepare("
+                    SELECT fi.*, f.title as feed_name, f.url as source_url
+                    FROM feed_items fi
+                    JOIN feeds f ON fi.feed_id = f.id
+                    WHERE f.source_type = 'scraper' AND f.id IN ($ph)
+                    ORDER BY fi.published_date DESC
+                    LIMIT 30
+                ");
+                $scraperStmt->execute($activeScraperFeedIds);
+                $scraperItemsForFeed = $scraperStmt->fetchAll();
+            }
         } catch (PDOException $e) {}
         
         // Fetch Lex items (EU + CH legislation), filtered by selected lex sources
@@ -1633,6 +1664,31 @@ switch ($action) {
             }
         } catch (PDOException $e) {
             // Table might not exist yet
+        }
+        
+        // Load Magnitu scores for scraper items
+        $scraperScoreMap = [];
+        try {
+            $ids = array_column($scraperItems, 'id');
+            if (!empty($ids)) {
+                $ph = implode(',', array_fill(0, count($ids), '?'));
+                $sStmt = $pdo->prepare("SELECT entry_id, relevance_score, predicted_label, explanation FROM entry_scores WHERE entry_type = 'feed_item' AND entry_id IN ($ph)");
+                $sStmt->execute($ids);
+                foreach ($sStmt->fetchAll() as $s) {
+                    $scraperScoreMap[(int)$s['entry_id']] = $s;
+                }
+            }
+        } catch (PDOException $e) {}
+        
+        // Magnitu sort preference
+        $magnituSortByRelevance = (bool)(getMagnituConfig($pdo, 'sort_by_relevance') ?? 0);
+        if ($magnituSortByRelevance && !empty($scraperScoreMap)) {
+            usort($scraperItems, function($a, $b) use ($scraperScoreMap) {
+                $scoreA = isset($scraperScoreMap[$a['id']]) ? (float)$scraperScoreMap[$a['id']]['relevance_score'] : -1;
+                $scoreB = isset($scraperScoreMap[$b['id']]) ? (float)$scraperScoreMap[$b['id']]['relevance_score'] : -1;
+                if ($scoreA == $scoreB) return strtotime($b['published_date'] ?? '0') - strtotime($a['published_date'] ?? '0');
+                return $scoreB <=> $scoreA;
+            });
         }
         
         include 'views/scraper.php';
@@ -3953,7 +4009,8 @@ function magnituRescore($pdo, $recipeData) {
     $version = (int)($recipeData['version'] ?? 0);
     
     foreach ($stmt->fetchAll() as $row) {
-        $sourceType = ($row['source_type'] === 'substack') ? 'substack' : 'rss';
+        $st = $row['source_type'] ?? 'rss';
+        $sourceType = in_array($st, ['substack', 'scraper']) ? $st : 'rss';
         $result = scoreEntryWithRecipe($recipeData, $row['title'] ?? '', ($row['content'] ?: $row['description']) ?? '', $sourceType);
         if ($result) {
             $upsert->execute([
