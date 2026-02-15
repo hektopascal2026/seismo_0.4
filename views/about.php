@@ -149,6 +149,10 @@
                     <span class="about-source-label" style="background-color: #f5f562;">⚖️ BGE Jus</span>
                     Published leading decisions (Leitentscheide / BGE) from the Swiss Federal Supreme Court via <a href="https://entscheidsuche.ch" class="about-link" target="_blank" rel="noopener">entscheidsuche.ch</a>
                 </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #f5f562;">⚖️ BVGer Jus</span>
+                    Swiss Federal Administrative Court decisions via <a href="https://entscheidsuche.ch" class="about-link" target="_blank" rel="noopener">entscheidsuche.ch</a> — incremental sync via index manifests
+                </li>
             </ul>
         </section>
 
@@ -216,7 +220,7 @@
                 <li><strong>RSS feeds:</strong> <?= number_format($stats['feeds'] ?? 0) ?> feeds, <?= number_format($stats['feed_items'] ?? 0) ?> items</li>
                 <li><strong>Emails:</strong> <?= number_format($stats['emails'] ?? 0) ?> messages</li>
                 <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE</li>
-                <li><strong>Jus items:</strong> <?= number_format($stats['jus_bger'] ?? 0) ?> BGer, <?= number_format($stats['jus_bge'] ?? 0) ?> BGE</li>
+                <li><strong>Jus items:</strong> <?= number_format($stats['jus_bger'] ?? 0) ?> BGer, <?= number_format($stats['jus_bge'] ?? 0) ?> BGE, <?= number_format($stats['jus_bvger'] ?? 0) ?> BVGer</li>
             </ul>
         </section>
 

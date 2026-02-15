@@ -66,6 +66,11 @@
                         <input type="checkbox" name="sources[]" value="ch_bge" <?= $bgeActive ? 'checked' : '' ?> onchange="this.form.submit()">
                         <span>⚖️ BGE</span>
                     </label>
+                    <?php $bvgerActive = in_array('ch_bvger', $activeJusSources); ?>
+                    <label class="tag-filter-pill<?= $bvgerActive ? ' tag-filter-pill-active' : '' ?>"<?= $bvgerActive ? ' style="background-color: #f5f562;"' : '' ?>>
+                        <input type="checkbox" name="sources[]" value="ch_bvger" <?= $bvgerActive ? 'checked' : '' ?> onchange="this.form.submit()">
+                        <span>⚖️ BVGer</span>
+                    </label>
                 </div>
             </div>
         </form>
@@ -77,6 +82,7 @@
                         $refreshParts = [];
                         if (!empty($lastJusRefreshDateBger)) $refreshParts[] = '⚖️ BGer ' . $lastJusRefreshDateBger;
                         if (!empty($lastJusRefreshDateBge)) $refreshParts[] = '⚖️ BGE ' . $lastJusRefreshDateBge;
+                        if (!empty($lastJusRefreshDateBvger)) $refreshParts[] = '⚖️ BVGer ' . $lastJusRefreshDateBvger;
                         if (!empty($refreshParts)):
                     ?>
                         Refreshed: <?= implode(' · ', $refreshParts) ?>
@@ -93,7 +99,7 @@
             <?php else: ?>
                 <?php
                     // Check if multiple sources are active (merged view)
-                    $activeCount = (int)in_array('ch_bger', $activeJusSources) + (int)in_array('ch_bge', $activeJusSources);
+                    $activeCount = (int)in_array('ch_bger', $activeJusSources) + (int)in_array('ch_bge', $activeJusSources) + (int)in_array('ch_bvger', $activeJusSources);
                     $showSourceTag = ($activeCount > 1);
                 ?>
                 <?php foreach ($jusItems as $item): ?>
@@ -102,6 +108,9 @@
                         if ($source === 'ch_bge') {
                             $sourceLabel = 'BGE';
                             $linkLabel = 'Leitentscheid →';
+                        } elseif ($source === 'ch_bvger') {
+                            $sourceLabel = 'BVGer';
+                            $linkLabel = 'Urteil →';
                         } else {
                             $sourceLabel = 'BGer';
                             $linkLabel = 'Entscheid →';
@@ -111,15 +120,25 @@
                         
                         // Parse readable case number from slug:
                         // CH_BGer_007_7B-835-2025_2025-09-18 → 7B 835/2025
+                        // CH_BVGE_001_A-6740-2023_2024-01-03 → A-6740/2023
                         $slug = $item['celex'] ?? '';
                         $caseNum = $slug;
-                        if (preg_match('/^CH_BG(?:er|E)_\d{3}_(.+)_\d{4}-\d{2}-\d{2}$/', $slug, $m)) {
-                            $raw = $m[1]; // e.g. "7B-835-2025"
-                            $parts = explode('-', $raw, 3);
-                            if (count($parts) === 3) {
-                                $caseNum = $parts[0] . ' ' . $parts[1] . '/' . $parts[2];
+                        if (preg_match('/^CH_(?:BGer|BGE|BVGE)_\d{3}_(.+)_\d{4}-\d{2}-\d{2}$/', $slug, $m)) {
+                            $raw = $m[1]; // e.g. "7B-835-2025" or "A-6740-2023"
+                            $isBVGer = (strpos($slug, 'CH_BVGE_') === 0);
+                            // BVGer: A-6740-2023 → A-6740/2023 (dash-separated, only last dash → /)
+                            // BGer:  7B-835-2025 → 7B 835/2025 (first dash → space, second → /)
+                            $lastDash = strrpos($raw, '-');
+                            if ($lastDash !== false) {
+                                $prefix = substr($raw, 0, $lastDash);
+                                $year = substr($raw, $lastDash + 1);
+                                if ($isBVGer) {
+                                    $caseNum = $prefix . '/' . $year;
+                                } else {
+                                    $caseNum = str_replace('-', ' ', $prefix) . '/' . $year;
+                                }
                             } else {
-                                $caseNum = str_replace('-', ' ', $raw);
+                                $caseNum = $raw;
                             }
                         }
                     ?>

@@ -604,6 +604,13 @@ function getLexConfig() {
             'limit' => 50,
             'notes' => '',
         ],
+        'ch_bvger' => [
+            'enabled' => true,
+            'base_url' => 'https://entscheidsuche.ch',
+            'lookback_days' => 90,
+            'limit' => 100,
+            'notes' => '',
+        ],
     ];
 }
 
@@ -632,6 +639,7 @@ function getJusChamberLabel($signatur) {
         'CH_BGE_009' => 'II. sozialrechtliche Abteilung',
         'CH_BGE_012' => 'Vereinigte Abteilungen',
         'CH_BGE_999' => 'Nicht publiziert',
+        'CH_BVGE_001' => 'Bundesverwaltungsgericht',
     ];
     return $map[$signatur] ?? $signatur;
 }

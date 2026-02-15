@@ -42,5 +42,12 @@
         "lookback_days": 90,
         "limit": 50,
         "notes": "Published leading decisions (Leitentscheide / BGE) via entscheidsuche.ch."
+    },
+    "ch_bvger": {
+        "enabled": true,
+        "base_url": "https://entscheidsuche.ch",
+        "lookback_days": 90,
+        "limit": 100,
+        "notes": "Swiss Federal Administrative Court decisions via entscheidsuche.ch index manifests."
     }
 }

@@ -60,7 +60,7 @@ switch ($action) {
             $selectedTags = array_values(array_filter($tags, function($t) { return $t !== 'unsortiert'; }));
             $selectedEmailTags = array_values(array_filter($emailTags, function($t) { return $t !== 'unsortiert' && $t !== 'unclassified'; }));
             $selectedSubstackTags = $substackTags; // select all by default
-            $selectedLexSources = ['eu', 'ch', 'de', 'ch_bger', 'ch_bge']; // all active by default
+            $selectedLexSources = ['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger']; // all active by default
         }
         
         // If search query exists, show search results instead of latest items
@@ -943,6 +943,14 @@ switch ($action) {
                 $results[] = '⚖️ BGE: ' . $e->getMessage();
             }
         }
+        if ($lexCfg['ch_bvger']['enabled'] ?? false) {
+            try {
+                $countBvger = refreshJusItems($pdo, 'CH_BVGer');
+                $results[] = "⚖️ $countBvger BVGer items";
+            } catch (Exception $e) {
+                $results[] = '⚖️ BVGer: ' . $e->getMessage();
+            }
+        }
         
         // 4. Magnitu recipe scoring for new entries
         try {
@@ -1380,7 +1388,7 @@ switch ($action) {
         if ($sourcesSubmitted) {
             $activeJusSources = isset($_GET['sources']) ? (array)$_GET['sources'] : [];
         } else {
-            $activeJusSources = ['ch_bger', 'ch_bge']; // All active by default
+            $activeJusSources = ['ch_bger', 'ch_bge', 'ch_bvger']; // All active by default
         }
         
         try {
@@ -1401,6 +1409,11 @@ switch ($action) {
             $lastRefreshBgeRow = $lastRefreshBgeStmt->fetch();
             $lastJusRefreshDateBge = ($lastRefreshBgeRow && $lastRefreshBgeRow['last_refresh']) 
                 ? date('d.m.Y H:i', strtotime($lastRefreshBgeRow['last_refresh'])) : null;
+            
+            $lastRefreshBvgerStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'ch_bvger'");
+            $lastRefreshBvgerRow = $lastRefreshBvgerStmt->fetch();
+            $lastJusRefreshDateBvger = ($lastRefreshBvgerRow && $lastRefreshBvgerRow['last_refresh']) 
+                ? date('d.m.Y H:i', strtotime($lastRefreshBvgerRow['last_refresh'])) : null;
         } catch (PDOException $e) {
             // Table might not exist yet on first load
         }
@@ -1434,6 +1447,17 @@ switch ($action) {
             }
         } else {
             $messages[] = '⚖️ BGE skipped (disabled)';
+        }
+        
+        if ($lexCfg['ch_bvger']['enabled'] ?? false) {
+            try {
+                $countBvger = refreshJusItems($pdo, 'CH_BVGer');
+                $messages[] = "⚖️ $countBvger items from BVGer";
+            } catch (Exception $e) {
+                $errors[] = '⚖️ BVGer: ' . $e->getMessage();
+            }
+        } else {
+            $messages[] = '⚖️ BVGer skipped (disabled)';
         }
         
         if (!empty($messages)) {
@@ -1507,6 +1531,12 @@ switch ($action) {
             $config['ch_bge']['limit']         = max(1, (int)($_POST['ch_bge_limit'] ?? 50));
             $config['ch_bge']['notes']         = trim($_POST['ch_bge_notes'] ?? '');
             
+            // JUS: CH_BVGer settings
+            $config['ch_bvger']['enabled']       = $isEnabled('ch_bvger_enabled', $config['ch_bvger']['enabled'] ?? false);
+            $config['ch_bvger']['lookback_days'] = max(1, (int)($_POST['ch_bvger_lookback_days'] ?? 90));
+            $config['ch_bvger']['limit']         = max(1, (int)($_POST['ch_bvger_limit'] ?? 100));
+            $config['ch_bvger']['notes']         = trim($_POST['ch_bvger_notes'] ?? '');
+            
             if (saveLexConfig($config)) {
                 if (!$isAutoSave) {
                     $_SESSION['success'] = 'Lex configuration saved.';
@@ -1525,7 +1555,7 @@ switch ($action) {
             if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
                 $content = file_get_contents($file['tmp_name']);
                 $parsed = json_decode($content, true);
-                if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']))) {
+                if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']) || isset($parsed['ch_bvger']))) {
                     if (saveLexConfig($parsed)) {
                         $_SESSION['success'] = 'Lex config file uploaded and applied.';
                     } else {
@@ -1630,6 +1660,7 @@ switch ($action) {
             $stats['lex_de'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'de'")->fetchColumn();
             $stats['jus_bger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bger'")->fetchColumn();
             $stats['jus_bge'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bge'")->fetchColumn();
+            $stats['jus_bvger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bvger'")->fetchColumn();
         } catch (PDOException $e) {
             // Tables might not exist yet
         }
@@ -1783,6 +1814,7 @@ switch ($action) {
                             'de' => 'recht.bund.de',
                             'ch_bger' => 'Bundesgericht',
                             'ch_bge' => 'BGE Leitentscheide',
+                            'ch_bvger' => 'Bundesverwaltungsgericht',
                             default => 'EUR-Lex',
                         },
                         'source_category' => $row['document_type'] ?? 'Legislation',
@@ -3412,7 +3444,11 @@ function fetchJusBootstrapActions($baseUrl, $spider, $maxFilesToScan = 30) {
  * @return int Number of items upserted
  */
 function refreshJusItems($pdo, $spider = 'CH_BGer') {
-    $sourceKey = ($spider === 'CH_BGE') ? 'ch_bge' : 'ch_bger';
+    $sourceKey = match($spider) {
+        'CH_BGE' => 'ch_bge',
+        'CH_BVGer' => 'ch_bvger',
+        default => 'ch_bger',
+    };
     $config = getLexConfig();
     $cfg = $config[$sourceKey] ?? [];
     if (!($cfg['enabled'] ?? false)) return 0;
@@ -3467,7 +3503,7 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
     };
     
     // BGE publication can lag significantly; on first sync we seed entries first, then enforce lookback on later runs.
-    $disableDateCutoffForFirstSync = (!$sourceHasEntries && ($sourceKey === 'ch_bge' || $usedBootstrapActions));
+    $disableDateCutoffForFirstSync = (!$sourceHasEntries && ($sourceKey === 'ch_bge' || $sourceKey === 'ch_bvger' || $usedBootstrapActions));
     $enforceDateCutoff = !$disableDateCutoffForFirstSync;
     $filesToFetch = $collectFiles($enforceDateCutoff);
     if (empty($filesToFetch) && !$sourceHasEntries) {
@@ -3582,7 +3618,7 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
                 $documentType,  // document_type
                 $eurlex_url,    // eurlex_url
                 $work_uri,      // work_uri
-                $sourceKey,     // source: ch_bger or ch_bge
+                $sourceKey,     // source: ch_bger, ch_bge, or ch_bvger
             ]);
             $count++;
         }

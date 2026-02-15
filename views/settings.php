@@ -845,6 +845,44 @@
                     </div>
                 </div>
 
+                <!-- JUS: CH_BVGer Configuration -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">⚖️ BVGer (Bundesverwaltungsgericht)</label>
+                        <?php $bvgerEnabled = (bool)($lexConfig['ch_bvger']['enabled'] ?? false); ?>
+                        <input type="hidden" name="ch_bvger_enabled" value="<?= $bvgerEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $bvgerEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="ch_bvger_enabled">
+                            <?= $bvgerEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Lookback (days)</label>
+                            <input type="number" name="ch_bvger_lookback_days" value="<?= (int)($lexConfig['ch_bvger']['lookback_days'] ?? 90) ?>" min="1" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results</label>
+                            <input type="number" name="ch_bvger_limit" value="<?= (int)($lexConfig['ch_bvger']['limit'] ?? 100) ?>" min="1" max="500"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="ch_bvger_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($lexConfig['ch_bvger']['notes'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        Source: Swiss Federal Administrative Court decisions via
+                        <a href="https://entscheidsuche.ch" target="_blank" rel="noopener" style="text-decoration: underline;">entscheidsuche.ch</a>
+                        &middot;
+                        Index: <code style="font-size: 12px;">https://entscheidsuche.ch/docs/Index/CH_BVGer/last</code>
+                    </div>
+                </div>
+
             </form>
 
             <!-- Config file management -->

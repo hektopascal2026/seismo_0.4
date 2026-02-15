@@ -122,6 +122,7 @@
                             <?php
                                 $jusBgerSelected = !empty($selectedLexSources) && in_array('ch_bger', $selectedLexSources, true);
                                 $jusBgeSelected = !empty($selectedLexSources) && in_array('ch_bge', $selectedLexSources, true);
+                                $jusBvgerSelected = !empty($selectedLexSources) && in_array('ch_bvger', $selectedLexSources, true);
                             ?>
                             <label class="tag-filter-pill<?= $jusBgerSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBgerSelected ? ' style="background-color: #f5f562;"' : '' ?>>
                                 <input type="checkbox" name="lex_sources[]" value="ch_bger" <?= $jusBgerSelected ? 'checked' : '' ?> onchange="this.form.submit()">
@@ -130,6 +131,10 @@
                             <label class="tag-filter-pill<?= $jusBgeSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBgeSelected ? ' style="background-color: #f5f562;"' : '' ?>>
                                 <input type="checkbox" name="lex_sources[]" value="ch_bge" <?= $jusBgeSelected ? 'checked' : '' ?> onchange="this.form.submit()">
                                 <span>⚖️ BGE</span>
+                            </label>
+                            <label class="tag-filter-pill<?= $jusBvgerSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBvgerSelected ? ' style="background-color: #f5f562;"' : '' ?>>
+                                <input type="checkbox" name="lex_sources[]" value="ch_bvger" <?= $jusBvgerSelected ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span>⚖️ BVGer</span>
                             </label>
                         </div>
                     </div>
@@ -248,6 +253,9 @@
                             } elseif ($lexSource === 'ch_bge') {
                                 $lexSourceEmoji = '⚖️';
                                 $lexSourceLabel = 'BGE';
+                            } elseif ($lexSource === 'ch_bvger') {
+                                $lexSourceEmoji = '⚖️';
+                                $lexSourceLabel = 'BVGer';
                             } elseif ($lexSource === 'de') {
                                 $lexSourceEmoji = '🇩🇪';
                                 $lexSourceLabel = 'DE';
@@ -261,21 +269,29 @@
                             $lexDocType = $lexItem['document_type'] ?? 'Legislation';
                             $lexUrl = $lexItem['eurlex_url'] ?? '#';
                             $lexDate = $lexItem['document_date'] ? date('d.m.Y', strtotime($lexItem['document_date'])) : '';
-                            $isJus = in_array($lexSource, ['ch_bger', 'ch_bge']);
+                            $isJus = in_array($lexSource, ['ch_bger', 'ch_bge', 'ch_bvger']);
                             
                             // For JUS items: parse readable case number from slug
                             $lexCelexDisplay = $lexItem['celex'] ?? '';
-                            if ($isJus && preg_match('/^CH_BG(?:er|E)_\d{3}_(.+)_\d{4}-\d{2}-\d{2}$/', $lexCelexDisplay, $m)) {
+                            if ($isJus && preg_match('/^CH_(?:BGer|BGE|BVGE)_\d{3}_(.+)_\d{4}-\d{2}-\d{2}$/', $lexCelexDisplay, $m)) {
                                 $rawCn = $m[1];
-                                $cnParts = explode('-', $rawCn, 3);
-                                $lexCelexDisplay = (count($cnParts) === 3) 
-                                    ? $cnParts[0] . ' ' . $cnParts[1] . '/' . $cnParts[2] 
-                                    : str_replace('-', ' ', $rawCn);
+                                $isBVGer = (strpos($lexCelexDisplay, 'CH_BVGE_') === 0);
+                                $lastDash = strrpos($rawCn, '-');
+                                if ($lastDash !== false) {
+                                    $prefix = substr($rawCn, 0, $lastDash);
+                                    $year = substr($rawCn, $lastDash + 1);
+                                    $lexCelexDisplay = $isBVGer 
+                                        ? $prefix . '/' . $year 
+                                        : str_replace('-', ' ', $prefix) . '/' . $year;
+                                } else {
+                                    $lexCelexDisplay = $rawCn;
+                                }
                             }
                             
                             // Link label per source
                             if ($lexSource === 'ch_bger') $lexLinkLabel = 'Entscheid →';
                             elseif ($lexSource === 'ch_bge') $lexLinkLabel = 'Leitentscheid →';
+                            elseif ($lexSource === 'ch_bvger') $lexLinkLabel = 'Urteil →';
                             elseif ($lexSource === 'de') $lexLinkLabel = 'recht.bund.de →';
                             elseif ($lexSource === 'ch') $lexLinkLabel = 'Fedlex →';
                             else $lexLinkLabel = 'EUR-Lex →';
