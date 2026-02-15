@@ -156,7 +156,9 @@
                 </li>
                 <li>
                     <span class="about-source-label" style="background-color: #FFDBBB;">🌐 Scraper</span>
-                    Web pages scraped periodically via a cronjob script — content extracted automatically with readability heuristics
+                    Web pages scraped periodically via a cronjob script — content extracted automatically with readability heuristics.
+                    Supports link-following mode (scrape articles from a listing page) and configurable date selectors to extract publication dates from the page HTML.
+                    Entries can be soft-deleted (hidden) individually.
                 </li>
             </ul>
         </section>
@@ -214,6 +216,7 @@
                 <li><strong>Email parsing:</strong> <a href="https://github.com/php-mime-mail-parser/php-mime-mail-parser" class="about-link" target="_blank" rel="noopener">PHP MIME Mail Parser</a></li>
                 <li><strong>SPARQL / RDF:</strong> <a href="https://github.com/easyrdf/easyrdf" class="about-link" target="_blank" rel="noopener">EasyRdf</a></li>
                 <li><strong>German Lex feed:</strong> PHP cURL with cookie-jar (recht.bund.de requires a session cookie)</li>
+                <li><strong>Web scraping:</strong> PHP DOMDocument + cURL with polite delays, User-Agent rotation, CSS-to-XPath date extraction</li>
                 <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS — no framework, no build step</li>
             </ul>
         </section>

@@ -1,6 +1,6 @@
 # Seismo
 
-A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters, Substack publications, and EU/Swiss/German legislation into a single unified feed. Includes optional ML-powered relevance scoring via the companion app [Magnitu](https://github.com/your-org/magnitu).
+A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters, Substack publications, EU/Swiss/German legislation, Swiss case law, and scraped web pages into a single unified feed. Includes optional ML-powered relevance scoring via the companion app [Magnitu](https://github.com/your-org/magnitu).
 
 ## Features
 
@@ -12,6 +12,8 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
   - 🇪🇺 **EU CELLAR** — regulations, directives, and decisions from EUR-Lex via SPARQL (CDM ontology)
   - 🇨🇭 **Fedlex** — Bundesgesetze, Verordnungen, Bundesbeschlüsse, and international treaties via SPARQL (JOLux ontology)
   - 🇩🇪 **recht.bund.de** — Bundesgesetzblatt Teil I + II (German federal legislation) via RSS
+- **Jus** — Swiss case law from BGer, BGE, and BVGer via [entscheidsuche.ch](https://entscheidsuche.ch) with incremental sync
+- **Scraper** — configurable web page scraper with link-following mode, CSS-based date extraction, polite delays, and per-entry soft-delete
 - **Magnitu Integration** — optional companion ML app that learns which entries matter to you and pushes relevance scores back via API
 - **Settings** — four-tab settings page (Basic, Script, Lex, Magnitu) to manage all sources and configuration
 - **Consistent card layout** — unified entry cards across all pages with source tag, user-assigned category, and date
@@ -50,9 +52,11 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 | **Magnitu** | ML-scored entries: investigation leads, important items |
 | **RSS** | RSS/Atom feed items with tag filters |
 | **Lex** | EU, Swiss, and German legislation with source filters (🇪🇺 / 🇨🇭 / 🇩🇪) |
+| **Jus** | Swiss case law — BGer, BGE, BVGer decisions |
 | **Mail** | Email newsletters with sender tag filters |
 | **Substack** | Substack newsletter items with tag filters |
-| **Settings** | Four tabs — Basic (RSS/Substack), Script (Email), Lex (EU/CH/DE), Magnitu |
+| **Scraper** | Scraped web page entries with per-source filters and delete |
+| **Settings** | Four tabs — Basic (RSS/Substack), Script (Email/Scraper), Lex (EU/CH/DE), Magnitu |
 | **About** | Project info, data sources, and stats |
 
 ## Dependencies
@@ -60,7 +64,8 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 - [SimplePie](https://github.com/simplepie/simplepie) — RSS/Atom parsing
 - [PHP MIME Mail Parser](https://github.com/php-mime-mail-parser/php-mime-mail-parser) — email parsing
 - [EasyRdf](https://github.com/easyrdf/easyrdf) — SPARQL/RDF queries for EU CELLAR and Fedlex
-- PHP cURL — used for fetching the German legislation RSS feed (recht.bund.de requires a session cookie)
+- PHP cURL — used for fetching the German legislation RSS feed (recht.bund.de requires a session cookie) and web scraping
+- PHP DOMDocument — HTML parsing for scraper content extraction and date extraction via CSS-to-XPath
 
 ## Data Sources
 
@@ -79,6 +84,18 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 - **Format:** RSS 2.0 with custom `meta:` namespace for structured metadata
 - **Scope:** Bundesgesetzblatt Teil I + II — Gesetze, Verordnungen, Bekanntmachungen from the last 90 days
 - **Note:** recht.bund.de requires a load-balancer session cookie; Seismo uses cURL with a cookie jar to handle this automatically
+
+### Swiss Case Law (Jus)
+- **Source:** [entscheidsuche.ch](https://entscheidsuche.ch)
+- **Courts:** BGer (Federal Supreme Court), BGE (Leading decisions), BVGer (Federal Administrative Court)
+- **Sync:** Incremental via index manifests — only fetches new decisions since last sync
+
+### Web Scraper
+- **Type:** Standalone PHP CLI script (`fetcher/scraper/seismo_scraper.php`) run via cronjob
+- **Modes:** Single-page scrape, or link-following mode (scrape articles from a listing page via configurable URL pattern)
+- **Date extraction:** Configurable CSS selector per scraper (e.g. `time[datetime]`, `.article-date`) — supports `datetime`/`content` attributes, German/French month names, `dd.mm.yyyy` format; falls back to current time
+- **Polite scraping:** Random delays, rotating User-Agents, standard browser headers
+- **Content extraction:** DOMDocument-based readability heuristics (largest text block from `<article>`, `<main>`, `<div>`, `<section>`)
 
 ### Magnitu (optional)
 - **Type:** Local Python companion app
@@ -102,11 +119,17 @@ seismo_0.4/
 │   ├── feeds.php      # RSS feed page
 │   ├── feed.php       # Single feed view
 │   ├── lex.php        # Legislation page (EU + CH + DE)
+│   ├── jus.php        # Swiss case law page (BGer / BGE / BVGer)
 │   ├── mail.php       # Email page
 │   ├── substack.php   # Substack page
+│   ├── scraper.php    # Scraped web pages
 │   ├── settings.php   # Settings page (tabbed: Basic, Script, Lex, Magnitu)
 │   ├── about.php      # About page
 │   └── styleguide.php # Internal style reference
+├── fetcher/
+│   └── scraper/
+│       ├── seismo_scraper.php  # Standalone scraper CLI script (cronjob)
+│       └── config.php.example  # DB config template for the scraper
 └── vendor/            # Composer dependencies
 ```
 
