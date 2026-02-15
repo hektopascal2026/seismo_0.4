@@ -314,8 +314,8 @@ h3 {
 }
 
 /* Expand buttons — compact, same size as sort button */
-.entry-expand-btn,
-.entry-expand-all-btn {
+.btn.entry-expand-btn,
+.btn.entry-expand-all-btn {
     font-size: 12px;
     padding: 4px 10px;
 }
@@ -705,7 +705,7 @@ h3 {
     min-width: 28px;
     height: 22px;
     padding: 0 6px;
-    font-size: 11px;
+    font-size: 12px;                /* small */
     font-weight: 700;
     font-family: inherit;
     border: 2px solid #000000;
@@ -729,7 +729,7 @@ h3 {
 
 .magnitu-badge-noise {
     background-color: #e0e0e0;
-    color: #666666;
+    color: #000000;
 }
 
 /* Alert highlighting for high-score entries */
@@ -746,23 +746,29 @@ h3 {
 /* Score coverage indicator in section title */
 .magnitu-coverage {
     font-weight: 400;
-    font-size: 11px;
-    color: #666666;
+    font-size: 12px;                /* small */
+    color: #000000;
+}
+
+/* "Why?" button — compact, same size as expand buttons */
+.btn.magnitu-why-btn {
+    font-size: 12px;                /* small */
+    padding: 4px 10px;
 }
 
 /* Explanation panel (shown on "Why?" click) */
 .magnitu-explanation {
-    padding: 8px 12px;
+    padding: 10px 14px;
     margin: 6px 0;
-    border: 1px solid #d0d0d0;
-    background-color: #fafafa;
-    font-size: 12px;
+    border: 2px solid #000000;
+    background-color: #f5f5f5;
+    font-size: 12px;                /* small */
 }
 
 .magnitu-explanation-label {
     font-weight: 600;
     margin-bottom: 6px;
-    font-size: 11px;
+    font-size: 12px;                /* small */
     color: #000000;
 }
 
@@ -775,37 +781,35 @@ h3 {
 .magnitu-feature {
     display: inline-block;
     padding: 2px 8px;
-    font-size: 11px;
+    font-size: 12px;                /* small */
     font-family: monospace;
-    border: 1px solid #d0d0d0;
+    border: 2px solid #000000;
+    background-color: #ffffff;
+    color: #000000;
 }
 
 .magnitu-feature-positive {
     background-color: #e6ffe6;
-    border-color: #00aa00;
 }
 
 .magnitu-feature-negative {
     background-color: #ffe6e6;
-    border-color: #cc0000;
 }
 
 /* Magnitu page explainer */
 .magnitu-explainer {
-    padding: 16px 0;
+    padding: 10px 0;
     margin-bottom: 8px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.magnitu-explainer h2 {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 6px 0;
+    border-bottom: 2px solid #000000;
 }
 
 .magnitu-explainer p {
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 0;
-    color: #333;
+    font-size: 12px;                /* small */
+    line-height: 1.6;
+    margin: 0 0 4px 0;
+    color: #000000;
+}
+
+.magnitu-explainer p:last-child {
+    margin-bottom: 0;
 }

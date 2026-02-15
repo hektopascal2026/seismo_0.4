@@ -18,9 +18,9 @@
                             <path d="M0,8 L4,12 L6,4 L10,10 L14,2 L18,8 L20,6 L24,8" stroke="#000000" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </a>
-                    Seismo
+                    Magnitu
                 </span>
-                <span class="top-bar-subtitle">ein Prototyp von hektopascal.org | v0.4</span>
+                <span class="top-bar-subtitle">Relevance scoring</span>
             </div>
             <div class="top-bar-actions">
                 <a href="?action=refresh_all&from=magnitu" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
@@ -53,12 +53,11 @@
 
         <!-- Magnitu Explainer -->
         <div class="magnitu-explainer">
-            <h2>Magnitu</h2>
-            <p>This page shows entries that the Magnitu relevance model considers worth your attention. <strong>Investigation leads</strong> are entries that could be the start of an investigative story. <strong>Important</strong> entries are significant developments you should be aware of. The model learns from your labels over time &mdash; the more you label, the sharper it gets.</p>
+            <p>Entries the relevance model considers worth your attention. <strong>Investigation leads</strong> could start an investigative story. <strong>Important</strong> entries are significant developments. The model learns from your labels &mdash; the more you label, the sharper it gets.</p>
             <?php if (empty($investigationItems) && empty($importantItems)): ?>
-                <p style="margin-top: 8px; opacity: 0.7;">No scored entries yet. Train a model in Magnitu and push scores to see results here.</p>
+                <p>No scored entries yet. Train a model in Magnitu and push scores to see results here.</p>
             <?php else: ?>
-                <p style="margin-top: 4px; font-size: 13px; opacity: 0.6;"><?= count($investigationItems) ?> investigation lead<?= count($investigationItems) !== 1 ? 's' : '' ?> · <?= count($importantItems) ?> important · <?= $totalScored ?> total scored</p>
+                <p><?= count($investigationItems) ?> investigation lead<?= count($investigationItems) !== 1 ? 's' : '' ?> · <?= count($importantItems) ?> important · <?= $totalScored ?> total scored</p>
             <?php endif; ?>
         </div>
 
@@ -124,7 +123,7 @@
                                     <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
-                                    <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
                                 <?php endif; ?>
                             </div>
                             <?php if ($item['published_date']): ?>
@@ -171,7 +170,7 @@
                                 <span style="font-family: monospace;"><?= htmlspecialchars($lexItem['celex'] ?? '') ?></span>
                                 <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexIsEu ? 'EUR-Lex &rarr;' : 'Fedlex &rarr;' ?></a>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
-                                    <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
                                 <?php endif; ?>
                             </div>
                             <?php if ($lexDate): ?>
@@ -226,7 +225,7 @@
                                     <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
-                                    <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
                                 <?php endif; ?>
                             </div>
                             <?php if ($createdAt): ?>
@@ -301,7 +300,7 @@
                                     <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
-                                    <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
                                 <?php endif; ?>
                             </div>
                             <?php if ($item['published_date']): ?>
@@ -348,7 +347,7 @@
                                 <span style="font-family: monospace;"><?= htmlspecialchars($lexItem['celex'] ?? '') ?></span>
                                 <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexIsEu ? 'EUR-Lex &rarr;' : 'Fedlex &rarr;' ?></a>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
-                                    <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
                                 <?php endif; ?>
                             </div>
                             <?php if ($lexDate): ?>
@@ -403,7 +402,7 @@
                                     <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
-                                    <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
                                 <?php endif; ?>
                             </div>
                             <?php if ($createdAt): ?>

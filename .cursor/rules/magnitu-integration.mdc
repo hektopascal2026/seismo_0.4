@@ -38,9 +38,14 @@ Magnitu connects via these endpoints in `index.php`. All require `Authorization:
 
 ## Key tables: `entry_scores`, `magnitu_config`
 
+## Shared Styleguide
+
+Magnitu uses Seismo's styleguide (`views/styleguide.php`, `assets/css/style.css`). When building or updating Magnitu's UI, follow the same design system: colors, typography, button styles, card layout, expand/collapse patterns, etc.
+
 ## Rules when changing seismo
 
 - Do NOT change the API response format without updating Magnitu's `sync.py`
 - Do NOT rename `entry_type` values — Magnitu depends on: `feed_item`, `email`, `lex_item`
 - The recipe JSON format (keywords, source_weights, classes, class_weights) is a contract — changes require updating both `scoreEntryWithRecipe()` in `config.php` AND `distiller.py` in Magnitu
 - Config keys in `magnitu_config` table: `api_key`, `alert_threshold`, `sort_by_relevance`, `recipe_json`, `recipe_version`, `last_sync_at`
+- When changing Seismo's styleguide or CSS, be aware that Magnitu's UI depends on the same design system
