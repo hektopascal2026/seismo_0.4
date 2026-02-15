@@ -144,9 +144,9 @@
                     <div style="display: flex; gap: 6px; align-items: center;">
                         <?php if (!empty($hasMagnituScores)): ?>
                             <?php if ($magnituSortByRelevance): ?>
-                                <a href="?action=index&sort=date&tags_submitted=1<?= !empty($selectedTags) ? '&' . http_build_query(['tags' => $selectedTags]) : '' ?>" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px; background:#FF6B6B;" title="Currently sorted by relevance. Click for chronological.">Sort by Date</a>
+                                <button onclick="toggleSort('date')" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px; background:#FF6B6B;" title="Currently sorted by relevance. Click for chronological.">Sort by Date</button>
                             <?php else: ?>
-                                <a href="?action=index&sort=relevance&tags_submitted=1<?= !empty($selectedTags) ? '&' . http_build_query(['tags' => $selectedTags]) : '' ?>" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;" title="Currently chronological. Click to sort by relevance.">Sort by Relevance</a>
+                                <button onclick="toggleSort('relevance')" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;" title="Currently chronological. Click to sort by relevance.">Sort by Relevance</button>
                             <?php endif; ?>
                         <?php endif; ?>
                         <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
@@ -408,6 +408,15 @@
             }
         });
     })();
+    </script>
+    <script>
+    // Sort toggle: swap sort param on current URL, preserving all filter state
+    function toggleSort(sortValue) {
+        var url = new URL(window.location);
+        url.searchParams.set('action', 'index');
+        url.searchParams.set('sort', sortValue);
+        window.location = url.toString();
+    }
     </script>
 </body>
 </html>

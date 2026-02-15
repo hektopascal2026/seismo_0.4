@@ -27,7 +27,10 @@ function getDbConnection() {
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
         } catch (PDOException $e) {
-            die("Database connection failed: " . $e->getMessage());
+            error_log("Seismo DB connection failed: " . $e->getMessage());
+            http_response_code(503);
+            echo '<!DOCTYPE html><html><head><title>Service Unavailable</title></head><body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h1>Service Unavailable</h1><p>Database connection failed. Please try again later.</p></body></html>';
+            exit;
         }
     }
     
@@ -35,10 +38,26 @@ function getDbConnection() {
 }
 
 /**
+ * Current schema version — bump this when DDL changes are made
+ */
+define('SCHEMA_VERSION', 2);
+
+/**
  * Initialize database tables
  */
 function initDatabase() {
     $pdo = getDbConnection();
+    
+    // Schema version guard: skip DDL if already up to date
+    try {
+        $vStmt = $pdo->query("SELECT config_value FROM magnitu_config WHERE config_key = 'schema_version'");
+        $currentVersion = $vStmt ? $vStmt->fetchColumn() : false;
+        if ($currentVersion !== false && (int)$currentVersion >= SCHEMA_VERSION) {
+            return; // Schema is up to date, skip DDL
+        }
+    } catch (PDOException $e) {
+        // Table doesn't exist yet — continue with full init
+    }
     
     // Create feeds table
     $pdo->exec("CREATE TABLE IF NOT EXISTS feeds (
@@ -285,6 +304,21 @@ function initDatabase() {
         INDEX idx_key (config_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     
+    // Add missing indexes for commonly queried columns
+    $missingIndexes = [
+        "CREATE INDEX idx_source_type ON feeds(source_type)",
+        "CREATE INDEX idx_removed_at ON sender_tags(removed_at)",
+        "CREATE INDEX idx_score_source ON entry_scores(score_source)",
+        "CREATE INDEX idx_date_received ON emails(date_received)",
+    ];
+    foreach ($missingIndexes as $indexSql) {
+        try {
+            $pdo->exec($indexSql);
+        } catch (PDOException $e) {
+            // Index already exists — ignore
+        }
+    }
+    
     // Seed default Magnitu config values (ignore if already exist)
     $magnituDefaults = [
         ['api_key', bin2hex(random_bytes(16))],
@@ -298,6 +332,11 @@ function initDatabase() {
     foreach ($magnituDefaults as $row) {
         $insertConfig->execute($row);
     }
+    
+    // Mark schema as up to date so DDL is skipped on subsequent requests
+    $pdo->prepare("INSERT INTO magnitu_config (config_key, config_value) VALUES ('schema_version', ?)
+        ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)")
+        ->execute([(string)SCHEMA_VERSION]);
 }
 
 /**

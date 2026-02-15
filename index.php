@@ -282,6 +282,7 @@ switch ($action) {
                 FROM entry_scores 
                 WHERE predicted_label IN ('investigation_lead', 'important')
                 ORDER BY predicted_label ASC, relevance_score DESC
+                LIMIT 500
             ");
             $scoredEntries = $scoredStmt->fetchAll();
             
@@ -305,7 +306,15 @@ switch ($action) {
                         $dateValue = $entryData['published_date'] ?? $entryData['cached_at'] ?? null;
                     }
                 } elseif ($scored['entry_type'] === 'email') {
-                    $stmt = $pdo->prepare("SELECT * FROM fetched_emails WHERE id = ?");
+                    // Resolve email table dynamically (fetched_emails or emails)
+                    if (!isset($emailTableName)) {
+                        $emailTableName = 'emails';
+                        $eTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+                        foreach ($eTables as $eT) {
+                            if (strtolower($eT) === 'fetched_emails') { $emailTableName = $eT; break; }
+                        }
+                    }
+                    $stmt = $pdo->prepare("SELECT * FROM `$emailTableName` WHERE id = ?");
                     $stmt->execute([$scored['entry_id']]);
                     $entryData = $stmt->fetch();
                     if ($entryData) {
@@ -506,7 +515,7 @@ switch ($action) {
         $mailTableError = null;
         $lastMailRefreshDate = null;
         $showAll = isset($_GET['show_all']) || isset($_SESSION['email_refresh_count']);
-        $limit = $showAll ? 10000 : 50; // Show all emails when refreshed
+        $limit = $showAll ? 500 : 50; // Show more emails when refreshed, capped for stability
         
         // Get all unique email tags (excluding unclassified and removed senders)
         $emailTagsStmt = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag");
@@ -814,7 +823,7 @@ switch ($action) {
         }
         $_SESSION['success'] = 'All Substack feeds refreshed successfully';
         header('Location: ?action=substack');
-        break;
+        exit;
         
     case 'add_feed':
         handleAddFeed($pdo);
@@ -829,17 +838,28 @@ switch ($action) {
         break;
         
     case 'view_feed':
-        $feedId = (int)$_GET['id'] ?? 0;
+        $feedId = (int)($_GET['id'] ?? 0);
         viewFeed($pdo, $feedId);
         break;
         
     case 'refresh_feed':
-        $feedId = (int)$_GET['id'] ?? 0;
+        $feedId = (int)($_GET['id'] ?? 0);
         refreshFeed($pdo, $feedId);
         header('Location: ?action=view_feed&id=' . $feedId);
-        break;
+        exit;
         
     case 'refresh_all':
+        // Cooldown: prevent rapid re-triggering (60s minimum between refreshes)
+        $lastRefreshAt = getMagnituConfig($pdo, 'last_refresh_at');
+        if ($lastRefreshAt && (time() - (int)$lastRefreshAt) < 60) {
+            $remaining = 60 - (time() - (int)$lastRefreshAt);
+            $_SESSION['error'] = "Please wait {$remaining}s before refreshing again.";
+            $currentAction = $_GET['from'] ?? 'index';
+            header('Location: ?action=' . $currentAction);
+            exit;
+        }
+        setMagnituConfig($pdo, 'last_refresh_at', (string)time());
+        
         // Global refresh: feeds (RSS + Substack) + emails + lex
         $results = [];
         
@@ -899,7 +919,7 @@ switch ($action) {
             $redirectUrl .= '&id=' . (int)$_GET['id'];
         }
         header('Location: ' . $redirectUrl);
-        break;
+        exit;
     
     case 'refresh_all_feeds':
         refreshAllFeeds($pdo);
@@ -912,17 +932,17 @@ switch ($action) {
         }
         $_SESSION['success'] = 'All feeds refreshed successfully';
         header('Location: ' . $redirectUrl);
-        break;
+        exit;
         
     case 'api_feeds':
         header('Content-Type: application/json');
-        $stmt = $pdo->query("SELECT * FROM feeds ORDER BY created_at DESC");
+        $stmt = $pdo->query("SELECT * FROM feeds ORDER BY created_at DESC LIMIT 1000");
         echo json_encode($stmt->fetchAll());
         break;
         
     case 'api_items':
         header('Content-Type: application/json');
-        $feedId = (int)$_GET['feed_id'] ?? 0;
+        $feedId = (int)($_GET['feed_id'] ?? 0);
         $stmt = $pdo->prepare("SELECT * FROM feed_items WHERE feed_id = ? ORDER BY published_date DESC LIMIT 50");
         $stmt->execute([$feedId]);
         echo json_encode($stmt->fetchAll());
@@ -952,7 +972,7 @@ switch ($action) {
         $redirectUrl = '?action=' . $currentAction . '&show_all=1';
         // Success message is set in refreshEmails() function
         header('Location: ' . $redirectUrl);
-        break;
+        exit;
         
     case 'delete_email':
         handleDeleteEmail($pdo);
@@ -1164,7 +1184,7 @@ switch ($action) {
             $_SESSION['success'] = 'Magnitu settings saved.';
         }
         header('Location: ?action=settings#magnitu-settings');
-        break;
+        exit;
     
     case 'regenerate_magnitu_key':
         // Generate a new API key
@@ -1174,7 +1194,7 @@ switch ($action) {
             $_SESSION['success'] = 'New Magnitu API key generated.';
         }
         header('Location: ?action=settings#magnitu-settings');
-        break;
+        exit;
     
     case 'clear_magnitu_scores':
         // Clear all scores (reset)
@@ -1186,7 +1206,7 @@ switch ($action) {
             $_SESSION['success'] = 'All Magnitu scores and recipe cleared.';
         }
         header('Location: ?action=settings#magnitu-settings');
-        break;
+        exit;
         
     case 'api_email_tags':
         header('Content-Type: application/json');
@@ -1276,7 +1296,7 @@ switch ($action) {
         }
         
         header('Location: ?action=lex');
-        break;
+        exit;
     
     case 'save_lex_config':
         // Save Lex config from the settings form
@@ -1320,7 +1340,7 @@ switch ($action) {
             }
         }
         header('Location: ?action=settings#lex-settings');
-        break;
+        exit;
     
     case 'upload_lex_config':
         // Upload a JSON config file to replace the current config
@@ -1343,7 +1363,7 @@ switch ($action) {
             }
         }
         header('Location: ?action=settings#lex-settings');
-        break;
+        exit;
     
     case 'download_lex_config':
         // Download the current config as a JSON file
@@ -1381,7 +1401,7 @@ switch ($action) {
             }
         }
         header('Location: ?action=settings');
-        break;
+        exit;
     
     case 'download_substack_config':
         $feeds = exportFeeds($pdo, 'substack');
@@ -1411,7 +1431,7 @@ switch ($action) {
             }
         }
         header('Location: ?action=settings');
-        break;
+        exit;
     
     case 'about':
         // About page with stats
@@ -1804,7 +1824,7 @@ switch ($action) {
     
     default:
         header('Location: ?action=index');
-        break;
+        exit;
 }
 
 function handleAddFeed($pdo) {
@@ -1855,6 +1875,7 @@ function handleAddFeed($pdo) {
     
     $_SESSION['success'] = 'Feed added successfully';
     header('Location: ?action=feeds');
+    exit;
 }
 
 function handleAddSubstack($pdo) {
@@ -1918,10 +1939,11 @@ function handleAddSubstack($pdo) {
     
     $_SESSION['success'] = 'Substack added successfully: ' . ($feed->get_title() ?: $url);
     header('Location: ?action=substack');
+    exit;
 }
 
 function handleDeleteFeed($pdo) {
-    $feedId = (int)$_GET['id'] ?? 0;
+    $feedId = (int)($_GET['id'] ?? 0);
     $from = $_GET['from'] ?? 'feeds';
     
     $stmt = $pdo->prepare("DELETE FROM feeds WHERE id = ?");
@@ -1930,10 +1952,11 @@ function handleDeleteFeed($pdo) {
     $_SESSION['success'] = 'Feed deleted successfully';
     $redirectUrl = $from === 'settings' ? '?action=settings' : '?action=feeds';
     header('Location: ' . $redirectUrl);
+    exit;
 }
 
 function handleToggleFeed($pdo) {
-    $feedId = (int)$_GET['id'] ?? 0;
+    $feedId = (int)($_GET['id'] ?? 0);
     $from = $_GET['from'] ?? 'feeds';
     
     // Get current disabled status
@@ -1957,6 +1980,7 @@ function handleToggleFeed($pdo) {
     $_SESSION['success'] = 'Feed ' . $statusText . ' successfully';
     $redirectUrl = $from === 'settings' ? '?action=settings' : '?action=feeds';
     header('Location: ' . $redirectUrl);
+    exit;
 }
 
 function viewFeed($pdo, $feedId) {
@@ -2481,7 +2505,7 @@ function highlightSearchTerm($text, $searchQuery) {
 function handleUpdateFeedTag($pdo) {
     header('Content-Type: application/json');
     
-    $feedId = (int)$_POST['feed_id'] ?? 0;
+    $feedId = (int)($_POST['feed_id'] ?? 0);
     $tag = trim($_POST['tag'] ?? '');
     
     if (!$feedId) {
@@ -2625,6 +2649,7 @@ function handleToggleSender($pdo) {
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Sender ' . $statusText . ' successfully';
     header('Location: ?action=settings');
+    exit;
 }
 
 function handleDeleteSender($pdo) {
@@ -2644,6 +2669,7 @@ function handleDeleteSender($pdo) {
     
     $_SESSION['success'] = "Sender removed from Seismo.\nFuture emails from this address will be tagged as \"unsortiert\" until you reassign them.\nTo stop receiving these emails, you need to manually unsubscribe from the sender's press releases.";
     header('Location: ?action=settings');
+    exit;
 }
 
 function handleDeleteEmail($pdo) {
@@ -2718,6 +2744,7 @@ function handleDeleteEmail($pdo) {
     }
     
     header('Location: ?action=mail');
+    exit;
 }
 
 /**
@@ -2986,7 +3013,7 @@ function refreshEmails($pdo) {
 function magnituRescore($pdo, $recipeData) {
     if (empty($recipeData) || empty($recipeData['keywords'])) return;
     
-    // Score feed_items that don't have a magnitu score
+    // Score feed_items that don't have a magnitu score (batched for stability)
     $stmt = $pdo->query("
         SELECT fi.id, fi.title, fi.description, fi.content, f.source_type
         FROM feed_items fi
@@ -2996,6 +3023,7 @@ function magnituRescore($pdo, $recipeData) {
               SELECT 1 FROM entry_scores es 
               WHERE es.entry_type = 'feed_item' AND es.entry_id = fi.id AND es.score_source = 'magnitu'
           )
+        LIMIT 500
     ");
     $upsert = $pdo->prepare("
         INSERT INTO entry_scores (entry_type, entry_id, relevance_score, predicted_label, explanation, score_source, model_version)
@@ -3032,6 +3060,7 @@ function magnituRescore($pdo, $recipeData) {
                 SELECT 1 FROM entry_scores es 
                 WHERE es.entry_type = 'lex_item' AND es.entry_id = li.id AND es.score_source = 'magnitu'
             )
+            LIMIT 500
         ");
         foreach ($stmt->fetchAll() as $row) {
             $sourceType = 'lex_' . ($row['source'] ?? 'eu');
@@ -3078,6 +3107,7 @@ function magnituRescore($pdo, $recipeData) {
                 SELECT 1 FROM entry_scores es 
                 WHERE es.entry_type = 'email' AND es.entry_id = e.id AND es.score_source = 'magnitu'
             )
+            LIMIT 500
         ");
         $upsertEmail = $pdo->prepare("
             INSERT INTO entry_scores (entry_type, entry_id, relevance_score, predicted_label, explanation, score_source, model_version)
