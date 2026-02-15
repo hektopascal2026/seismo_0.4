@@ -1,0 +1,12 @@
+# Pass Authorization header through to PHP on CGI/FastCGI hosting
+# Without this, shared hosts that run PHP as CGI strip the Authorization header
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} .+
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# Fallback for setenvif-based approach
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>

@@ -1,0 +1,16 @@
+{
+    "name": "seismo/rss-reader",
+    "description": "RSS Reader using SimplePie",
+    "type": "project",
+    "require": {
+        "php": ">=7.2",
+        "simplepie/simplepie": "^1.9",
+        "php-mime-mail-parser/php-mime-mail-parser": "^1.0",
+        "easyrdf/easyrdf": "^1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Seismo\\": "src/"
+        }
+    }
+}

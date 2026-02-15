@@ -1,0 +1,46 @@
+---
+description: Magnitu ML integration — API contract and coordination rules
+alwaysApply: true
+---
+
+# Magnitu Integration
+
+Seismo has a companion project called **Magnitu** (separate repo at `../../../magnitu/`). Magnitu is a local Python app that learns which feed entries are relevant via ML and pushes scores back to Seismo via API.
+
+## API Contract (seismo is the server)
+
+Magnitu connects via these endpoints in `index.php`. All require `Authorization: Bearer <api_key>` header:
+
+- `GET ?action=magnitu_entries` — export entries (params: `since`, `type`, `limit`)
+- `POST ?action=magnitu_scores` — receive batch scores (body: `{scores: [...], model_version}`)
+- `GET/POST ?action=magnitu_recipe` — GET returns recipe; POST receives new recipe + triggers re-scoring
+- `GET ?action=magnitu_status` — connectivity check + score coverage stats
+
+## Entry format returned by magnitu_entries
+
+```json
+{
+  "entry_type": "feed_item|email|lex_item",
+  "entry_id": 123,
+  "title": "...", "description": "...", "content": "...",
+  "link": "...", "author": "...", "published_date": "...",
+  "source_name": "...", "source_category": "...", "source_type": "rss|substack|email|lex_eu|lex_ch"
+}
+```
+
+## Score format expected by magnitu_scores
+
+```json
+{"entry_type": "feed_item", "entry_id": 123, "relevance_score": 0.87, "predicted_label": "investigation_lead", "explanation": {"top_features": [...], "confidence": 0.87, "prediction": "investigation_lead"}}
+```
+
+## Labels: investigation_lead, important, background, noise
+
+## Key tables: `entry_scores`, `magnitu_config`
+
+## Rules when changing seismo
+
+- Do NOT change the API response format without updating Magnitu's `sync.py`
+- Do NOT rename `entry_type` values — Magnitu depends on: `feed_item`, `email`, `lex_item`
+- The recipe JSON format (keywords, source_weights, classes, class_weights) is a contract — changes require updating both `scoreEntryWithRecipe()` in `config.php` AND `distiller.py` in Magnitu
+- Config keys in `magnitu_config` table: `api_key`, `alert_threshold`, `sort_by_relevance`, `recipe_json`, `recipe_version`, `last_sync_at`
