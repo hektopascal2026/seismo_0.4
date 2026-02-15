@@ -1702,7 +1702,7 @@ switch ($action) {
         
         echo json_encode([
             'status' => 'ok',
-            'version' => '0.3.2',
+            'version' => '0.4',
             'entries' => [
                 'feed_items' => (int)$totalFeedItems,
                 'emails' => (int)$totalEmails,
