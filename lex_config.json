@@ -28,5 +28,19 @@
             { "id": 32, "label": "Internationaler Rechtstext multilateral" }
         ],
         "notes": "Queries Fedlex for Swiss federal legislation (Acts) published in the Bundesblatt, in German."
+    },
+    "ch_bger": {
+        "enabled": true,
+        "base_url": "https://entscheidsuche.ch",
+        "lookback_days": 90,
+        "limit": 100,
+        "notes": "Swiss Federal Supreme Court decisions via entscheidsuche.ch index manifests."
+    },
+    "ch_bge": {
+        "enabled": false,
+        "base_url": "https://entscheidsuche.ch",
+        "lookback_days": 90,
+        "limit": 50,
+        "notes": "Published leading decisions (Leitentscheide / BGE) via entscheidsuche.ch."
     }
 }

@@ -137,6 +137,7 @@
             <a href="?action=magnitu" class="nav-link">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
             <a href="?action=lex" class="nav-link">Lex</a>
+            <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
             <a href="?action=substack" class="nav-link">Substack</a>
             <a href="?action=settings" class="nav-link active">Settings</a>
@@ -577,7 +578,7 @@
         <?php endif; ?>
 
         <?php if ($settingsTab === 'lex'): ?>
-        <p style="font-size: 12px; margin-bottom: 16px;">Configure EU, Swiss and German legislation monitoring.</p>
+        <p style="font-size: 12px; margin-bottom: 16px;">Configure EU, Swiss and German legislation monitoring, and Swiss case law (Jus).</p>
 
         <!-- Lex Section -->
         <section class="settings-section" id="lex-settings">
@@ -757,6 +758,84 @@
                         <a href="https://www.recht.bund.de/" target="_blank" rel="noopener" style="text-decoration: underline;">recht.bund.de</a>
                         &middot;
                         <a href="https://www.gesetze-im-internet.de/" target="_blank" rel="noopener" style="text-decoration: underline;">gesetze-im-internet.de</a>
+                    </div>
+                </div>
+
+                <!-- JUS: CH_BGer Configuration -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">⚖️ BGer (Bundesgericht)</label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" name="ch_bger_enabled" value="1" <?= ($lexConfig['ch_bger']['enabled'] ?? false) ? 'checked' : '' ?>>
+                            Enabled
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Lookback (days)</label>
+                            <input type="number" name="ch_bger_lookback_days" value="<?= (int)($lexConfig['ch_bger']['lookback_days'] ?? 90) ?>" min="1" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results</label>
+                            <input type="number" name="ch_bger_limit" value="<?= (int)($lexConfig['ch_bger']['limit'] ?? 100) ?>" min="1" max="500"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="ch_bger_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($lexConfig['ch_bger']['notes'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        Source: Swiss Federal Supreme Court decisions via
+                        <a href="https://entscheidsuche.ch" target="_blank" rel="noopener" style="text-decoration: underline;">entscheidsuche.ch</a>
+                        &middot;
+                        Index: <code style="font-size: 12px;">https://entscheidsuche.ch/docs/Index/CH_BGer/last</code>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 12px; line-height: 1.6;">
+                        Uses incremental index manifests — only fetches new/updated decisions per run.
+                        <a href="https://entscheidsuche.ch/pdf/EntscheidsucheAPI.pdf" target="_blank" rel="noopener" style="text-decoration: underline;">API documentation</a>
+                    </div>
+                </div>
+
+                <!-- JUS: CH_BGE Configuration -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">⚖️ BGE (Leitentscheide)</label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" name="ch_bge_enabled" value="1" <?= ($lexConfig['ch_bge']['enabled'] ?? false) ? 'checked' : '' ?>>
+                            Enabled
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Lookback (days)</label>
+                            <input type="number" name="ch_bge_lookback_days" value="<?= (int)($lexConfig['ch_bge']['lookback_days'] ?? 90) ?>" min="1" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results</label>
+                            <input type="number" name="ch_bge_limit" value="<?= (int)($lexConfig['ch_bge']['limit'] ?? 50) ?>" min="1" max="500"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="ch_bge_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($lexConfig['ch_bge']['notes'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        Source: Published leading decisions (Leitentscheide) from the Swiss Federal Supreme Court via
+                        <a href="https://entscheidsuche.ch" target="_blank" rel="noopener" style="text-decoration: underline;">entscheidsuche.ch</a>
+                        &middot;
+                        Index: <code style="font-size: 12px;">https://entscheidsuche.ch/docs/Index/CH_BGE/last</code>
                     </div>
                 </div>
 

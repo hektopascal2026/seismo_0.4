@@ -15,7 +15,7 @@ $pdo = getDbConnection();
 // Release session lock early for read-only pages (prevents blocking concurrent requests).
 // The hosting provider rate-limits concurrent HTTP requests per IP (~5); holding the
 // PHP session file lock causes overlapping requests to queue, easily hitting that limit.
-$readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'mail', 'substack', 'magnitu', 'settings', 'about', 'beta', 'styleguide',
+$readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'jus', 'mail', 'substack', 'magnitu', 'settings', 'about', 'beta', 'styleguide',
                     'api_tags', 'api_substack_tags', 'api_email_tags', 'api_all_tags', 'api_items', 'api_stats',
                     'download_rss_config', 'download_substack_config', 'download_lex_config',
                     'magnitu_entries', 'magnitu_status'];
@@ -60,7 +60,7 @@ switch ($action) {
             $selectedTags = array_values(array_filter($tags, function($t) { return $t !== 'unsortiert'; }));
             $selectedEmailTags = array_values(array_filter($emailTags, function($t) { return $t !== 'unsortiert' && $t !== 'unclassified'; }));
             $selectedSubstackTags = $substackTags; // select all by default
-            $selectedLexSources = ['eu', 'ch', 'de']; // all active by default
+            $selectedLexSources = ['eu', 'ch', 'de', 'ch_bger', 'ch_bge']; // all active by default
         }
         
         // If search query exists, show search results instead of latest items
@@ -926,6 +926,24 @@ switch ($action) {
             }
         }
         
+        // 3b. Refresh JUS items (Swiss case law)
+        if ($lexCfg['ch_bger']['enabled'] ?? false) {
+            try {
+                $countBger = refreshJusItems($pdo, 'CH_BGer');
+                $results[] = "⚖️ $countBger BGer items";
+            } catch (Exception $e) {
+                $results[] = '⚖️ BGer: ' . $e->getMessage();
+            }
+        }
+        if ($lexCfg['ch_bge']['enabled'] ?? false) {
+            try {
+                $countBge = refreshJusItems($pdo, 'CH_BGE');
+                $results[] = "⚖️ $countBge BGE items";
+            } catch (Exception $e) {
+                $results[] = '⚖️ BGE: ' . $e->getMessage();
+            }
+        }
+        
         // 4. Magnitu recipe scoring for new entries
         try {
             $recipeJson = getMagnituConfig($pdo, 'recipe_json');
@@ -1353,6 +1371,81 @@ switch ($action) {
         header('Location: ?action=lex');
         exit;
     
+    case 'jus':
+        // Show JUS entries page — Swiss case law from entscheidsuche.ch
+        $jusItems = [];
+        
+        // Determine active sources from query params (default: all active)
+        $sourcesSubmitted = isset($_GET['sources_submitted']);
+        if ($sourcesSubmitted) {
+            $activeJusSources = isset($_GET['sources']) ? (array)$_GET['sources'] : [];
+        } else {
+            $activeJusSources = ['ch_bger', 'ch_bge']; // All active by default
+        }
+        
+        try {
+            if (!empty($activeJusSources)) {
+                $placeholders = implode(',', array_fill(0, count($activeJusSources), '?'));
+                $stmt = $pdo->prepare("SELECT * FROM lex_items WHERE source IN ($placeholders) ORDER BY document_date DESC LIMIT 50");
+                $stmt->execute($activeJusSources);
+                $jusItems = $stmt->fetchAll();
+            }
+            
+            // Get last refresh dates per source
+            $lastRefreshBgerStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'ch_bger'");
+            $lastRefreshBgerRow = $lastRefreshBgerStmt->fetch();
+            $lastJusRefreshDateBger = ($lastRefreshBgerRow && $lastRefreshBgerRow['last_refresh']) 
+                ? date('d.m.Y H:i', strtotime($lastRefreshBgerRow['last_refresh'])) : null;
+            
+            $lastRefreshBgeStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'ch_bge'");
+            $lastRefreshBgeRow = $lastRefreshBgeStmt->fetch();
+            $lastJusRefreshDateBge = ($lastRefreshBgeRow && $lastRefreshBgeRow['last_refresh']) 
+                ? date('d.m.Y H:i', strtotime($lastRefreshBgeRow['last_refresh'])) : null;
+        } catch (PDOException $e) {
+            // Table might not exist yet on first load
+        }
+        
+        include 'views/jus.php';
+        break;
+    
+    case 'refresh_all_jus':
+        // Refresh JUS items from entscheidsuche.ch (BGer + BGE)
+        $lexCfg = getLexConfig();
+        $messages = [];
+        $errors = [];
+        
+        if ($lexCfg['ch_bger']['enabled'] ?? false) {
+            try {
+                $countBger = refreshJusItems($pdo, 'CH_BGer');
+                $messages[] = "⚖️ $countBger items from BGer";
+            } catch (Exception $e) {
+                $errors[] = '⚖️ BGer: ' . $e->getMessage();
+            }
+        } else {
+            $messages[] = '⚖️ BGer skipped (disabled)';
+        }
+        
+        if ($lexCfg['ch_bge']['enabled'] ?? false) {
+            try {
+                $countBge = refreshJusItems($pdo, 'CH_BGE');
+                $messages[] = "⚖️ $countBge items from BGE";
+            } catch (Exception $e) {
+                $errors[] = '⚖️ BGE: ' . $e->getMessage();
+            }
+        } else {
+            $messages[] = '⚖️ BGE skipped (disabled)';
+        }
+        
+        if (!empty($messages)) {
+            $_SESSION['success'] = 'JUS refreshed: ' . implode(', ', $messages) . '.';
+        }
+        if (!empty($errors)) {
+            $_SESSION['error'] = 'Errors: ' . implode(' | ', $errors);
+        }
+        
+        header('Location: ?action=jus');
+        exit;
+    
     case 'save_lex_config':
         // Save Lex config from the settings form
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -1394,6 +1487,18 @@ switch ($action) {
             $config['de']['limit']         = max(1, (int)($_POST['de_limit'] ?? 100));
             $config['de']['notes']         = trim($_POST['de_notes'] ?? '');
             
+            // JUS: CH_BGer settings
+            $config['ch_bger']['enabled']       = isset($_POST['ch_bger_enabled']);
+            $config['ch_bger']['lookback_days'] = max(1, (int)($_POST['ch_bger_lookback_days'] ?? 90));
+            $config['ch_bger']['limit']         = max(1, (int)($_POST['ch_bger_limit'] ?? 100));
+            $config['ch_bger']['notes']         = trim($_POST['ch_bger_notes'] ?? '');
+            
+            // JUS: CH_BGE settings
+            $config['ch_bge']['enabled']       = isset($_POST['ch_bge_enabled']);
+            $config['ch_bge']['lookback_days'] = max(1, (int)($_POST['ch_bge_lookback_days'] ?? 90));
+            $config['ch_bge']['limit']         = max(1, (int)($_POST['ch_bge_limit'] ?? 50));
+            $config['ch_bge']['notes']         = trim($_POST['ch_bge_notes'] ?? '');
+            
             if (saveLexConfig($config)) {
                 $_SESSION['success'] = 'Lex configuration saved.';
             } else {
@@ -1410,7 +1515,7 @@ switch ($action) {
             if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
                 $content = file_get_contents($file['tmp_name']);
                 $parsed = json_decode($content, true);
-                if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']))) {
+                if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']))) {
                     if (saveLexConfig($parsed)) {
                         $_SESSION['success'] = 'Lex config file uploaded and applied.';
                     } else {
@@ -1513,6 +1618,8 @@ switch ($action) {
             $stats['lex_eu'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'eu'")->fetchColumn();
             $stats['lex_ch'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch'")->fetchColumn();
             $stats['lex_de'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'de'")->fetchColumn();
+            $stats['jus_bger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bger'")->fetchColumn();
+            $stats['jus_bge'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bge'")->fetchColumn();
         } catch (PDOException $e) {
             // Tables might not exist yet
         }
@@ -1661,7 +1768,13 @@ switch ($action) {
                         'link' => $row['eurlex_url'] ?? '',
                         'author' => '',
                         'published_date' => $row['document_date'],
-                        'source_name' => $row['source'] === 'ch' ? 'Fedlex' : ($row['source'] === 'de' ? 'recht.bund.de' : 'EUR-Lex'),
+                        'source_name' => match($row['source'] ?? 'eu') {
+                            'ch' => 'Fedlex',
+                            'de' => 'recht.bund.de',
+                            'ch_bger' => 'Bundesgericht',
+                            'ch_bge' => 'BGE Leitentscheide',
+                            default => 'EUR-Lex',
+                        },
                         'source_category' => $row['document_type'] ?? 'Legislation',
                         'source_type' => 'lex_' . ($row['source'] ?? 'eu'),
                     ];
@@ -3180,6 +3293,178 @@ function parseRechtBundType($title) {
     if (stripos($title, 'verordnung') !== false) return 'Verordnung';
     
     return 'BGBl';
+}
+
+/**
+ * Refresh JUS items (Swiss case law) from entscheidsuche.ch.
+ * Uses the index manifest for incremental sync, then fetches individual decision JSONs.
+ * Supports both CH_BGer (Bundesgericht) and CH_BGE (Leitentscheide).
+ *
+ * @param PDO $pdo
+ * @param string $spider 'CH_BGer' or 'CH_BGE'
+ * @return int Number of items upserted
+ */
+function refreshJusItems($pdo, $spider = 'CH_BGer') {
+    $sourceKey = ($spider === 'CH_BGE') ? 'ch_bge' : 'ch_bger';
+    $config = getLexConfig();
+    $cfg = $config[$sourceKey] ?? [];
+    if (!($cfg['enabled'] ?? false)) return 0;
+    
+    $baseUrl = rtrim($cfg['base_url'] ?? 'https://entscheidsuche.ch', '/');
+    $lookback = (int)($cfg['lookback_days'] ?? 90);
+    $limit = (int)($cfg['limit'] ?? 100);
+    $cutoffDate = date('Y-m-d', strtotime("-{$lookback} days"));
+    
+    // 1. Fetch the latest index manifest
+    $indexUrl = "{$baseUrl}/docs/Index/{$spider}/last";
+    $ch = curl_init($indexUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'Seismo/0.4 (case-law-monitor)',
+    ]);
+    $indexJson = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || empty($indexJson)) {
+        throw new Exception("Failed to fetch index manifest from {$indexUrl} (HTTP {$httpCode})");
+    }
+    
+    $index = json_decode($indexJson, true);
+    if (!$index || !isset($index['actions'])) {
+        // Empty actions means no changes — not an error
+        if (isset($index['spider'])) return 0;
+        throw new Exception("Invalid index manifest from {$indexUrl}");
+    }
+    
+    $actions = $index['actions'];
+    if (empty($actions)) return 0;
+    
+    // 2. Filter to new/update actions only, pre-filter by date from filename
+    $filesToFetch = [];
+    foreach ($actions as $filePath => $action) {
+        if ($action === 'delete') continue;
+        
+        // Extract date from filename: CH_BGer_007_7B-835-2025_2025-09-18.json → 2025-09-18
+        if (preg_match('/_(\d{4}-\d{2}-\d{2})\.json$/', $filePath, $m)) {
+            $fileDate = $m[1];
+            if ($fileDate < $cutoffDate) continue; // Skip old decisions
+        }
+        
+        $filesToFetch[] = $filePath;
+        if (count($filesToFetch) >= $limit) break;
+    }
+    
+    if (empty($filesToFetch)) return 0;
+    
+    // 3. Fetch each decision JSON and upsert into lex_items
+    $upsert = $pdo->prepare("
+        INSERT INTO lex_items (celex, title, document_date, document_type, eurlex_url, work_uri, source)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            document_date = VALUES(document_date),
+            document_type = VALUES(document_type),
+            eurlex_url = VALUES(eurlex_url),
+            work_uri = VALUES(work_uri),
+            fetched_at = CURRENT_TIMESTAMP
+    ");
+    
+    $count = 0;
+    $mh = curl_multi_init();
+    $handles = [];
+    
+    // Batch fetch in groups of 10 for efficiency
+    $batches = array_chunk($filesToFetch, 10);
+    foreach ($batches as $batch) {
+        $handles = [];
+        foreach ($batch as $filePath) {
+            $url = "{$baseUrl}/docs/{$filePath}";
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_USERAGENT => 'Seismo/0.4 (case-law-monitor)',
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[] = ['handle' => $ch, 'path' => $filePath];
+        }
+        
+        // Execute batch
+        $running = null;
+        do {
+            curl_multi_exec($mh, $running);
+            curl_multi_select($mh);
+        } while ($running > 0);
+        
+        // Process results
+        foreach ($handles as $h) {
+            $ch = $h['handle'];
+            $filePath = $h['path'];
+            $body = curl_multi_getcontent($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            
+            if ($code !== 200 || empty($body)) continue;
+            
+            $decision = json_decode($body, true);
+            if (!$decision) continue;
+            
+            // Extract slug from path: CH_BGer/CH_BGer_007_7B-835-2025_2025-09-18.json → CH_BGer_007_7B-835-2025_2025-09-18
+            $slug = pathinfo(basename($filePath), PATHINFO_FILENAME);
+            
+            // Filter by date again (from JSON Datum field for accuracy)
+            $datum = $decision['Datum'] ?? null;
+            if ($datum && $datum < $cutoffDate) continue;
+            
+            // Map fields
+            $signatur = $decision['Signatur'] ?? '';
+            
+            // Title: Kopfzeile[0].Text (fallback to Num)
+            $title = '';
+            if (!empty($decision['Kopfzeile'][0]['Text'])) {
+                $title = $decision['Kopfzeile'][0]['Text'];
+            } elseif (!empty($decision['Abstract'][0]['Text'])) {
+                $title = $decision['Abstract'][0]['Text'];
+            }
+            if (empty($title)) {
+                $nums = $decision['Num'] ?? [];
+                $title = is_array($nums) ? ($nums[0] ?? $slug) : ($nums ?: $slug);
+            }
+            
+            // Document type: chamber label from Signatur
+            $documentType = getJusChamberLabel($signatur);
+            
+            // URL: prefer official HTML URL, fallback to entscheidsuche.ch viewer
+            $eurlex_url = '';
+            if (!empty($decision['HTML']['URL'])) {
+                $eurlex_url = $decision['HTML']['URL'];
+            } else {
+                $eurlex_url = "{$baseUrl}/view/{$slug}";
+            }
+            
+            // Work URI: direct JSON file URL
+            $work_uri = "{$baseUrl}/docs/{$filePath}";
+            
+            $upsert->execute([
+                $slug,          // celex
+                $title,         // title
+                $datum,         // document_date
+                $documentType,  // document_type
+                $eurlex_url,    // eurlex_url
+                $work_uri,      // work_uri
+                $sourceKey,     // source: ch_bger or ch_bge
+            ]);
+            $count++;
+        }
+    }
+    
+    curl_multi_close($mh);
+    return $count;
 }
 
 function refreshEmails($pdo) {

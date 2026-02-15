@@ -40,7 +40,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 2);
+define('SCHEMA_VERSION', 3);
 
 /**
  * Initialize database tables
@@ -225,7 +225,7 @@ function initDatabase() {
         }
     }
     
-    // Create lex_items table for EU + CH legislation tracking
+    // Create lex_items table for EU + CH legislation tracking + JUS (case law)
     $pdo->exec("CREATE TABLE IF NOT EXISTS lex_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         celex VARCHAR(100) NOT NULL UNIQUE,
@@ -234,7 +234,7 @@ function initDatabase() {
         document_type VARCHAR(100) DEFAULT NULL,
         eurlex_url VARCHAR(500) DEFAULT NULL,
         work_uri VARCHAR(500) DEFAULT NULL,
-        source VARCHAR(10) DEFAULT 'eu',
+        source VARCHAR(20) DEFAULT 'eu',
         fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_celex (celex),
@@ -245,11 +245,18 @@ function initDatabase() {
     
     // Add source column to lex_items if it doesn't exist (for existing installations)
     try {
-        $pdo->exec("ALTER TABLE lex_items ADD COLUMN source VARCHAR(10) DEFAULT 'eu' AFTER work_uri");
+        $pdo->exec("ALTER TABLE lex_items ADD COLUMN source VARCHAR(20) DEFAULT 'eu' AFTER work_uri");
     } catch (PDOException $e) {
         if (strpos($e->getMessage(), 'Duplicate column name') === false) {
             throw $e;
         }
+    }
+    
+    // Widen source column to VARCHAR(20) for JUS sources (ch_bger, ch_bge, etc.)
+    try {
+        $pdo->exec("ALTER TABLE lex_items MODIFY COLUMN source VARCHAR(20) DEFAULT 'eu'");
+    } catch (PDOException $e) {
+        // Ignore if it fails
     }
     
     // Add source index if it doesn't exist
@@ -583,7 +590,50 @@ function getLexConfig() {
             'limit' => 100,
             'notes' => '',
         ],
+        'ch_bger' => [
+            'enabled' => true,
+            'base_url' => 'https://entscheidsuche.ch',
+            'lookback_days' => 90,
+            'limit' => 100,
+            'notes' => '',
+        ],
+        'ch_bge' => [
+            'enabled' => false,
+            'base_url' => 'https://entscheidsuche.ch',
+            'lookback_days' => 90,
+            'limit' => 50,
+            'notes' => '',
+        ],
     ];
+}
+
+/**
+ * Map a BGer/BGE Signatur code to a human-readable chamber label.
+ * Falls back to the raw signatur if unknown.
+ */
+function getJusChamberLabel($signatur) {
+    static $map = [
+        'CH_BGer_001' => 'I. öffentlich-rechtliche Abteilung',
+        'CH_BGer_002' => 'II. öffentlich-rechtliche Abteilung',
+        'CH_BGer_004' => 'I. zivilrechtliche Abteilung',
+        'CH_BGer_005' => 'II. zivilrechtliche Abteilung',
+        'CH_BGer_006' => 'Strafrechtliche Abteilung',
+        'CH_BGer_007' => 'Beschwerdekammer Strafrecht',
+        'CH_BGer_008' => 'I. sozialrechtliche Abteilung',
+        'CH_BGer_009' => 'II. sozialrechtliche Abteilung',
+        'CH_BGer_012' => 'Vereinigte Abteilungen',
+        'CH_BGE_001' => 'I. öffentlich-rechtliche Abteilung',
+        'CH_BGE_002' => 'II. öffentlich-rechtliche Abteilung',
+        'CH_BGE_004' => 'I. zivilrechtliche Abteilung',
+        'CH_BGE_005' => 'II. zivilrechtliche Abteilung',
+        'CH_BGE_006' => 'Strafrechtliche Abteilung',
+        'CH_BGE_007' => 'Beschwerdekammer Strafrecht',
+        'CH_BGE_008' => 'I. sozialrechtliche Abteilung',
+        'CH_BGE_009' => 'II. sozialrechtliche Abteilung',
+        'CH_BGE_012' => 'Vereinigte Abteilungen',
+        'CH_BGE_999' => 'Nicht publiziert',
+    ];
+    return $map[$signatur] ?? $signatur;
 }
 
 /**

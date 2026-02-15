@@ -35,6 +35,7 @@
             <a href="?action=magnitu" class="nav-link">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
             <a href="?action=lex" class="nav-link">Lex</a>
+            <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
             <a href="?action=substack" class="nav-link">Substack</a>
             <a href="?action=settings" class="nav-link">Settings</a>
@@ -117,6 +118,18 @@
                             <label class="tag-filter-pill<?= $lexDeSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexDeSelected ? ' style="background-color: #f5f562;"' : '' ?>>
                                 <input type="checkbox" name="lex_sources[]" value="de" <?= $lexDeSelected ? 'checked' : '' ?> onchange="this.form.submit()">
                                 <span>🇩🇪 DE Lex</span>
+                            </label>
+                            <?php
+                                $jusBgerSelected = !empty($selectedLexSources) && in_array('ch_bger', $selectedLexSources, true);
+                                $jusBgeSelected = !empty($selectedLexSources) && in_array('ch_bge', $selectedLexSources, true);
+                            ?>
+                            <label class="tag-filter-pill<?= $jusBgerSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBgerSelected ? ' style="background-color: #f5f562;"' : '' ?>>
+                                <input type="checkbox" name="lex_sources[]" value="ch_bger" <?= $jusBgerSelected ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span>⚖️ BGer</span>
+                            </label>
+                            <label class="tag-filter-pill<?= $jusBgeSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBgeSelected ? ' style="background-color: #f5f562;"' : '' ?>>
+                                <input type="checkbox" name="lex_sources[]" value="ch_bge" <?= $jusBgeSelected ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span>⚖️ BGE</span>
                             </label>
                         </div>
                     </div>
@@ -229,7 +242,13 @@
                         <?php $lexItem = $itemWrapper['data']; ?>
                         <?php
                             $lexSource = $lexItem['source'] ?? 'eu';
-                            if ($lexSource === 'de') {
+                            if ($lexSource === 'ch_bger') {
+                                $lexSourceEmoji = '⚖️';
+                                $lexSourceLabel = 'BGer';
+                            } elseif ($lexSource === 'ch_bge') {
+                                $lexSourceEmoji = '⚖️';
+                                $lexSourceLabel = 'BGE';
+                            } elseif ($lexSource === 'de') {
                                 $lexSourceEmoji = '🇩🇪';
                                 $lexSourceLabel = 'DE';
                             } elseif ($lexSource === 'ch') {

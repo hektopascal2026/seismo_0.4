@@ -96,6 +96,7 @@
             <a href="?action=magnitu" class="nav-link">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
             <a href="?action=lex" class="nav-link">Lex</a>
+            <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
             <a href="?action=substack" class="nav-link">Substack</a>
             <a href="?action=settings" class="nav-link">Settings</a>
@@ -108,7 +109,7 @@
             <h2>What is Seismo?</h2>
             <p>
                 Seismo is a self-hosted monitoring dashboard that aggregates information from multiple sources into a single feed.
-                It tracks RSS feeds, email newsletters, Substack publications, and legislative changes from the European Union, Switzerland, and Germany — helping you stay informed about policy, regulation, and media that matter.
+                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the European Union, Switzerland, and Germany, and Swiss case law — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
             </p>
         </section>
 
@@ -139,6 +140,14 @@
                 <li>
                     <span class="about-source-label" style="background-color: #f5f562;">🇩🇪 DE Lex</span>
                     German federal legislation via RSS from <a href="https://www.recht.bund.de/" class="about-link" target="_blank" rel="noopener">recht.bund.de</a> — Bundesgesetzblatt Teil I + II (Gesetze, Verordnungen, Bekanntmachungen)
+                </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #f5f562;">⚖️ BGer Jus</span>
+                    Swiss Federal Supreme Court decisions via <a href="https://entscheidsuche.ch" class="about-link" target="_blank" rel="noopener">entscheidsuche.ch</a> — incremental sync via index manifests
+                </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #f5f562;">⚖️ BGE Jus</span>
+                    Published leading decisions (Leitentscheide / BGE) from the Swiss Federal Supreme Court via <a href="https://entscheidsuche.ch" class="about-link" target="_blank" rel="noopener">entscheidsuche.ch</a>
                 </li>
             </ul>
         </section>
@@ -207,6 +216,7 @@
                 <li><strong>RSS feeds:</strong> <?= number_format($stats['feeds'] ?? 0) ?> feeds, <?= number_format($stats['feed_items'] ?? 0) ?> items</li>
                 <li><strong>Emails:</strong> <?= number_format($stats['emails'] ?? 0) ?> messages</li>
                 <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE</li>
+                <li><strong>Jus items:</strong> <?= number_format($stats['jus_bger'] ?? 0) ?> BGer, <?= number_format($stats['jus_bge'] ?? 0) ?> BGE</li>
             </ul>
         </section>
 
