@@ -51,21 +51,14 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <!-- Magnitu Explainer -->
-        <div class="magnitu-explainer">
-            <p>Entries the relevance model considers worth your attention. <strong>Investigation leads</strong> could start an investigative story. <strong>Important</strong> entries are significant developments. The model learns from your labels &mdash; the more you label, the sharper it gets.</p>
-            <?php if (empty($investigationItems) && empty($importantItems)): ?>
-                <p>No scored entries yet. Train a model in Magnitu and push scores to see results here.</p>
-            <?php else: ?>
-                <p><?= count($investigationItems) ?> investigation lead<?= count($investigationItems) !== 1 ? 's' : '' ?> · <?= count($importantItems) ?> important · <?= $totalScored ?> total scored</p>
-            <?php endif; ?>
-        </div>
+        <?php if (empty($investigationItems) && empty($importantItems)): ?>
+            <div class="empty-state">No scored entries yet. Train a model in Magnitu and push scores to see results here.</div>
+        <?php endif; ?>
 
         <?php if (!empty($investigationItems)): ?>
-        <!-- Investigation Leads -->
         <div class="latest-entries-section">
             <div class="section-title-row">
-                <h2 class="section-title">Investigation Leads</h2>
+                <h2 class="section-title"><?= count($investigationItems) ?> investigation lead<?= count($investigationItems) !== 1 ? 's' : '' ?> · <?= count($importantItems) ?> important</h2>
                 <button class="btn btn-secondary entry-expand-all-btn" data-section="investigation">expand all &#9660;</button>
             </div>
             <?php foreach ($investigationItems as $itemWrapper): ?>
@@ -239,7 +232,6 @@
         <?php endif; ?>
 
         <?php if (!empty($importantItems)): ?>
-        <!-- Important Entries -->
         <div class="latest-entries-section">
             <div class="section-title-row">
                 <h2 class="section-title">Important</h2>

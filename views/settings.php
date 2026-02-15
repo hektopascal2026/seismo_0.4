@@ -154,6 +154,120 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
+        <!-- Magnitu Section -->
+        <section class="settings-section" id="magnitu-settings">
+            <h2 style="background-color: #FF6B6B; padding: 8px 14px; display: inline-block;">Magnitu</h2>
+            <p style="margin: 8px 0 16px; font-size: 12px;">
+                Magnitu is a separate app that learns what feed entries are relevant to you as a journalist.
+                It connects to Seismo via API to fetch entries, train a model, and push relevance scores back.
+            </p>
+
+            <!-- Connection Info -->
+            <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">API Key</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="magnituApiKey" 
+                               value="<?= htmlspecialchars($magnituConfig['api_key'] ?? '') ?>" 
+                               readonly
+                               style="flex: 1; padding: 6px 10px; border: 2px solid #000000; font-family: monospace; font-size: 12px; background: #f5f5f5; cursor: pointer;"
+                               onclick="this.select(); document.execCommand('copy'); this.style.borderColor='#00aa00'; setTimeout(()=>this.style.borderColor='#000000', 1500);"
+                               title="Click to copy">
+                        <form method="POST" action="?action=regenerate_magnitu_key" style="margin: 0;">
+                            <button type="submit" class="btn" onclick="return confirm('Regenerate API key? Magnitu will need the new key.');">Regenerate</button>
+                        </form>
+                    </div>
+                    <div style="font-size: 12px; margin-top: 4px; color: #000000;">Click the key to copy. Use this in Magnitu's settings to connect.</div>
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Seismo API URL (for Magnitu)</label>
+                    <?php
+                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+                        $baseApiUrl = $protocol . '://' . $host . $path . '/index.php';
+                    ?>
+                    <input type="text" 
+                           value="<?= htmlspecialchars($baseApiUrl) ?>" 
+                           readonly
+                           style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: monospace; font-size: 12px; background: #f5f5f5; box-sizing: border-box; cursor: pointer;"
+                           onclick="this.select(); document.execCommand('copy'); this.style.borderColor='#00aa00'; setTimeout(()=>this.style.borderColor='#000000', 1500);"
+                           title="Click to copy">
+                </div>
+
+                <!-- Status -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px;">
+                    <div style="text-align: center; padding: 10px; border: 2px solid #000000;">
+                        <div style="font-size: 18px; font-weight: 700;"><?= $magnituScoreStats['total'] ?></div>
+                        <div style="font-size: 12px;">Entries Scored</div>
+                    </div>
+                    <div style="text-align: center; padding: 10px; border: 2px solid #000000;">
+                        <div style="font-size: 18px; font-weight: 700;"><?= $magnituScoreStats['magnitu'] ?></div>
+                        <div style="font-size: 12px;">By Magnitu (full model)</div>
+                    </div>
+                    <div style="text-align: center; padding: 10px; border: 2px solid #000000;">
+                        <div style="font-size: 18px; font-weight: 700;"><?= $magnituScoreStats['recipe'] ?></div>
+                        <div style="font-size: 12px;">By Recipe (keywords)</div>
+                    </div>
+                </div>
+                
+                <?php if (!empty($magnituConfig['last_sync_at'])): ?>
+                    <div style="font-size: 12px; margin-top: 12px;">
+                        Last sync: <strong><?= htmlspecialchars($magnituConfig['last_sync_at']) ?></strong>
+                        &middot; Recipe version: <strong><?= htmlspecialchars($magnituConfig['recipe_version'] ?? '0') ?></strong>
+                    </div>
+                <?php else: ?>
+                    <div style="font-size: 12px; margin-top: 12px; color: #000000;">
+                        No sync yet. Connect Magnitu using the API key and URL above.
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Scoring Settings -->
+            <form method="POST" action="?action=save_magnitu_config">
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <h3 style="margin-top: 0; margin-bottom: 12px;">Scoring Settings</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Alert Threshold (0.0 - 1.0)</label>
+                            <input type="number" name="alert_threshold" 
+                                   value="<?= htmlspecialchars($magnituConfig['alert_threshold'] ?? '0.75') ?>" 
+                                   min="0" max="1" step="0.05"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                            <div style="font-size: 12px; margin-top: 4px; color: #000000;">Entries scoring above this are highlighted as alerts in the feed.</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Default Sort</label>
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer;">
+                                <input type="checkbox" name="sort_by_relevance" value="1" <?= ($magnituConfig['sort_by_relevance'] ?? '0') === '1' ? 'checked' : '' ?>>
+                                <span style="font-size: 14px;">Sort feed by relevance (instead of chronological)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Danger Zone -->
+            <div style="padding: 16px; border: 2px solid #FF2C2C; background: #fff5f5;">
+                <h3 style="margin-top: 0; margin-bottom: 8px; color: #FF2C2C;">Danger Zone</h3>
+                <p style="font-size: 12px; margin-bottom: 12px;">
+                    Clear all Magnitu scores and the scoring recipe. The feed will return to chronological order.
+                    Your Magnitu labels (in the Magnitu app) are not affected.
+                </p>
+                <form method="POST" action="?action=clear_magnitu_scores">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Clear all Magnitu scores and recipe? This cannot be undone.');">
+                        Clear All Scores
+                    </button>
+                </form>
+            </div>
+        </section>
+
         <!-- RSS Section -->
         <section class="settings-section">
             <h2 style="background-color: #add8e6; padding: 8px 14px; display: inline-block;">RSS</h2>
@@ -238,7 +352,7 @@
             <?php endif; ?>
 
             <!-- RSS Config file management -->
-            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #000000;">
                 <h3 style="margin-top: 0; margin-bottom: 8px;">Config File</h3>
                 <p style="font-size: 12px; margin-bottom: 12px;">
                     Download your RSS feeds as JSON, or upload a config file to add/update feeds in bulk.
@@ -249,6 +363,98 @@
                     </a>
                     <form method="POST" action="?action=upload_rss_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
                         <input type="file" name="rss_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
+                        <button type="submit" class="btn">Upload</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Substack Section -->
+        <section class="settings-section">
+            <h2 style="background-color: #C5B4D1; padding: 8px 14px; display: inline-block;">Substack</h2>
+            
+            <!-- All Substack Tags Section -->
+            <?php if (!empty($allSubstackTags)): ?>
+                <div style="margin-bottom: 12px;">
+                    <h3 style="margin-top: 0; margin-bottom: 6px;">All Tags</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <?php foreach ($allSubstackTags as $tag): ?>
+                            <div class="feed-tag-input-wrapper" style="display: inline-flex;">
+                                <input 
+                                    type="text" 
+                                    class="feed-tag-input all-substack-tag-input" 
+                                    value="<?= htmlspecialchars($tag) ?>" 
+                                    data-original-tag="<?= htmlspecialchars($tag) ?>"
+                                    data-tag-name="<?= htmlspecialchars($tag, ENT_QUOTES) ?>"
+                                    style="width: auto; min-width: 100px; padding: 6px 12px;"
+                                >
+                                <span class="feed-tag-indicator"></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (empty($substackFeeds)): ?>
+                <div class="empty-state">
+                    <p>No Substack subscriptions yet. <a href="?action=substack">Subscribe to a newsletter</a></p>
+                </div>
+            <?php else: ?>
+                <div class="settings-list">
+                    <?php foreach ($substackFeeds as $feed): ?>
+                        <div class="settings-item">
+                            <div class="settings-item-info">
+                                <div class="settings-item-title"><?= htmlspecialchars($feed['title']) ?></div>
+                                <?php if (!empty($feed['description'])): ?>
+                                    <div class="settings-item-meta"><?= htmlspecialchars($feed['description']) ?></div>
+                                <?php endif; ?>
+                                <div class="settings-item-meta"><?= htmlspecialchars($feed['url']) ?></div>
+                                <?php if ($feed['last_fetched']): ?>
+                                    <div class="settings-item-meta">Last updated: <?= date('d.m.Y H:i', strtotime($feed['last_fetched'])) ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="settings-item-actions" style="flex-direction: column; align-items: flex-end; gap: 10px;">
+                                <div style="display: flex; gap: 10px;">
+                                    <a href="?action=toggle_feed&id=<?= $feed['id'] ?>&from=settings" class="btn <?= $feed['disabled'] ? 'btn-success' : 'btn-warning' ?>">
+                                        <?= $feed['disabled'] ? 'Enable' : 'Disable' ?>
+                                    </a>
+                                    <a href="?action=delete_feed&id=<?= $feed['id'] ?>&from=settings" 
+                                       class="btn btn-danger" 
+                                       onclick="return confirm('Are you sure you want to unsubscribe from this Substack?');">
+                                        Delete
+                                    </a>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-weight: 600;">Tag:</label>
+                                    <div class="tag-input-wrapper">
+                                        <input 
+                                            type="text" 
+                                            class="tag-input feed-tag-input" 
+                                            value="<?= htmlspecialchars($feed['category'] ?? $feed['title']) ?>" 
+                                            data-feed-id="<?= $feed['id'] ?>"
+                                            data-original-tag="<?= htmlspecialchars($feed['category'] ?? $feed['title']) ?>"
+                                            style="width: 150px;"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- Substack Config file management -->
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #000000;">
+                <h3 style="margin-top: 0; margin-bottom: 8px;">Config File</h3>
+                <p style="font-size: 12px; margin-bottom: 12px;">
+                    Download your Substack subscriptions as JSON, or upload a config file to add/update them in bulk.
+                </p>
+                <div style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
+                    <a href="?action=download_substack_config" class="btn" style="text-decoration: none;">
+                        Download substack_feeds.json
+                    </a>
+                    <form method="POST" action="?action=upload_substack_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" name="substack_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
                         <button type="submit" class="btn">Upload</button>
                     </form>
                 </div>
@@ -329,98 +535,6 @@
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-        </section>
-
-        <!-- Substack Section -->
-        <section class="settings-section">
-            <h2 style="background-color: #C5B4D1; padding: 8px 14px; display: inline-block;">Substack</h2>
-            
-            <!-- All Substack Tags Section -->
-            <?php if (!empty($allSubstackTags)): ?>
-                <div style="margin-bottom: 12px;">
-                    <h3 style="margin-top: 0; margin-bottom: 6px;">All Tags</h3>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                        <?php foreach ($allSubstackTags as $tag): ?>
-                            <div class="feed-tag-input-wrapper" style="display: inline-flex;">
-                                <input 
-                                    type="text" 
-                                    class="feed-tag-input all-substack-tag-input" 
-                                    value="<?= htmlspecialchars($tag) ?>" 
-                                    data-original-tag="<?= htmlspecialchars($tag) ?>"
-                                    data-tag-name="<?= htmlspecialchars($tag, ENT_QUOTES) ?>"
-                                    style="width: auto; min-width: 100px; padding: 6px 12px;"
-                                >
-                                <span class="feed-tag-indicator"></span>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-            
-            <?php if (empty($substackFeeds)): ?>
-                <div class="empty-state">
-                    <p>No Substack subscriptions yet. <a href="?action=substack">Subscribe to a newsletter</a></p>
-                </div>
-            <?php else: ?>
-                <div class="settings-list">
-                    <?php foreach ($substackFeeds as $feed): ?>
-                        <div class="settings-item">
-                            <div class="settings-item-info">
-                                <div class="settings-item-title"><?= htmlspecialchars($feed['title']) ?></div>
-                                <?php if (!empty($feed['description'])): ?>
-                                    <div class="settings-item-meta"><?= htmlspecialchars($feed['description']) ?></div>
-                                <?php endif; ?>
-                                <div class="settings-item-meta"><?= htmlspecialchars($feed['url']) ?></div>
-                                <?php if ($feed['last_fetched']): ?>
-                                    <div class="settings-item-meta">Last updated: <?= date('d.m.Y H:i', strtotime($feed['last_fetched'])) ?></div>
-                                <?php endif; ?>
-                            </div>
-                            <div class="settings-item-actions" style="flex-direction: column; align-items: flex-end; gap: 10px;">
-                                <div style="display: flex; gap: 10px;">
-                                    <a href="?action=toggle_feed&id=<?= $feed['id'] ?>&from=settings" class="btn <?= $feed['disabled'] ? 'btn-success' : 'btn-warning' ?>">
-                                        <?= $feed['disabled'] ? 'Enable' : 'Disable' ?>
-                                    </a>
-                                    <a href="?action=delete_feed&id=<?= $feed['id'] ?>&from=settings" 
-                                       class="btn btn-danger" 
-                                       onclick="return confirm('Are you sure you want to unsubscribe from this Substack?');">
-                                        Delete
-                                    </a>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <label style="font-weight: 600;">Tag:</label>
-                                    <div class="tag-input-wrapper">
-                                        <input 
-                                            type="text" 
-                                            class="tag-input feed-tag-input" 
-                                            value="<?= htmlspecialchars($feed['category'] ?? $feed['title']) ?>" 
-                                            data-feed-id="<?= $feed['id'] ?>"
-                                            data-original-tag="<?= htmlspecialchars($feed['category'] ?? $feed['title']) ?>"
-                                            style="width: 150px;"
-                                        >
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-
-            <!-- Substack Config file management -->
-            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
-                <h3 style="margin-top: 0; margin-bottom: 8px;">Config File</h3>
-                <p style="font-size: 12px; margin-bottom: 12px;">
-                    Download your Substack subscriptions as JSON, or upload a config file to add/update them in bulk.
-                </p>
-                <div style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
-                    <a href="?action=download_substack_config" class="btn" style="text-decoration: none;">
-                        Download substack_feeds.json
-                    </a>
-                    <form method="POST" action="?action=upload_substack_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
-                        <input type="file" name="substack_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
-                        <button type="submit" class="btn">Upload</button>
-                    </form>
-                </div>
-            </div>
         </section>
 
         <!-- Lex Section -->
@@ -541,7 +655,7 @@
                                style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: monospace; font-size: 12px; box-sizing: border-box;">
                         <div style="margin-top: 6px; font-size: 12px; line-height: 1.6;">
                             <?php foreach (($lexConfig['ch']['resource_types'] ?? []) as $rt): ?>
-                                <span style="display: inline-block; background: #f0f0f0; padding: 2px 8px; margin: 2px 4px 2px 0; border: 1px solid #ddd; font-family: monospace; font-size: 12px;">
+                                <span style="display: inline-block; background: #f5f5f5; padding: 2px 8px; margin: 2px 4px 2px 0; border: 2px solid #000000; font-family: monospace; font-size: 12px;">
                                     <?= (int)(is_array($rt) ? $rt['id'] : $rt) ?> = <?= htmlspecialchars(is_array($rt) ? ($rt['label'] ?? '?') : '?') ?>
                                 </span>
                             <?php endforeach; ?>
@@ -573,7 +687,7 @@
             </form>
 
             <!-- Config file management -->
-            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 2px solid #000000;">
                 <h3 style="margin-top: 0; margin-bottom: 10px;">Config File</h3>
                 <p style="font-size: 12px; margin-bottom: 12px;">
                     Download the current configuration as JSON, or upload a config file to apply.
@@ -587,119 +701,6 @@
                         <button type="submit" class="btn">Upload</button>
                     </form>
                 </div>
-            </div>
-        </section>
-        <!-- Magnitu Section -->
-        <section class="settings-section" id="magnitu-settings">
-            <h2 style="background-color: #FF6B6B; padding: 8px 14px; display: inline-block;">Magnitu</h2>
-            <p style="margin: 8px 0 16px; font-size: 12px;">
-                Magnitu is a separate app that learns what feed entries are relevant to you as a journalist.
-                It connects to Seismo via API to fetch entries, train a model, and push relevance scores back.
-            </p>
-
-            <!-- Connection Info -->
-            <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
-                <div style="margin-bottom: 16px;">
-                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">API Key</label>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" id="magnituApiKey" 
-                               value="<?= htmlspecialchars($magnituConfig['api_key'] ?? '') ?>" 
-                               readonly
-                               style="flex: 1; padding: 6px 10px; border: 2px solid #000000; font-family: monospace; font-size: 12px; background: #f5f5f5; cursor: pointer;"
-                               onclick="this.select(); document.execCommand('copy'); this.style.borderColor='#00aa00'; setTimeout(()=>this.style.borderColor='#000000', 1500);"
-                               title="Click to copy">
-                        <form method="POST" action="?action=regenerate_magnitu_key" style="margin: 0;">
-                            <button type="submit" class="btn" onclick="return confirm('Regenerate API key? Magnitu will need the new key.');">Regenerate</button>
-                        </form>
-                    </div>
-                    <div style="font-size: 11px; margin-top: 4px; color: #666;">Click the key to copy. Use this in Magnitu's settings to connect.</div>
-                </div>
-
-                <div style="margin-bottom: 12px;">
-                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Seismo API URL (for Magnitu)</label>
-                    <?php
-                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-                        $baseApiUrl = $protocol . '://' . $host . $path . '/index.php';
-                    ?>
-                    <input type="text" 
-                           value="<?= htmlspecialchars($baseApiUrl) ?>" 
-                           readonly
-                           style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: monospace; font-size: 12px; background: #f5f5f5; box-sizing: border-box; cursor: pointer;"
-                           onclick="this.select(); document.execCommand('copy'); this.style.borderColor='#00aa00'; setTimeout(()=>this.style.borderColor='#000000', 1500);"
-                           title="Click to copy">
-                </div>
-
-                <!-- Status -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px;">
-                    <div style="text-align: center; padding: 10px; border: 1px solid #d0d0d0;">
-                        <div style="font-size: 20px; font-weight: 700;"><?= $magnituScoreStats['total'] ?></div>
-                        <div style="font-size: 11px;">Entries Scored</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; border: 1px solid #d0d0d0;">
-                        <div style="font-size: 20px; font-weight: 700;"><?= $magnituScoreStats['magnitu'] ?></div>
-                        <div style="font-size: 11px;">By Magnitu (full model)</div>
-                    </div>
-                    <div style="text-align: center; padding: 10px; border: 1px solid #d0d0d0;">
-                        <div style="font-size: 20px; font-weight: 700;"><?= $magnituScoreStats['recipe'] ?></div>
-                        <div style="font-size: 11px;">By Recipe (keywords)</div>
-                    </div>
-                </div>
-                
-                <?php if (!empty($magnituConfig['last_sync_at'])): ?>
-                    <div style="font-size: 12px; margin-top: 12px;">
-                        Last sync: <strong><?= htmlspecialchars($magnituConfig['last_sync_at']) ?></strong>
-                        &middot; Recipe version: <strong><?= htmlspecialchars($magnituConfig['recipe_version'] ?? '0') ?></strong>
-                    </div>
-                <?php else: ?>
-                    <div style="font-size: 12px; margin-top: 12px; color: #666;">
-                        No sync yet. Connect Magnitu using the API key and URL above.
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Scoring Settings -->
-            <form method="POST" action="?action=save_magnitu_config">
-                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
-                    <h3 style="margin-top: 0; margin-bottom: 12px;">Scoring Settings</h3>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                        <div>
-                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Alert Threshold (0.0 - 1.0)</label>
-                            <input type="number" name="alert_threshold" 
-                                   value="<?= htmlspecialchars($magnituConfig['alert_threshold'] ?? '0.75') ?>" 
-                                   min="0" max="1" step="0.05"
-                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
-                            <div style="font-size: 11px; margin-top: 4px; color: #666;">Entries scoring above this are highlighted as alerts in the feed.</div>
-                        </div>
-                        <div>
-                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Default Sort</label>
-                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer;">
-                                <input type="checkbox" name="sort_by_relevance" value="1" <?= ($magnituConfig['sort_by_relevance'] ?? '0') === '1' ? 'checked' : '' ?>>
-                                <span style="font-size: 14px;">Sort feed by relevance (instead of chronological)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <button type="submit" class="btn btn-primary">Save Settings</button>
-                    </div>
-                </div>
-            </form>
-
-            <!-- Danger Zone -->
-            <div style="padding: 16px; border: 2px solid #FF2C2C; background: #fff5f5;">
-                <h3 style="margin-top: 0; margin-bottom: 8px; color: #FF2C2C;">Danger Zone</h3>
-                <p style="font-size: 12px; margin-bottom: 12px;">
-                    Clear all Magnitu scores and the scoring recipe. The feed will return to chronological order.
-                    Your Magnitu labels (in the Magnitu app) are not affected.
-                </p>
-                <form method="POST" action="?action=clear_magnitu_scores">
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Clear all Magnitu scores and recipe? This cannot be undone.');">
-                        Clear All Scores
-                    </button>
-                </form>
             </div>
         </section>
     </div>
