@@ -163,7 +163,7 @@
         <!-- Colors -->
         <section class="styleguide-section">
             <h2>Colors</h2>
-            <p>Minimal high-contrast palette. All text is black (#000000). White text only on dark button backgrounds for visibility.</p>
+            <p>Minimal high-contrast palette. All text is black (#000000). Coral (#FF6B6B) is the brand accent color. White text only on dark button backgrounds for visibility.</p>
             
             <h3>Core</h3>
             <div>
@@ -172,6 +172,9 @@
                 </div>
                 <div class="color-swatch" style="background-color: #FFFFFF;">
                     <div class="color-swatch-info">#FFFFFF<br>White</div>
+                </div>
+                <div class="color-swatch" style="background-color: #FF6B6B;">
+                    <div class="color-swatch-info">#FF6B6B<br>Coral Accent</div>
                 </div>
                 <div class="color-swatch" style="background-color: #FFFFC5;">
                     <div class="color-swatch-info">#FFFFC5<br>Yellow</div>
