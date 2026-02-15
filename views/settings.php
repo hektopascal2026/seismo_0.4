@@ -155,11 +155,11 @@
         <?php endif; ?>
 
         <!-- Settings Tab Bar -->
-        <div class="top-bar-nav" style="margin-bottom: 16px;">
-            <a href="?action=settings&tab=basic" class="nav-link <?= $settingsTab === 'basic' ? 'active' : '' ?>">Basic</a>
-            <a href="?action=settings&tab=script" class="nav-link <?= $settingsTab === 'script' ? 'active' : '' ?>">Script</a>
-            <a href="?action=settings&tab=lex" class="nav-link <?= $settingsTab === 'lex' ? 'active' : '' ?>">Lex</a>
-            <a href="?action=settings&tab=magnitu" class="nav-link <?= $settingsTab === 'magnitu' ? 'active' : '' ?>">Magnitu</a>
+        <div class="tag-filter-list" style="margin-bottom: 16px;">
+            <a href="?action=settings&tab=basic" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
+            <a href="?action=settings&tab=script" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
+            <a href="?action=settings&tab=lex" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
+            <a href="?action=settings&tab=magnitu" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
         </div>
 
         <?php if ($settingsTab === 'magnitu'): ?>
