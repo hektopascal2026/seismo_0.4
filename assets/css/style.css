@@ -814,31 +814,3 @@ h3 {
     margin-bottom: 0;
 }
 
-/* ═══ Magnitu Page: Coral Accent Override ═══ */
-/* Subtle optical distinction when viewing the Magnitu section */
-
-.magnitu-page .top-bar {
-    border-bottom-color: #FF6B6B;
-}
-
-.magnitu-page .nav-link.active {
-    background-color: #FF6B6B;
-    color: #000000;
-}
-
-.magnitu-page .top-bar-btn.active {
-    background-color: #FF6B6B;
-    color: #000000;
-}
-
-.magnitu-page .top-bar-btn:hover {
-    box-shadow: 2px 2px 0px #FF6B6B;
-}
-
-.magnitu-page .nav-link:hover {
-    box-shadow: 2px 2px 0px #FF6B6B;
-}
-
-.magnitu-page .nav-drawer {
-    border-color: #FF6B6B;
-}
