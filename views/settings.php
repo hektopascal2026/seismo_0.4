@@ -586,12 +586,14 @@
             <div class="settings-list" style="margin-bottom: 16px;">
                 <?php foreach ($scraperConfigs as $sc): ?>
                 <div class="settings-item">
-                    <div class="settings-item-info">
+                    <div class="settings-item-info" style="flex: 1;">
                         <div class="settings-item-title"><?= htmlspecialchars($sc['name']) ?></div>
                         <div class="settings-item-meta"><?= htmlspecialchars($sc['url']) ?></div>
-                        <?php if (!empty($sc['link_pattern'])): ?>
-                            <div class="settings-item-meta" style="font-family: monospace; font-size: 11px;">Links: <?= htmlspecialchars($sc['link_pattern']) ?></div>
-                        <?php endif; ?>
+                        <form method="POST" action="<?= getBasePath() ?>/index.php?action=update_scraper" style="margin: 4px 0 0 0; display: flex; gap: 6px; align-items: center;">
+                            <input type="hidden" name="scraper_id" value="<?= $sc['id'] ?>">
+                            <input type="text" name="scraper_link_pattern" value="<?= htmlspecialchars($sc['link_pattern'] ?? '') ?>" placeholder="Link pattern (optional)" style="flex: 1; padding: 4px 8px; border: 1px solid #999; font-family: monospace; font-size: 11px;">
+                            <button type="submit" class="btn" style="padding: 4px 10px; font-size: 11px;">Save</button>
+                        </form>
                     </div>
                     <div class="settings-item-actions" style="display: flex; gap: 10px;">
                         <form method="POST" action="<?= getBasePath() ?>/index.php?action=toggle_scraper" style="margin: 0;">

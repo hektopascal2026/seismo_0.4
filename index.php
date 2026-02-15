@@ -1307,6 +1307,19 @@ switch ($action) {
         header('Location: ?action=settings&tab=script');
         exit;
     
+    case 'update_scraper':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = (int)($_POST['scraper_id'] ?? 0);
+            $linkPattern = trim($_POST['scraper_link_pattern'] ?? '');
+            if ($id > 0) {
+                $pdo->prepare("UPDATE scraper_configs SET link_pattern = ? WHERE id = ?")
+                    ->execute([$linkPattern ?: null, $id]);
+                $_SESSION['success'] = 'Scraper updated.';
+            }
+        }
+        header('Location: ?action=settings&tab=script');
+        exit;
+    
     case 'toggle_scraper':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int)($_POST['scraper_id'] ?? 0);
