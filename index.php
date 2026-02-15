@@ -361,6 +361,8 @@ switch ($action) {
         try {
             $totalScored = (int)$pdo->query("SELECT COUNT(*) FROM entry_scores")->fetchColumn();
         } catch (PDOException $e) {}
+        $magnituModelName = getMagnituConfig($pdo, 'model_name');
+        $magnituModelVersion = getMagnituConfig($pdo, 'model_version');
         
         include 'views/magnitu.php';
         break;

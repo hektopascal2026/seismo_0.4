@@ -51,6 +51,12 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
+        <?php if (!empty($magnituModelName)): ?>
+        <div style="font-size: 12px; margin-bottom: 12px; color: #000000;">
+            <strong><?= htmlspecialchars($magnituModelName) ?></strong><?php if (!empty($magnituModelVersion)): ?> <span style="font-size: 11px; font-weight: 600; padding: 1px 6px; border: 2px solid #000000; background: #FF6B6B;">v<?= htmlspecialchars($magnituModelVersion) ?></span><?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <?php if (empty($investigationItems) && empty($importantItems)): ?>
             <div class="empty-state">No scored entries yet. Train a model in Magnitu and push scores to see results here.</div>
         <?php endif; ?>
