@@ -1385,6 +1385,33 @@ switch ($action) {
         header('Location: ?action=scraper');
         exit;
     
+    case 'rescrape_source':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $feedId = (int)($_POST['feed_id'] ?? 0);
+            if ($feedId > 0) {
+                // Hard-delete all feed_items for this scraper feed so the cronjob re-fetches them
+                $del = $pdo->prepare("DELETE FROM feed_items WHERE feed_id = ?");
+                $del->execute([$feedId]);
+                $count = $del->rowCount();
+                // Also delete items from any other feeds with the same name (grouped scraper feeds)
+                $nameStmt = $pdo->prepare("SELECT title FROM feeds WHERE id = ? AND source_type = 'scraper'");
+                $nameStmt->execute([$feedId]);
+                $feedName = $nameStmt->fetchColumn();
+                if ($feedName) {
+                    $siblingStmt = $pdo->prepare("SELECT id FROM feeds WHERE title = ? AND source_type = 'scraper' AND id != ?");
+                    $siblingStmt->execute([$feedName, $feedId]);
+                    foreach ($siblingStmt->fetchAll(PDO::FETCH_COLUMN) as $sibId) {
+                        $del2 = $pdo->prepare("DELETE FROM feed_items WHERE feed_id = ?");
+                        $del2->execute([$sibId]);
+                        $count += $del2->rowCount();
+                    }
+                }
+                $_SESSION['success'] = "Deleted {$count} entries for \"{$feedName}\". They will be re-scraped on the next cronjob run.";
+            }
+        }
+        header('Location: ?action=scraper');
+        exit;
+    
     case 'download_scraper_config':
         // Generate config.php for the scraper script (DB credentials only)
         // The scraper script itself lives in fetcher/scraper/seismo_scraper.php

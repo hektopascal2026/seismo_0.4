@@ -55,7 +55,7 @@
         <form method="get" action="" id="scraper-filter-form">
             <input type="hidden" name="action" value="scraper">
             <input type="hidden" name="sources_submitted" value="1">
-            <div class="tag-filter-section" style="margin-bottom: 16px;">
+            <div class="tag-filter-section" style="margin-bottom: 8px;">
                 <div class="tag-filter-list">
                     <?php foreach ($scraperSources as $src): ?>
                     <?php $isActive = in_array($src['id'], $activeScraperIds); ?>
@@ -67,6 +67,14 @@
                 </div>
             </div>
         </form>
+        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <?php foreach ($scraperSources as $src): ?>
+            <form method="POST" action="<?= getBasePath() ?>/index.php?action=rescrape_source" style="margin: 0;">
+                <input type="hidden" name="feed_id" value="<?= $src['id'] ?>">
+                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Delete all entries for &quot;<?= htmlspecialchars($src['name']) ?>&quot; and re-scrape on next cronjob run?')">re-scrape <?= htmlspecialchars($src['name']) ?></button>
+            </form>
+            <?php endforeach; ?>
+        </div>
         <?php endif; ?>
 
         <div class="latest-entries-section">
