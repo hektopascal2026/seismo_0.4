@@ -789,22 +789,13 @@
     <script>
         // Feed tag management (same as feeds.php)
         (function() {
-            let allTags = [];
-            let allEmailTags = [];
-            let allSubstackTags = [];
+            // Tags are embedded server-side — no fetch() needed
+            let allTags = <?= json_encode(array_values($allTags ?? [])) ?>;
+            let allEmailTags = <?= json_encode(array_values($allEmailTags ?? [])) ?>;
+            let allSubstackTags = <?= json_encode(array_values($allSubstackTags ?? [])) ?>;
             let currentSuggestions = [];
             let activeInput = null;
             let suggestionList = null;
-            
-            // Load all tags in a single request (avoids concurrent request rate limit)
-            fetch('?action=api_all_tags')
-                .then(response => response.json())
-                .then(data => {
-                    allTags = data.rss || [];
-                    allEmailTags = data.email || [];
-                    allSubstackTags = data.substack || [];
-                })
-                .catch(err => console.error('Error loading tags:', err));
             
             // Create suggestion dropdown
             function createSuggestionList() {
@@ -947,8 +938,8 @@
                                 }, 2000);
                                 this.blur();
                                 hideSuggestions();
-                                // Refresh all tags
-                                fetch('?action=api_all_tags').then(r => r.json()).then(d => { allTags = d.rss||[]; allSubstackTags = d.substack||[]; allEmailTags = d.email||[]; });
+                                // Update local tag list
+                                if (!allTags.includes(value)) { allTags.push(value); allTags.sort(); }
                             } else {
                                 this.classList.remove('feed-tag-saving');
                                 alert('Error: ' + (data.error || 'Failed to update tag'));
@@ -1057,8 +1048,12 @@
                             this.blur();
                             hideSuggestions();
                             
-                            // Reload all tags
-                            fetch('?action=api_all_tags').then(r => r.json()).then(d => { allTags = d.rss||[]; allSubstackTags = d.substack||[]; allEmailTags = d.email||[]; });
+                            // Update local tag list (replace old → new)
+                            const targetArr = isEmailTag ? allEmailTags : (isSubstackTag ? allSubstackTags : allTags);
+                            const oldIdx = targetArr.indexOf(oldTag);
+                            if (oldIdx !== -1) targetArr.splice(oldIdx, 1);
+                            if (!targetArr.includes(value)) targetArr.push(value);
+                            targetArr.sort();
                         } else {
                             this.classList.remove('feed-tag-saving');
                             alert('Error: ' + (data.error || 'Failed to rename tag'));
