@@ -589,10 +589,15 @@
                     <div class="settings-item-info" style="flex: 1;">
                         <div class="settings-item-title"><?= htmlspecialchars($sc['name']) ?></div>
                         <div class="settings-item-meta"><?= htmlspecialchars($sc['url']) ?></div>
-                        <form method="POST" action="<?= getBasePath() ?>/index.php?action=update_scraper" style="margin: 4px 0 0 0; display: flex; gap: 6px; align-items: center;">
+                        <form method="POST" action="<?= getBasePath() ?>/index.php?action=update_scraper" style="margin: 4px 0 0 0;">
                             <input type="hidden" name="scraper_id" value="<?= $sc['id'] ?>">
-                            <input type="text" name="scraper_link_pattern" value="<?= htmlspecialchars($sc['link_pattern'] ?? '') ?>" placeholder="Link pattern (optional)" style="flex: 1; padding: 4px 8px; border: 1px solid #999; font-family: monospace; font-size: 11px;">
-                            <button type="submit" class="btn" style="padding: 4px 10px; font-size: 11px;">Save</button>
+                            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
+                                <input type="text" name="scraper_link_pattern" value="<?= htmlspecialchars($sc['link_pattern'] ?? '') ?>" placeholder="Link pattern (optional)" style="flex: 1; padding: 4px 8px; border: 1px solid #999; font-family: monospace; font-size: 11px;">
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="text" name="scraper_date_selector" value="<?= htmlspecialchars($sc['date_selector'] ?? '') ?>" placeholder="Date selector, e.g. time[datetime] or .article-date" style="flex: 1; padding: 4px 8px; border: 1px solid #999; font-family: monospace; font-size: 11px;">
+                                <button type="submit" class="btn" style="padding: 4px 10px; font-size: 11px;">Save</button>
+                            </div>
                         </form>
                     </div>
                     <div class="settings-item-actions" style="display: flex; gap: 10px;">
@@ -633,6 +638,10 @@
                     <div style="margin-top: 10px;">
                         <label style="display: block; font-weight: 600; margin-bottom: 4px;">Link pattern <span style="font-weight: 400; font-size: 11px;">(optional — if set, follows links on the page matching this substring)</span></label>
                         <input type="text" name="scraper_link_pattern" placeholder="e.g. /de/mediencorner/medienmitteilungen/" style="width: 100%; padding: 8px; border: 2px solid #000; font-family: monospace; font-size: 13px;">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 4px;">Date selector <span style="font-weight: 400; font-size: 11px;">(optional — CSS selector for the date element on article pages, e.g. <code>time[datetime]</code> or <code>.article-date</code>)</span></label>
+                        <input type="text" name="scraper_date_selector" placeholder="e.g. time[datetime] or .publish-date or meta[property=&quot;article:published_time&quot;]" style="width: 100%; padding: 8px; border: 2px solid #000; font-family: monospace; font-size: 13px;">
                     </div>
                 </form>
             </div>

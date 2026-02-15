@@ -1319,10 +1319,11 @@ switch ($action) {
             $name = trim($_POST['scraper_name'] ?? '');
             $url = trim($_POST['scraper_url'] ?? '');
             $linkPattern = trim($_POST['scraper_link_pattern'] ?? '');
+            $dateSelector = trim($_POST['scraper_date_selector'] ?? '');
             if (!empty($name) && !empty($url)) {
                 try {
-                    $stmt = $pdo->prepare("INSERT INTO scraper_configs (name, url, link_pattern) VALUES (?, ?, ?)");
-                    $stmt->execute([$name, $url, $linkPattern ?: null]);
+                    $stmt = $pdo->prepare("INSERT INTO scraper_configs (name, url, link_pattern, date_selector) VALUES (?, ?, ?, ?)");
+                    $stmt->execute([$name, $url, $linkPattern ?: null, $dateSelector ?: null]);
                     $_SESSION['success'] = "Scraper \"$name\" added.";
                 } catch (PDOException $e) {
                     if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
@@ -1342,9 +1343,10 @@ switch ($action) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int)($_POST['scraper_id'] ?? 0);
             $linkPattern = trim($_POST['scraper_link_pattern'] ?? '');
+            $dateSelector = trim($_POST['scraper_date_selector'] ?? '');
             if ($id > 0) {
-                $pdo->prepare("UPDATE scraper_configs SET link_pattern = ? WHERE id = ?")
-                    ->execute([$linkPattern ?: null, $id]);
+                $pdo->prepare("UPDATE scraper_configs SET link_pattern = ?, date_selector = ? WHERE id = ?")
+                    ->execute([$linkPattern ?: null, $dateSelector ?: null, $id]);
                 $_SESSION['success'] = 'Scraper updated.';
             }
         }

@@ -193,6 +193,129 @@ function extractLinks(string $html, string $baseUrl, string $pattern): array
 }
 
 // -----------------------
+// Date extraction
+// -----------------------
+
+/**
+ * Convert a simple CSS selector to an XPath expression.
+ * Supports: tag, .class, tag.class, tag[attr], tag[attr="val"],
+ * meta[property="..."], #id, and combinations.
+ */
+function cssToXPath(string $css): string
+{
+    $css = trim($css);
+    if (empty($css)) return '';
+
+    // Already XPath? (starts with / or //)
+    if ($css[0] === '/') return $css;
+
+    // tag[attr="value"] or tag[attr]
+    if (preg_match('/^([a-z][a-z0-9]*)\[([a-z_-]+)(?:=["\']?([^"\']*)["\']?)?\]$/i', $css, $m)) {
+        $tag = $m[1];
+        $attr = $m[2];
+        $val = $m[3] ?? null;
+        if ($val !== null) {
+            return "//{$tag}[@{$attr}='{$val}']";
+        }
+        return "//{$tag}[@{$attr}]";
+    }
+
+    // [attr="value"] (no tag)
+    if (preg_match('/^\[([a-z_-]+)(?:=["\']?([^"\']*)["\']?)?\]$/i', $css, $m)) {
+        $attr = $m[1];
+        $val = $m[2] ?? null;
+        if ($val !== null) {
+            return "//*[@{$attr}='{$val}']";
+        }
+        return "//*[@{$attr}]";
+    }
+
+    // #id
+    if (preg_match('/^#([a-z0-9_-]+)$/i', $css, $m)) {
+        return "//*[@id='{$m[1]}']";
+    }
+
+    // tag.class or .class
+    if (preg_match('/^([a-z][a-z0-9]*)\.([a-z0-9_-]+)$/i', $css, $m)) {
+        return "//{$m[1]}[contains(concat(' ',normalize-space(@class),' '),' {$m[2]} ')]";
+    }
+    if (preg_match('/^\.([a-z0-9_-]+)$/i', $css, $m)) {
+        return "//*[contains(concat(' ',normalize-space(@class),' '),' {$m[1]} ')]";
+    }
+
+    // Plain tag name
+    if (preg_match('/^[a-z][a-z0-9]*$/i', $css)) {
+        return "//{$css}";
+    }
+
+    return '';
+}
+
+/**
+ * Extract a date from HTML using the given CSS selector.
+ * Tries datetime/content attributes first, then text content.
+ * Returns a MySQL-formatted date string or null.
+ */
+function extractDate(string $html, string $selector): ?string
+{
+    $xpath = cssToXPath($selector);
+    if (empty($xpath)) return null;
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
+    libxml_clear_errors();
+
+    $xp = new DOMXPath($dom);
+    $nodes = $xp->query($xpath);
+    if (!$nodes || $nodes->length === 0) return null;
+
+    $node = $nodes->item(0);
+
+    // Try common date-bearing attributes first
+    foreach (['datetime', 'content', 'data-date', 'data-datetime'] as $attr) {
+        $val = trim($node->getAttribute($attr));
+        if (!empty($val)) {
+            $ts = strtotime($val);
+            if ($ts !== false && $ts > 0) {
+                return date('Y-m-d H:i:s', $ts);
+            }
+        }
+    }
+
+    // Fall back to text content
+    $text = trim($node->textContent);
+    if (!empty($text)) {
+        $ts = strtotime($text);
+        if ($ts !== false && $ts > 0) {
+            return date('Y-m-d H:i:s', $ts);
+        }
+        // Try common European date formats: "15. Februar 2026", "15.02.2026"
+        $cleaned = preg_replace('/\s+/', ' ', $text);
+        // German month names
+        $months = ['Januar'=>1,'Februar'=>2,'März'=>3,'April'=>4,'Mai'=>5,'Juni'=>6,
+                   'Juli'=>7,'August'=>8,'September'=>9,'Oktober'=>10,'November'=>11,'Dezember'=>12,
+                   'Janvier'=>1,'Février'=>2,'Mars'=>3,'Avril'=>4,'Juin'=>6,'Juillet'=>7,
+                   'Août'=>8,'Septembre'=>9,'Octobre'=>10,'Novembre'=>11,'Décembre'=>12];
+        foreach ($months as $mName => $mNum) {
+            if (stripos($cleaned, $mName) !== false) {
+                if (preg_match('/(\d{1,2})\.?\s*' . preg_quote($mName, '/') . '\s*(\d{4})/i', $cleaned, $dm)) {
+                    $ts = mktime(0, 0, 0, $mNum, (int)$dm[1], (int)$dm[2]);
+                    if ($ts !== false) return date('Y-m-d H:i:s', $ts);
+                }
+            }
+        }
+        // dd.mm.yyyy
+        if (preg_match('/(\d{1,2})\.(\d{1,2})\.(\d{4})/', $cleaned, $dm)) {
+            $ts = mktime(0, 0, 0, (int)$dm[2], (int)$dm[1], (int)$dm[3]);
+            if ($ts !== false) return date('Y-m-d H:i:s', $ts);
+        }
+    }
+
+    return null;
+}
+
+// -----------------------
 // HTTP fetch (polite)
 // -----------------------
 function fetchUrl(string $url, array $config): array
@@ -240,7 +363,7 @@ try {
     $pdo = db_connect($config);
 
     // Read enabled scrapers from the database
-    $scrapers = $pdo->query("SELECT name, url, link_pattern FROM scraper_configs WHERE disabled = 0 ORDER BY id")->fetchAll();
+    $scrapers = $pdo->query("SELECT name, url, link_pattern, date_selector FROM scraper_configs WHERE disabled = 0 ORDER BY id")->fetchAll();
 
     if (empty($scrapers)) {
         log_msg($config, 'info', 'No enabled scrapers configured. Add URLs in Seismo Settings > Script.');
@@ -264,6 +387,7 @@ try {
         $name = $scraper['name'];
         $baseUrl = $scraper['url'];
         $linkPattern = $scraper['link_pattern'] ?? null;
+        $dateSelector = $scraper['date_selector'] ?? null;
 
         // Ensure a feeds row exists for this scraper source
         $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE url = ? AND source_type = 'scraper'");
@@ -341,6 +465,17 @@ try {
 
             $contentHash = md5($content);
 
+            // Extract publication date if a selector is configured
+            $pubDate = null;
+            if (!empty($dateSelector)) {
+                $pubDate = extractDate($result['html'], $dateSelector);
+                if ($pubDate) {
+                    log_msg($config, 'debug', "[{$name}] Extracted date: {$pubDate}");
+                } else {
+                    log_msg($config, 'debug', "[{$name}] Date selector '{$dateSelector}' matched nothing, using NOW()");
+                }
+            }
+
             // Check for existing entry by guid (= article URL)
             $existStmt = $pdo->prepare("SELECT id, content_hash FROM feed_items WHERE guid = ? AND feed_id = ?");
             $existStmt->execute([$articleUrl, $feedId]);
@@ -352,13 +487,13 @@ try {
                     $skipped++;
                     continue;
                 }
-                $upd = $pdo->prepare("UPDATE feed_items SET title = ?, content = ?, content_hash = ?, published_date = NOW() WHERE id = ?");
-                $upd->execute([$title, $content, $contentHash, $existing['id']]);
+                $upd = $pdo->prepare("UPDATE feed_items SET title = ?, content = ?, content_hash = ?, published_date = ? WHERE id = ?");
+                $upd->execute([$title, $content, $contentHash, $pubDate ?? date('Y-m-d H:i:s'), $existing['id']]);
                 log_msg($config, 'info', "[{$name}] Updated item #{$existing['id']}");
                 $updated++;
             } else {
-                $ins = $pdo->prepare("INSERT INTO feed_items (feed_id, title, content, link, guid, content_hash, published_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-                $ins->execute([$feedId, $title, $content, $articleUrl, $articleUrl, $contentHash]);
+                $ins = $pdo->prepare("INSERT INTO feed_items (feed_id, title, content, link, guid, content_hash, published_date) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $ins->execute([$feedId, $title, $content, $articleUrl, $articleUrl, $contentHash, $pubDate ?? date('Y-m-d H:i:s')]);
                 log_msg($config, 'info', "[{$name}] New item #" . $pdo->lastInsertId());
                 $inserted++;
             }

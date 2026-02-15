@@ -40,7 +40,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 6);
+define('SCHEMA_VERSION', 7);
 
 /**
  * Initialize database tables
@@ -331,6 +331,7 @@ function initDatabase() {
         name VARCHAR(255) NOT NULL,
         url VARCHAR(500) NOT NULL UNIQUE,
         link_pattern VARCHAR(500) DEFAULT NULL,
+        date_selector VARCHAR(500) DEFAULT NULL,
         category VARCHAR(100) DEFAULT 'scraper',
         disabled TINYINT(1) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -341,6 +342,13 @@ function initDatabase() {
     // Add link_pattern column if it doesn't exist (for existing installations)
     try {
         $pdo->exec("ALTER TABLE scraper_configs ADD COLUMN link_pattern VARCHAR(500) DEFAULT NULL AFTER url");
+    } catch (PDOException $e) {
+        // Column already exists
+    }
+    
+    // Add date_selector column for extracting publication dates from scraped pages
+    try {
+        $pdo->exec("ALTER TABLE scraper_configs ADD COLUMN date_selector VARCHAR(500) DEFAULT NULL AFTER link_pattern");
     } catch (PDOException $e) {
         // Column already exists
     }
