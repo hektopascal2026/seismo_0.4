@@ -646,10 +646,13 @@
                 </form>
             </div>
 
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('scraper-add-row').style.display='block'" style="font-size: 18px; padding: 6px 16px;">＋ Add URL</button>
                 <?php if (!empty($scraperConfigs)): ?>
                 <a href="<?= getBasePath() ?>/index.php?action=download_scraper_config" class="btn" style="text-decoration: none;">⬇ Download config.php</a>
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=delete_all_scraper_items" style="margin: 0;">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete ALL scraped entries from the database? This cannot be undone. Scraper configs will be kept.')">Delete all scraped entries</button>
+                </form>
                 <?php endif; ?>
             </div>
         </section>

@@ -1385,6 +1385,25 @@ switch ($action) {
         header('Location: ?action=scraper');
         exit;
     
+    case 'delete_all_scraper_items':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Hard-delete all feed_items from all scraper feeds
+            $count = 0;
+            try {
+                $stmt = $pdo->query("SELECT id FROM feeds WHERE source_type = 'scraper'");
+                $scraperFeedIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                if (!empty($scraperFeedIds)) {
+                    $ph = implode(',', array_fill(0, count($scraperFeedIds), '?'));
+                    $del = $pdo->prepare("DELETE FROM feed_items WHERE feed_id IN ($ph)");
+                    $del->execute($scraperFeedIds);
+                    $count = $del->rowCount();
+                }
+            } catch (PDOException $e) {}
+            $_SESSION['success'] = "Deleted {$count} scraped entries.";
+        }
+        header('Location: ?action=settings&tab=script');
+        exit;
+    
     case 'rescrape_source':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $feedId = (int)($_POST['feed_id'] ?? 0);
