@@ -307,7 +307,7 @@
             
             <!-- Add Feed Section -->
             <div class="add-feed-section" style="margin-bottom: 16px;">
-                <form method="POST" action="<?= getBasePath() ?>/index.php?action=add_feed" class="add-feed-form">
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=add_feed" enctype="multipart/form-data" class="add-feed-form">
                     <input type="hidden" name="from" value="settings">
                     <input type="url" name="url" placeholder="Enter RSS feed URL (e.g., https://example.com/feed.xml)" required class="feed-input">
                     <button type="submit" class="btn btn-primary">Add Feed</button>
@@ -583,7 +583,7 @@
         <section class="settings-section" id="lex-settings">
             <h2 style="background-color: #f5f562; padding: 8px 14px; display: inline-block;">Lex</h2>
 
-            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_lex_config">
+            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_lex_config" enctype="multipart/form-data">
                 <!-- EU Configuration -->
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">

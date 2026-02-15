@@ -267,7 +267,7 @@
         <section class="styleguide-section">
             <h2>Cards</h2>
             <p>2px black border, 14px 16px padding. Hover adds <code>box-shadow: 2px 2px 0px #000000</code>.</p>
-            <p>Layout: <strong>top-left</strong> = user-assigned tag (<code>.entry-tag</code>, 12px small, 2px black border), <strong>top-right</strong> = context (document type for Lex). <strong>Bottom-left</strong> = expand/collapse, <strong>bottom-right</strong> = date. Title = 14px medium. Body text = 12px small.</p>
+            <p>Layout: <strong>top-left</strong> = tags (<code>.entry-tag</code>, 12px small, 2px black border) with 6px gap between them, <strong>top-right</strong> = Magnitu score badge (pushed right via <code>margin-left: auto</code>). <strong>Bottom-left</strong> = expand/collapse, <strong>bottom-right</strong> = date. Title = 14px medium. Body text = 12px small. Lex cards show two tags: source flag + document type.</p>
             
             <h3>RSS Card</h3>
             <div class="component-demo">
@@ -327,7 +327,7 @@
                 </div>
             </div>
 
-            <h3>Lex Card</h3>
+            <h3>Lex Card (CH)</h3>
             <div class="component-demo">
                 <div class="entry-card">
                     <div class="entry-header">
@@ -341,6 +341,24 @@
                             <a href="#" class="entry-link">Fedlex &rarr;</a>
                         </div>
                         <span class="entry-date">17.12.2025</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Lex Card (DE)</h3>
+            <div class="component-demo">
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #f5f562;">🇩🇪 DE</span>
+                        <span class="entry-tag" style="background-color: #f5f5f5;">Verordnung</span>
+                    </div>
+                    <h3 class="entry-title"><a href="#">Verordnung über die Beteiligung der maßgeblichen Organisationen</a></h3>
+                    <div class="entry-actions">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-family: monospace;">bgbl-1/2026/41</span>
+                            <a href="#" class="entry-link">recht.bund.de &rarr;</a>
+                        </div>
+                        <span class="entry-date">13.02.2026</span>
                     </div>
                 </div>
             </div>

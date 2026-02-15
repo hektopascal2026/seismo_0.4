@@ -126,8 +126,6 @@
                                 <span class="entry-tag" style="background-color: #f5f562; border-color: #000000;">
                                     <?= $sourceEmoji ?> <?= $sourceLabel ?>
                                 </span>
-                            <?php else: ?>
-                                <span></span>
                             <?php endif; ?>
                             <span class="entry-tag" style="background-color: #f5f5f5;">
                                 <?= $docType ?>

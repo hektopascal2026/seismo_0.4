@@ -334,12 +334,12 @@ h3 {
     box-shadow: 2px 2px 0px #000000;
 }
 
-/* Card header row (tag left, context right) */
+/* Card header row (tags left, magnitu badge pushed right via margin-left:auto) */
 .entry-header,
 .item-meta {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 6px;
     margin-bottom: 6px;
     font-size: 12px;                /* small */
     color: #000000;
