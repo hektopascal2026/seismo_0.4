@@ -1,0 +1,26 @@
+<?php
+/**
+ * Scraper configuration.
+ *
+ * Copy this file to config.php and fill in your database credentials.
+ * Scraper URLs are managed in the Seismo UI (Settings > Script).
+ */
+
+return [
+    'db' => [
+        'host'     => 'localhost',
+        'port'     => 3306,
+        'database' => 'CHANGE_ME',
+        'username' => 'CHANGE_ME',
+        'password' => 'CHANGE_ME',
+        'charset'  => 'utf8mb4',
+    ],
+    'scraping' => [
+        'min_delay' => 3,   // minimum seconds between requests
+        'max_delay' => 8,   // maximum seconds between requests
+    ],
+    'logging' => [
+        'target' => 'stdout',  // 'stdout' or a file path
+        'level'  => 'info',    // debug, info, warn, error
+    ],
+];

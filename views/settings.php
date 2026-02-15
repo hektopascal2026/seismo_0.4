@@ -580,7 +580,7 @@
         <!-- Scraper Section -->
         <section class="settings-section" style="margin-top: 32px;">
             <h2 style="background-color: #FFDBBB; padding: 8px 14px; display: inline-block;">🌐 Scraper</h2>
-            <p style="font-size: 12px; margin-bottom: 12px;">Configure web pages to scrape periodically. After adding URLs, download the generated script and set up a cronjob on your hoster.</p>
+            <p style="font-size: 12px; margin-bottom: 12px;">Configure web pages to scrape periodically. Upload <code>fetcher/scraper/</code> to your hoster, download the config below, and set up a cronjob for <code>seismo_scraper.php</code>. URLs are read from the database — no re-download needed when you add or remove pages.</p>
 
             <?php if (!empty($scraperConfigs)): ?>
             <div class="settings-list" style="margin-bottom: 16px;">
@@ -631,7 +631,7 @@
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('scraper-add-row').style.display='block'" style="font-size: 18px; padding: 6px 16px;">＋ Add URL</button>
                 <?php if (!empty($scraperConfigs)): ?>
-                <a href="<?= getBasePath() ?>/index.php?action=download_scraper_script" class="btn" style="text-decoration: none;">⬇ Download Script</a>
+                <a href="<?= getBasePath() ?>/index.php?action=download_scraper_config" class="btn" style="text-decoration: none;">⬇ Download config.php</a>
                 <?php endif; ?>
             </div>
         </section>

@@ -1327,223 +1327,44 @@ switch ($action) {
         header('Location: ?action=settings&tab=script');
         exit;
     
-    case 'download_scraper_script':
-        $scrapers = $pdo->query("SELECT name, url FROM scraper_configs WHERE disabled = 0 ORDER BY id")->fetchAll();
-        if (empty($scrapers)) {
-            $_SESSION['error'] = 'No enabled scrapers to generate script for.';
-            header('Location: ?action=settings&tab=script');
-            exit;
-        }
+    case 'download_scraper_config':
+        // Generate config.php for the scraper script (DB credentials only)
+        // The scraper script itself lives in fetcher/scraper/seismo_scraper.php
+        // and reads URLs from the scraper_configs table at runtime.
         
-        $dbHost = DB_HOST;
-        $dbName = DB_NAME;
-        $dbUser = DB_USER;
-        $dbPass = DB_PASS;
+        // Parse host and port from DB_HOST (e.g. "localhost:3306")
+        $hostParts = explode(':', DB_HOST, 2);
+        $cfgHost = $hostParts[0];
+        $cfgPort = isset($hostParts[1]) ? (int)$hostParts[1] : 3306;
         
-        $scraperListPhp = "[\n";
-        foreach ($scrapers as $s) {
-            $escapedName = addslashes($s['name']);
-            $escapedUrl = addslashes($s['url']);
-            $scraperListPhp .= "    ['name' => '{$escapedName}', 'url' => '{$escapedUrl}'],\n";
-        }
-        $scraperListPhp .= "]";
-        
-        $script = <<<'SCRIPT_HEAD'
-<?php
-// Seismo Web Scraper — generated script
-// Run via cronjob, e.g.: 0 */6 * * * php /path/to/seismo_scraper.php
-
-SCRIPT_HEAD;
-        $script .= "\$dbHost = " . var_export($dbHost, true) . ";\n";
-        $script .= "\$dbName = " . var_export($dbName, true) . ";\n";
-        $script .= "\$dbUser = " . var_export($dbUser, true) . ";\n";
-        $script .= "\$dbPass = " . var_export($dbPass, true) . ";\n\n";
-        $script .= "\$scrapers = {$scraperListPhp};\n\n";
-        $script .= <<<'SCRIPT_BODY'
-try {
-    $pdo = new PDO("mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
-} catch (PDOException $e) {
-    echo "[ERROR] DB connection failed: " . $e->getMessage() . "\n";
-    exit(1);
-}
-
-function extractReadableContent(string $html): array {
-    libxml_use_internal_errors(true);
-    $dom = new DOMDocument();
-    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
-    libxml_clear_errors();
-    
-    // Extract <title>
-    $titleNodes = $dom->getElementsByTagName('title');
-    $title = $titleNodes->length > 0 ? trim($titleNodes->item(0)->textContent) : '';
-    
-    // Remove unwanted tags
-    foreach (['script', 'style', 'nav', 'header', 'footer', 'aside', 'noscript', 'iframe'] as $tag) {
-        $nodes = $dom->getElementsByTagName($tag);
-        $toRemove = [];
-        for ($i = 0; $i < $nodes->length; $i++) {
-            $toRemove[] = $nodes->item($i);
-        }
-        foreach ($toRemove as $node) {
-            $node->parentNode->removeChild($node);
-        }
-    }
-    
-    // Find the largest text-bearing block
-    $body = $dom->getElementsByTagName('body')->item(0);
-    if (!$body) {
-        return ['title' => $title, 'content' => ''];
-    }
-    
-    $bestText = '';
-    $bestLen = 0;
-    $candidates = ['article', 'main', 'div', 'section'];
-    foreach ($candidates as $tagName) {
-        $elements = $dom->getElementsByTagName($tagName);
-        for ($i = 0; $i < $elements->length; $i++) {
-            $text = trim($elements->item($i)->textContent);
-            $len = mb_strlen($text);
-            if ($len > $bestLen) {
-                $bestLen = $len;
-                $bestText = $text;
-            }
-        }
-        if ($bestLen > 200) break;
-    }
-    
-    if ($bestLen < 50) {
-        $bestText = trim($body->textContent);
-    }
-    
-    // Normalize whitespace
-    $bestText = preg_replace('/[ \t]+/', ' ', $bestText);
-    $bestText = preg_replace('/\n{3,}/', "\n\n", $bestText);
-    
-    return ['title' => $title, 'content' => trim($bestText)];
-}
-
-// Polite scraping: randomised delay between requests (seconds)
-$minDelay = 3;
-$maxDelay = 8;
-
-// Rotate through realistic browser User-Agent strings
-$userAgents = [
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-];
-
-echo "Seismo Scraper — " . date('Y-m-d H:i:s') . "\n";
-echo str_repeat('-', 50) . "\n";
-
-$inserted = 0;
-$updated = 0;
-$skipped = 0;
-$isFirst = true;
-
-foreach ($scrapers as $scraper) {
-    $name = $scraper['name'];
-    $url = $scraper['url'];
-    
-    // Polite delay between requests (skip before the first one)
-    if (!$isFirst) {
-        $delay = rand($minDelay * 10, $maxDelay * 10) / 10;
-        echo "  [WAIT] Sleeping {$delay}s...\n";
-        usleep((int)($delay * 1000000));
-    }
-    $isFirst = false;
-    
-    echo "\n[{$name}] Fetching: {$url}\n";
-    
-    $ua = $userAgents[array_rand($userAgents)];
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS      => 5,
-        CURLOPT_TIMEOUT        => 30,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_USERAGENT      => $ua,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_ENCODING       => '',          // accept gzip/deflate
-        CURLOPT_HTTPHEADER     => [
-            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language: de-CH,de;q=0.9,en;q=0.8',
-            'Cache-Control: no-cache',
-            'DNT: 1',
-        ],
-    ]);
-    $html = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($html === false || $httpCode >= 400) {
-        echo "  [WARN] HTTP {$httpCode}, curl error: {$err}\n";
-        continue;
-    }
-    
-    $extracted = extractReadableContent($html);
-    $title = !empty($extracted['title']) ? $extracted['title'] : $name;
-    $content = $extracted['content'];
-    
-    if (empty($content)) {
-        echo "  [WARN] No content extracted, skipping.\n";
-        continue;
-    }
-    
-    $contentHash = md5($content);
-    
-    // Ensure a feeds row exists for this scraper source
-    $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE url = ? AND source_type = 'scraper'");
-    $feedStmt->execute([$url]);
-    $feedId = $feedStmt->fetchColumn();
-    
-    if (!$feedId) {
-        $ins = $pdo->prepare("INSERT INTO feeds (title, url, link, source_type, category) VALUES (?, ?, ?, 'scraper', 'scraper')");
-        $ins->execute([$name, $url, $url]);
-        $feedId = $pdo->lastInsertId();
-        echo "  Created feed #{$feedId}\n";
-    }
-    
-    // Check for existing entry by guid (= URL)
-    $existStmt = $pdo->prepare("SELECT id, content_hash FROM feed_items WHERE guid = ? AND feed_id = ?");
-    $existStmt->execute([$url, $feedId]);
-    $existing = $existStmt->fetch();
-    
-    if ($existing) {
-        if ($existing['content_hash'] === $contentHash) {
-            echo "  [SKIP] Content unchanged.\n";
-            $skipped++;
-            continue;
-        }
-        // Content changed — update
-        $upd = $pdo->prepare("UPDATE feed_items SET title = ?, content = ?, content_hash = ?, published_date = NOW() WHERE id = ?");
-        $upd->execute([$title, $content, $contentHash, $existing['id']]);
-        echo "  [UPDATE] Content changed, updated item #{$existing['id']}\n";
-        $updated++;
-    } else {
-        // New entry
-        $ins = $pdo->prepare("INSERT INTO feed_items (feed_id, title, content, link, guid, content_hash, published_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-        $ins->execute([$feedId, $title, $content, $url, $url, $contentHash]);
-        echo "  [INSERT] New item #" . $pdo->lastInsertId() . "\n";
-        $inserted++;
-    }
-}
-
-echo "\n" . str_repeat('-', 50) . "\n";
-echo "Done. Inserted: {$inserted}, Updated: {$updated}, Skipped: {$skipped}\n";
-SCRIPT_BODY;
+        $configFile = "<?php\n";
+        $configFile .= "/**\n";
+        $configFile .= " * Scraper configuration — generated by Seismo.\n";
+        $configFile .= " * Place this file next to seismo_scraper.php.\n";
+        $configFile .= " */\n\n";
+        $configFile .= "return [\n";
+        $configFile .= "    'db' => [\n";
+        $configFile .= "        'host'     => " . var_export($cfgHost, true) . ",\n";
+        $configFile .= "        'port'     => " . var_export($cfgPort, true) . ",\n";
+        $configFile .= "        'database' => " . var_export(DB_NAME, true) . ",\n";
+        $configFile .= "        'username' => " . var_export(DB_USER, true) . ",\n";
+        $configFile .= "        'password' => " . var_export(DB_PASS, true) . ",\n";
+        $configFile .= "        'charset'  => 'utf8mb4',\n";
+        $configFile .= "    ],\n";
+        $configFile .= "    'scraping' => [\n";
+        $configFile .= "        'min_delay' => 3,\n";
+        $configFile .= "        'max_delay' => 8,\n";
+        $configFile .= "    ],\n";
+        $configFile .= "    'logging' => [\n";
+        $configFile .= "        'target' => 'stdout',\n";
+        $configFile .= "        'level'  => 'info',\n";
+        $configFile .= "    ],\n";
+        $configFile .= "];\n";
         
         header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="seismo_scraper.php"');
-        header('Content-Length: ' . strlen($script));
-        echo $script;
+        header('Content-Disposition: attachment; filename="config.php"');
+        header('Content-Length: ' . strlen($configFile));
+        echo $configFile;
         exit;
     
     case 'save_magnitu_config':
