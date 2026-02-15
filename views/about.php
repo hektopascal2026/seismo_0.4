@@ -157,13 +157,24 @@
             <p style="margin-top: 8px;">
                 Scoring works at two levels. The <strong>recipe scorer</strong> runs inside Seismo itself — it uses a keyword-based recipe with source weights and class weights to score new entries immediately during refresh. The <strong>Magnitu model</strong> is a full ML classifier that trains on your labels and pushes higher-quality scores via the API, overriding recipe scores when available.
             </p>
+
+            <p style="margin-top: 12px; font-weight: 700;">Model Profiles</p>
+            <p style="margin-top: 4px;">
+                Each Magnitu instance runs a named model profile (e.g. "pascal1"). Models are portable: they can be exported as <code>.magnitu</code> files and shared with colleagues. A <code>.magnitu</code> file contains the trained model, all labels, the keyword recipe, and a version manifest. When someone imports a model file, labels are merged (newer wins), and the trained model is loaded if it's a newer version — protecting against accidental regression.
+            </p>
             <p style="margin-top: 8px;">
-                Magnitu connects to Seismo through four API endpoints:
+                The currently connected model name and version are displayed at the top of the <a href="?action=magnitu" class="about-link">Magnitu page</a> and in <a href="?action=settings" class="about-link">Settings</a>.
+            </p>
+
+            <p style="margin-top: 12px; font-weight: 700;">API Endpoints</p>
+            <p style="margin-top: 4px;">
+                Magnitu connects to Seismo through these API endpoints:
             </p>
             <ul>
                 <li><strong>magnitu_entries</strong> — exports entries for Magnitu to fetch and label</li>
-                <li><strong>magnitu_scores</strong> — receives batch scores from the trained model</li>
+                <li><strong>magnitu_scores</strong> — receives batch scores and model metadata from the trained model</li>
                 <li><strong>magnitu_recipe</strong> — exchanges the keyword recipe between both systems</li>
+                <li><strong>magnitu_labels</strong> — syncs labels between Magnitu instances via Seismo</li>
                 <li><strong>magnitu_status</strong> — connectivity check and score coverage statistics</li>
             </ul>
             <p style="margin-top: 8px;">
