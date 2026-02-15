@@ -127,7 +127,7 @@
                         Search Results<?= $searchResultsCount !== null ? ' (' . $searchResultsCount . ')' : '' ?>
                         <span style="font-weight: 400;">for "<?= htmlspecialchars($searchQuery) ?>"</span>
                     </h2>
-                    <button class="btn btn-secondary entry-expand-all-btn">&#9660; expand all</button>
+                    <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
                 </div>
             <?php else: ?>
                 <div class="section-title-row">
@@ -149,7 +149,7 @@
                                 <a href="?action=index&sort=relevance&tags_submitted=1<?= !empty($selectedTags) ? '&' . http_build_query(['tags' => $selectedTags]) : '' ?>" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;" title="Currently chronological. Click to sort by relevance.">Sort: Date</a>
                             <?php endif; ?>
                         <?php endif; ?>
-                        <button class="btn btn-secondary entry-expand-all-btn">&#9660; expand all</button>
+                        <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
                     </div>
                 </div>
             <?php endif; ?>
@@ -212,7 +212,7 @@
                             <div class="entry-actions">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <?php if ($hasMore): ?>
-                                        <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                        <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($item['published_date']): ?>
@@ -309,7 +309,7 @@
                             <div class="entry-actions">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <?php if ($hasMore): ?>
-                                        <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                        <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($createdAt): ?>
@@ -342,7 +342,7 @@
             if (!preview || !full) return;
             full.style.display = 'none';
             preview.style.display = '';
-            if (btn) btn.textContent = '\u25BC expand';
+            if (btn) btn.textContent = 'expand \u25BC';
         }
 
         function expandEntry(card, btn) {
@@ -351,7 +351,7 @@
             if (!preview || !full) return;
             preview.style.display = 'none';
             full.style.display = 'block';
-            if (btn) btn.textContent = '\u25B2 collapse';
+            if (btn) btn.textContent = 'collapse \u25B2';
         }
 
         // Per-entry toggle
@@ -382,7 +382,7 @@
                 }
             });
             btn.dataset.expanded = !isExpanded;
-            btn.textContent = !isExpanded ? '\u25B2 collapse all' : '\u25BC expand all';
+            btn.textContent = !isExpanded ? 'collapse all \u25B2' : 'expand all \u25BC';
         });
     })();
     </script>

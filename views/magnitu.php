@@ -67,7 +67,7 @@
         <div class="latest-entries-section">
             <div class="section-title-row">
                 <h2 class="section-title">Investigation Leads</h2>
-                <button class="btn btn-secondary entry-expand-all-btn" data-section="investigation">&#9660; expand all</button>
+                <button class="btn btn-secondary entry-expand-all-btn" data-section="investigation">expand all &#9660;</button>
             </div>
             <?php foreach ($investigationItems as $itemWrapper): ?>
                 <?php
@@ -121,7 +121,7 @@
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <?php if ($hasMore): ?>
-                                    <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
                                     <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
@@ -223,7 +223,7 @@
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <?php if ($hasMore): ?>
-                                    <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
                                     <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
@@ -244,7 +244,7 @@
         <div class="latest-entries-section">
             <div class="section-title-row">
                 <h2 class="section-title">Important</h2>
-                <button class="btn btn-secondary entry-expand-all-btn" data-section="important">&#9660; expand all</button>
+                <button class="btn btn-secondary entry-expand-all-btn" data-section="important">expand all &#9660;</button>
             </div>
             <?php foreach ($importantItems as $itemWrapper): ?>
                 <?php
@@ -298,7 +298,7 @@
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <?php if ($hasMore): ?>
-                                    <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
                                     <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
@@ -400,7 +400,7 @@
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <?php if ($hasMore): ?>
-                                    <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
                                     <button class="btn btn-secondary magnitu-why-btn" style="font-size: 11px; padding: 3px 8px;">Why?</button>
@@ -426,7 +426,7 @@
             if (!preview || !full) return;
             full.style.display = 'none';
             preview.style.display = '';
-            if (btn) btn.textContent = '\u25BC expand';
+            if (btn) btn.textContent = 'expand \u25BC';
         }
 
         function expandEntry(card, btn) {
@@ -435,7 +435,7 @@
             if (!preview || !full) return;
             preview.style.display = 'none';
             full.style.display = 'block';
-            if (btn) btn.textContent = '\u25B2 collapse';
+            if (btn) btn.textContent = 'collapse \u25B2';
         }
 
         // Magnitu "Why?" toggle
@@ -484,7 +484,7 @@
                 }
             });
             btn.dataset.expanded = !isExpanded;
-            btn.textContent = !isExpanded ? '\u25B2 collapse all' : '\u25BC expand all';
+            btn.textContent = !isExpanded ? 'collapse all \u25B2' : 'expand all \u25BC';
         });
     })();
     </script>

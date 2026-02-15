@@ -77,7 +77,7 @@
                         Refreshed: Never
                     <?php endif; ?>
                 </h2>
-                <button class="btn btn-secondary entry-expand-all-btn">&#9660; expand all</button>
+                <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
             </div>
 
             <?php if (!empty($mailTableError)): ?>
@@ -121,7 +121,7 @@
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <?php if ($hasMore): ?>
-                                    <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                 <?php endif; ?>
                                 <?php if (isset($email['id'])): ?>
                                     <a href="?action=delete_email&id=<?= (int)$email['id'] ?>&confirm=yes" 
@@ -164,7 +164,7 @@
             if (!preview || !full) return;
             full.style.display = 'none';
             preview.style.display = '';
-            if (btn) btn.textContent = '\u25BC expand';
+            if (btn) btn.textContent = 'expand \u25BC';
         }
 
         function expandEntry(card, btn) {
@@ -173,7 +173,7 @@
             if (!preview || !full) return;
             preview.style.display = 'none';
             full.style.display = 'block';
-            if (btn) btn.textContent = '\u25B2 collapse';
+            if (btn) btn.textContent = 'collapse \u25B2';
         }
 
         // Per-entry toggle
@@ -204,7 +204,7 @@
                 }
             });
             btn.dataset.expanded = !isExpanded;
-            btn.textContent = !isExpanded ? '\u25B2 collapse all' : '\u25BC expand all';
+            btn.textContent = !isExpanded ? 'collapse all \u25B2' : 'expand all \u25BC';
         });
     })();
     </script>

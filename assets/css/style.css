@@ -313,6 +313,13 @@ h3 {
     box-shadow: 2px 2px 0px #00aa00;
 }
 
+/* Expand buttons — compact, same size as sort button */
+.entry-expand-btn,
+.entry-expand-all-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
 /* ═══ Cards ═══ */
 .entry-card,
 .item-card {

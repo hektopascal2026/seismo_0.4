@@ -282,7 +282,7 @@
                     <div class="entry-full-content" style="display:none">Full expanded content shown when the user clicks expand.</div>
                     <div class="entry-actions">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                            <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                         </div>
                         <span class="entry-date">24.01.2026 12:00</span>
                     </div>
@@ -299,7 +299,7 @@
                     <div class="entry-content entry-preview">Email body preview truncated to 200 chars...</div>
                     <div class="entry-actions">
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <button class="btn btn-secondary entry-expand-btn">&#9660; expand</button>
+                            <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                         </div>
                         <span class="entry-date">24.01.2026 12:00</span>
                     </div>
@@ -346,21 +346,21 @@
         <!-- Expand / Collapse -->
         <section class="styleguide-section">
             <h2>Expand / Collapse</h2>
-            <p>Entries with content longer than 200 characters get a toggle button. Per-entry: "&#9660; expand" / "&#9650; collapse". Global: "&#9660; expand all" / "&#9650; collapse all" in the section title row.</p>
+            <p>Entries with content longer than 200 characters get a toggle button. Per-entry: "expand &#9660;" / "collapse &#9650;". Global: "expand all &#9660;" / "collapse all &#9650;" in the section title row. Both use compact sizing (12px, 4px 10px padding) matching the sort button.</p>
             
             <h3>Section Title with Global Toggle</h3>
             <div class="component-demo">
                 <div class="section-title-row">
                     <h2 class="section-title" style="margin-bottom: 0;">Refreshed: 24.01.2026 12:00</h2>
-                    <button class="btn btn-secondary entry-expand-all-btn">&#9660; expand all</button>
+                    <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
                 </div>
             </div>
             
             <h3>Per-Entry Buttons</h3>
             <div class="component-demo">
                 <div style="display: flex; gap: 12px;">
-                    <button class="btn btn-secondary">&#9660; expand</button>
-                    <button class="btn btn-secondary">&#9650; collapse</button>
+                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                    <button class="btn btn-secondary entry-expand-btn">collapse &#9650;</button>
                 </div>
             </div>
         </section>
@@ -530,7 +530,7 @@
             if (!preview || !full) return;
             full.style.display = 'none';
             preview.style.display = '';
-            if (btn) btn.textContent = '\u25BC expand';
+            if (btn) btn.textContent = 'expand \u25BC';
         }
 
         function expandEntry(card, btn) {
@@ -539,7 +539,7 @@
             if (!preview || !full) return;
             preview.style.display = 'none';
             full.style.display = 'block';
-            if (btn) btn.textContent = '\u25B2 collapse';
+            if (btn) btn.textContent = 'collapse \u25B2';
         }
 
         document.addEventListener('click', function(e) {
@@ -569,7 +569,7 @@
                 }
             });
             btn.dataset.expanded = !isExpanded;
-            btn.textContent = !isExpanded ? '\u25B2 collapse all' : '\u25BC expand all';
+            btn.textContent = !isExpanded ? 'collapse all \u25B2' : 'expand all \u25BC';
         });
     })();
     </script>
