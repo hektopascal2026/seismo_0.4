@@ -56,21 +56,21 @@
             <input type="hidden" name="sources_submitted" value="1">
             <div class="tag-filter-section" style="margin-bottom: 16px;">
                 <div class="tag-filter-list">
-                    <?php $bgerActive = in_array('ch_bger', $activeJusSources); ?>
-                    <label class="tag-filter-pill<?= $bgerActive ? ' tag-filter-pill-active' : '' ?>"<?= $bgerActive ? ' style="background-color: #f5f562;"' : '' ?>>
-                        <input type="checkbox" name="sources[]" value="ch_bger" <?= $bgerActive ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>⚖️ BGer</span>
+                    <?php
+                        $jusPagePills = [
+                            ['key' => 'ch_bger',  'label' => '⚖️ BGer'],
+                            ['key' => 'ch_bge',   'label' => '⚖️ BGE'],
+                            ['key' => 'ch_bvger', 'label' => '⚖️ BVGer'],
+                        ];
+                        foreach ($jusPagePills as $pill):
+                            if (!in_array($pill['key'], $enabledJusSources)) continue;
+                            $isActive = in_array($pill['key'], $activeJusSources);
+                    ?>
+                    <label class="tag-filter-pill<?= $isActive ? ' tag-filter-pill-active' : '' ?>"<?= $isActive ? ' style="background-color: #f5f562;"' : '' ?>>
+                        <input type="checkbox" name="sources[]" value="<?= $pill['key'] ?>" <?= $isActive ? 'checked' : '' ?> onchange="this.form.submit()">
+                        <span><?= $pill['label'] ?></span>
                     </label>
-                    <?php $bgeActive = in_array('ch_bge', $activeJusSources); ?>
-                    <label class="tag-filter-pill<?= $bgeActive ? ' tag-filter-pill-active' : '' ?>"<?= $bgeActive ? ' style="background-color: #f5f562;"' : '' ?>>
-                        <input type="checkbox" name="sources[]" value="ch_bge" <?= $bgeActive ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>⚖️ BGE</span>
-                    </label>
-                    <?php $bvgerActive = in_array('ch_bvger', $activeJusSources); ?>
-                    <label class="tag-filter-pill<?= $bvgerActive ? ' tag-filter-pill-active' : '' ?>"<?= $bvgerActive ? ' style="background-color: #f5f562;"' : '' ?>>
-                        <input type="checkbox" name="sources[]" value="ch_bvger" <?= $bvgerActive ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>⚖️ BVGer</span>
-                    </label>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </form>

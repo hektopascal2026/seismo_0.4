@@ -56,21 +56,21 @@
             <input type="hidden" name="sources_submitted" value="1">
             <div class="tag-filter-section" style="margin-bottom: 16px;">
                 <div class="tag-filter-list">
-                    <?php $euActive = in_array('eu', $activeSources); ?>
-                    <label class="tag-filter-pill<?= $euActive ? ' tag-filter-pill-active' : '' ?>"<?= $euActive ? ' style="background-color: #f5f562;"' : '' ?>>
-                        <input type="checkbox" name="sources[]" value="eu" <?= $euActive ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>🇪🇺 EU</span>
+                    <?php
+                        $lexPagePills = [
+                            ['key' => 'eu', 'label' => '🇪🇺 EU'],
+                            ['key' => 'ch', 'label' => '🇨🇭 Switzerland'],
+                            ['key' => 'de', 'label' => '🇩🇪 Germany'],
+                        ];
+                        foreach ($lexPagePills as $pill):
+                            if (!in_array($pill['key'], $enabledLexSources)) continue;
+                            $isActive = in_array($pill['key'], $activeSources);
+                    ?>
+                    <label class="tag-filter-pill<?= $isActive ? ' tag-filter-pill-active' : '' ?>"<?= $isActive ? ' style="background-color: #f5f562;"' : '' ?>>
+                        <input type="checkbox" name="sources[]" value="<?= $pill['key'] ?>" <?= $isActive ? 'checked' : '' ?> onchange="this.form.submit()">
+                        <span><?= $pill['label'] ?></span>
                     </label>
-                    <?php $chActive = in_array('ch', $activeSources); ?>
-                    <label class="tag-filter-pill<?= $chActive ? ' tag-filter-pill-active' : '' ?>"<?= $chActive ? ' style="background-color: #f5f562;"' : '' ?>>
-                        <input type="checkbox" name="sources[]" value="ch" <?= $chActive ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>🇨🇭 Switzerland</span>
-                    </label>
-                    <?php $deActive = in_array('de', $activeSources); ?>
-                    <label class="tag-filter-pill<?= $deActive ? ' tag-filter-pill-active' : '' ?>"<?= $deActive ? ' style="background-color: #f5f562;"' : '' ?>>
-                        <input type="checkbox" name="sources[]" value="de" <?= $deActive ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>🇩🇪 Germany</span>
-                    </label>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </form>

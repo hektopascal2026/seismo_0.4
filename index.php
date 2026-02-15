@@ -60,8 +60,21 @@ switch ($action) {
             $selectedTags = array_values(array_filter($tags, function($t) { return $t !== 'unsortiert'; }));
             $selectedEmailTags = array_values(array_filter($emailTags, function($t) { return $t !== 'unsortiert' && $t !== 'unclassified'; }));
             $selectedSubstackTags = $substackTags; // select all by default
-            $selectedLexSources = ['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger']; // all active by default
+            $lexCfg = getLexConfig();
+            $selectedLexSources = array_values(array_filter(
+                ['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger'],
+                function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
+            ));
         }
+        
+        // Load enabled lex sources for pill rendering
+        $lexCfg = $lexCfg ?? getLexConfig();
+        $enabledLexSources = [];
+        foreach (['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger'] as $s) {
+            if (!empty($lexCfg[$s]['enabled'])) $enabledLexSources[] = $s;
+        }
+        // Strip any disabled sources from user selection
+        $selectedLexSources = array_values(array_intersect($selectedLexSources, $enabledLexSources));
         
         // If search query exists, show search results instead of latest items
         if (!empty($searchQuery)) {
@@ -1284,14 +1297,21 @@ switch ($action) {
         // Show Lex entries page — EU, CH + DE legislation
         $lexItems = [];
         $lastLexRefreshDate = null;
+        $lexCfg = getLexConfig();
+        $enabledLexSources = array_values(array_filter(
+            ['eu', 'ch', 'de'],
+            function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
+        ));
         
-        // Determine active sources from query params (default: all active)
+        // Determine active sources from query params (default: all enabled)
         $sourcesSubmitted = isset($_GET['sources_submitted']);
         if ($sourcesSubmitted) {
             $activeSources = isset($_GET['sources']) ? (array)$_GET['sources'] : [];
         } else {
-            $activeSources = ['eu', 'ch', 'de']; // All active by default
+            $activeSources = $enabledLexSources;
         }
+        // Strip disabled sources from user selection
+        $activeSources = array_values(array_intersect($activeSources, $enabledLexSources));
         
         try {
             if (!empty($activeSources)) {
@@ -1382,14 +1402,21 @@ switch ($action) {
     case 'jus':
         // Show JUS entries page — Swiss case law from entscheidsuche.ch
         $jusItems = [];
+        $lexCfg = getLexConfig();
+        $enabledJusSources = array_values(array_filter(
+            ['ch_bger', 'ch_bge', 'ch_bvger'],
+            function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
+        ));
         
-        // Determine active sources from query params (default: all active)
+        // Determine active sources from query params (default: all enabled)
         $sourcesSubmitted = isset($_GET['sources_submitted']);
         if ($sourcesSubmitted) {
             $activeJusSources = isset($_GET['sources']) ? (array)$_GET['sources'] : [];
         } else {
-            $activeJusSources = ['ch_bger', 'ch_bge', 'ch_bvger']; // All active by default
+            $activeJusSources = $enabledJusSources;
         }
+        // Strip disabled sources from user selection
+        $activeJusSources = array_values(array_intersect($activeJusSources, $enabledJusSources));
         
         try {
             if (!empty($activeJusSources)) {

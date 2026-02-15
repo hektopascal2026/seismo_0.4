@@ -103,39 +103,23 @@
                                 </label>
                             <?php endforeach; ?>
                             <?php
-                                $lexEuSelected = !empty($selectedLexSources) && in_array('eu', $selectedLexSources, true);
-                                $lexChSelected = !empty($selectedLexSources) && in_array('ch', $selectedLexSources, true);
-                                $lexDeSelected = !empty($selectedLexSources) && in_array('de', $selectedLexSources, true);
+                                $lexPills = [
+                                    ['key' => 'eu',      'emoji' => '🇪🇺', 'label' => 'EU Lex'],
+                                    ['key' => 'ch',      'emoji' => '🇨🇭', 'label' => 'CH Lex'],
+                                    ['key' => 'de',      'emoji' => '🇩🇪', 'label' => 'DE Lex'],
+                                    ['key' => 'ch_bger', 'emoji' => '⚖️', 'label' => 'BGer'],
+                                    ['key' => 'ch_bge',  'emoji' => '⚖️', 'label' => 'BGE'],
+                                    ['key' => 'ch_bvger','emoji' => '⚖️', 'label' => 'BVGer'],
+                                ];
+                                foreach ($lexPills as $pill):
+                                    if (!in_array($pill['key'], $enabledLexSources)) continue;
+                                    $isSelected = !empty($selectedLexSources) && in_array($pill['key'], $selectedLexSources, true);
                             ?>
-                            <label class="tag-filter-pill<?= $lexEuSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexEuSelected ? ' style="background-color: #f5f562;"' : '' ?>>
-                                <input type="checkbox" name="lex_sources[]" value="eu" <?= $lexEuSelected ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>🇪🇺 EU Lex</span>
+                            <label class="tag-filter-pill<?= $isSelected ? ' tag-filter-pill-active' : '' ?>"<?= $isSelected ? ' style="background-color: #f5f562;"' : '' ?>>
+                                <input type="checkbox" name="lex_sources[]" value="<?= $pill['key'] ?>" <?= $isSelected ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span><?= $pill['emoji'] ?> <?= $pill['label'] ?></span>
                             </label>
-                            <label class="tag-filter-pill<?= $lexChSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexChSelected ? ' style="background-color: #f5f562;"' : '' ?>>
-                                <input type="checkbox" name="lex_sources[]" value="ch" <?= $lexChSelected ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>🇨🇭 CH Lex</span>
-                            </label>
-                            <label class="tag-filter-pill<?= $lexDeSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexDeSelected ? ' style="background-color: #f5f562;"' : '' ?>>
-                                <input type="checkbox" name="lex_sources[]" value="de" <?= $lexDeSelected ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>🇩🇪 DE Lex</span>
-                            </label>
-                            <?php
-                                $jusBgerSelected = !empty($selectedLexSources) && in_array('ch_bger', $selectedLexSources, true);
-                                $jusBgeSelected = !empty($selectedLexSources) && in_array('ch_bge', $selectedLexSources, true);
-                                $jusBvgerSelected = !empty($selectedLexSources) && in_array('ch_bvger', $selectedLexSources, true);
-                            ?>
-                            <label class="tag-filter-pill<?= $jusBgerSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBgerSelected ? ' style="background-color: #f5f562;"' : '' ?>>
-                                <input type="checkbox" name="lex_sources[]" value="ch_bger" <?= $jusBgerSelected ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>⚖️ BGer</span>
-                            </label>
-                            <label class="tag-filter-pill<?= $jusBgeSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBgeSelected ? ' style="background-color: #f5f562;"' : '' ?>>
-                                <input type="checkbox" name="lex_sources[]" value="ch_bge" <?= $jusBgeSelected ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>⚖️ BGE</span>
-                            </label>
-                            <label class="tag-filter-pill<?= $jusBvgerSelected ? ' tag-filter-pill-active' : '' ?>"<?= $jusBvgerSelected ? ' style="background-color: #f5f562;"' : '' ?>>
-                                <input type="checkbox" name="lex_sources[]" value="ch_bvger" <?= $jusBvgerSelected ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>⚖️ BVGer</span>
-                            </label>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 <?php endif; ?>
