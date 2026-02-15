@@ -1471,16 +1471,6 @@ switch ($action) {
         header('Location: ?action=jus');
         exit;
     
-    case 'resync_jus_titles':
-        try {
-            $count = resyncJusTitles($pdo);
-            $_SESSION['success'] = "Re-synced titles for {$count} case law entries.";
-        } catch (Exception $e) {
-            $_SESSION['error'] = 'Re-sync failed: ' . $e->getMessage();
-        }
-        header('Location: ?action=jus');
-        exit;
-    
     case 'save_lex_config':
         // Save Lex config from the settings form
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -3642,89 +3632,6 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
         }
     }
     
-    curl_multi_close($mh);
-    return $count;
-}
-
-/**
- * Re-fetch JSON for all stored JUS entries and update their titles.
- * Useful after changing the title-mapping logic to backfill existing rows.
- */
-function resyncJusTitles($pdo, $sourceKey = null) {
-    $jusSources = ['ch_bger', 'ch_bge', 'ch_bvger'];
-    if ($sourceKey) {
-        $jusSources = [$sourceKey];
-    }
-    $placeholders = implode(',', array_fill(0, count($jusSources), '?'));
-    $stmt = $pdo->prepare("SELECT id, celex, work_uri, source FROM lex_items WHERE source IN ($placeholders)");
-    $stmt->execute($jusSources);
-    $items = $stmt->fetchAll();
-    if (empty($items)) return 0;
-
-    $update = $pdo->prepare("UPDATE lex_items SET title = ?, document_type = ? WHERE id = ?");
-    $mh = curl_multi_init();
-    $count = 0;
-
-    $batches = array_chunk($items, 10);
-    foreach ($batches as $batch) {
-        $handles = [];
-        foreach ($batch as $item) {
-            $url = $item['work_uri'];
-            if (empty($url)) continue;
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 15,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_USERAGENT => 'Seismo/0.4 (case-law-monitor)',
-            ]);
-            curl_multi_add_handle($mh, $ch);
-            $handles[] = ['handle' => $ch, 'item' => $item];
-        }
-
-        $running = null;
-        do {
-            curl_multi_exec($mh, $running);
-            curl_multi_select($mh);
-        } while ($running > 0);
-
-        foreach ($handles as $h) {
-            $ch = $h['handle'];
-            $item = $h['item'];
-            $body = curl_multi_getcontent($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_multi_remove_handle($mh, $ch);
-            curl_close($ch);
-
-            if ($code !== 200 || empty($body)) continue;
-            $decision = json_decode($body, true);
-            if (!$decision) continue;
-
-            $abstract = $decision['Abstract'][0]['Text'] ?? '';
-            $nums = $decision['Num'] ?? [];
-            $caseNum = is_array($nums) ? ($nums[0] ?? '') : ($nums ?: '');
-            $kopfzeile = $decision['Kopfzeile'][0]['Text'] ?? '';
-
-            if (!empty($abstract) && !empty($caseNum)) {
-                $title = $caseNum . ' — ' . $abstract;
-            } elseif (!empty($abstract)) {
-                $title = $abstract;
-            } elseif (!empty($caseNum)) {
-                $title = $caseNum;
-            } elseif (!empty($kopfzeile)) {
-                $title = $kopfzeile;
-            } else {
-                continue;
-            }
-
-            $signatur = $decision['Signatur'] ?? '';
-            $documentType = getJusChamberLabel($signatur);
-
-            $update->execute([$title, $documentType, $item['id']]);
-            $count++;
-        }
-    }
-
     curl_multi_close($mh);
     return $count;
 }
