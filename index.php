@@ -1585,19 +1585,38 @@ switch ($action) {
         $scraperItems = [];
         $scraperSources = []; // for filter pills
         try {
-            // Get all scraper feeds for pills
+            // Get all scraper feeds for pills, grouped by name to avoid duplicates
             $scraperFeedsStmt = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' ORDER BY f.title");
-            $scraperSources = $scraperFeedsStmt->fetchAll();
+            $allScraperFeeds = $scraperFeedsStmt->fetchAll();
+            $allScraperIds = array_column($allScraperFeeds, 'id');
+            
+            // Group by name for pill display (one pill per scraper name)
+            $scraperSources = [];
+            $nameToIds = [];
+            foreach ($allScraperFeeds as $sf) {
+                $n = $sf['name'];
+                if (!isset($nameToIds[$n])) {
+                    $nameToIds[$n] = [];
+                    $scraperSources[] = ['id' => $sf['id'], 'name' => $n];
+                }
+                $nameToIds[$n][] = $sf['id'];
+            }
             
             // Determine active sources from query params
-            $allScraperIds = array_column($scraperSources, 'id');
             $sourcesSubmitted = isset($_GET['sources_submitted']);
             if ($sourcesSubmitted) {
-                $activeScraperIds = isset($_GET['sources']) ? array_map('intval', (array)$_GET['sources']) : [];
+                $selectedPillIds = isset($_GET['sources']) ? array_map('intval', (array)$_GET['sources']) : [];
             } else {
-                $activeScraperIds = $allScraperIds;
+                $selectedPillIds = array_column($scraperSources, 'id');
             }
-            $activeScraperIds = array_values(array_intersect($activeScraperIds, $allScraperIds));
+            // Expand pill IDs to include all feed IDs for that name
+            $activeScraperIds = [];
+            foreach ($scraperSources as $src) {
+                if (in_array($src['id'], $selectedPillIds)) {
+                    $activeScraperIds = array_merge($activeScraperIds, $nameToIds[$src['name']]);
+                }
+            }
+            $activeScraperIds = array_values(array_unique(array_intersect($activeScraperIds, $allScraperIds)));
             
             if (!empty($activeScraperIds)) {
                 $placeholders = implode(',', array_fill(0, count($activeScraperIds), '?'));
