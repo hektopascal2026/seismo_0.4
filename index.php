@@ -3296,6 +3296,103 @@ function parseRechtBundType($title) {
 }
 
 /**
+ * Fetch and decode a JSON payload from a URL.
+ *
+ * @return array|null
+ */
+function fetchJsonFromUrl($url, $timeout = 30) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'Seismo/0.4 (case-law-monitor)',
+    ]);
+    $body = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || $body === false || $body === '') {
+        return null;
+    }
+    
+    $decoded = json_decode($body, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+/**
+ * Discover a recent complete index manifest and return its actions.
+ * Used as a bootstrap fallback when `/last` contains no actionable entries.
+ */
+function fetchJusBootstrapActions($baseUrl, $spider, $maxFilesToScan = 30) {
+    $indexDirUrl = "{$baseUrl}/docs/Index/{$spider}/";
+    $ch = curl_init($indexDirUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'Seismo/0.4 (case-law-monitor)',
+    ]);
+    $listingHtml = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || $listingHtml === false || $listingHtml === '') {
+        return [];
+    }
+    
+    $pattern = '#/docs/Index/' . preg_quote($spider, '#') . '/(Index_[^"]+\.json)#';
+    if (!preg_match_all($pattern, $listingHtml, $matches) || empty($matches[1])) {
+        return [];
+    }
+    
+    $files = array_values(array_unique(array_map('rawurldecode', $matches[1])));
+
+    // Fast path: complete manifests are usually much larger than daily incremental files.
+    $largePattern = '#/docs/Index/' . preg_quote($spider, '#') . '/(Index_[^"]+\.json)"[^\n]*?<td data-sort="\d+">[^<]*</td><td data-sort="(\d+)"#';
+    if (preg_match_all($largePattern, $listingHtml, $largeMatches, PREG_SET_ORDER)) {
+        $largeCandidates = [];
+        foreach ($largeMatches as $m) {
+            $fileName = rawurldecode($m[1]);
+            $fileSize = (int)$m[2];
+            if ($fileSize >= 200000) {
+                $largeCandidates[] = $fileName;
+            }
+        }
+        if (!empty($largeCandidates)) {
+            $latestLargeFile = end($largeCandidates);
+            $manifest = fetchJsonFromUrl($indexDirUrl . rawurlencode($latestLargeFile), 30);
+            if ($manifest && !empty($manifest['actions']) && is_array($manifest['actions'])) {
+                return $manifest['actions'];
+            }
+        }
+    }
+
+    $fallbackActions = [];
+    $checked = 0;
+    
+    for ($i = count($files) - 1; $i >= 0 && $checked < $maxFilesToScan; $i--, $checked++) {
+        $fileName = $files[$i];
+        $manifestUrl = $indexDirUrl . rawurlencode($fileName);
+        $manifest = fetchJsonFromUrl($manifestUrl, 30);
+        if (!$manifest || empty($manifest['actions']) || !is_array($manifest['actions'])) {
+            continue;
+        }
+        
+        // Keep the newest non-empty actions as a fallback.
+        if (empty($fallbackActions)) {
+            $fallbackActions = $manifest['actions'];
+        }
+        
+        if (strtolower((string)($manifest['jobtyp'] ?? '')) === 'komplett') {
+            return $manifest['actions'];
+        }
+    }
+    
+    return $fallbackActions;
+}
+
+/**
  * Refresh JUS items (Swiss case law) from entscheidsuche.ch.
  * Uses the index manifest for incremental sync, then fetches individual decision JSONs.
  * Supports both CH_BGer (Bundesgericht) and CH_BGE (Leitentscheide).
@@ -3315,46 +3412,58 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
     $limit = (int)($cfg['limit'] ?? 100);
     $cutoffDate = date('Y-m-d', strtotime("-{$lookback} days"));
     
+    $existingStmt = $pdo->prepare("SELECT COUNT(*) FROM lex_items WHERE source = ?");
+    $existingStmt->execute([$sourceKey]);
+    $sourceHasEntries = ((int)$existingStmt->fetchColumn() > 0);
+    
     // 1. Fetch the latest index manifest
     $indexUrl = "{$baseUrl}/docs/Index/{$spider}/last";
-    $ch = curl_init($indexUrl);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_USERAGENT => 'Seismo/0.4 (case-law-monitor)',
-    ]);
-    $indexJson = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode !== 200 || empty($indexJson)) {
-        throw new Exception("Failed to fetch index manifest from {$indexUrl} (HTTP {$httpCode})");
+    $index = fetchJsonFromUrl($indexUrl, 30);
+    if (!$index) {
+        throw new Exception("Failed to fetch index manifest from {$indexUrl}");
     }
     
-    $index = json_decode($indexJson, true);
-    if (!$index || !isset($index['actions'])) {
+    if (!isset($index['actions'])) {
         // Empty actions means no changes — not an error
         if (isset($index['spider'])) return 0;
         throw new Exception("Invalid index manifest from {$indexUrl}");
     }
     
-    $actions = $index['actions'];
+    $actions = is_array($index['actions']) ? $index['actions'] : [];
+    $usedBootstrapActions = false;
+    if (empty($actions) && !$sourceHasEntries) {
+        // Bootstrap empty datasets from a recent complete manifest.
+        $actions = fetchJusBootstrapActions($baseUrl, $spider);
+        $usedBootstrapActions = !empty($actions);
+    }
     if (empty($actions)) return 0;
     
     // 2. Filter to new/update actions only, pre-filter by date from filename
-    $filesToFetch = [];
-    foreach ($actions as $filePath => $action) {
-        if ($action === 'delete') continue;
-        
-        // Extract date from filename: CH_BGer_007_7B-835-2025_2025-09-18.json → 2025-09-18
-        if (preg_match('/_(\d{4}-\d{2}-\d{2})\.json$/', $filePath, $m)) {
-            $fileDate = $m[1];
-            if ($fileDate < $cutoffDate) continue; // Skip old decisions
+    $collectFiles = function($enforceCutoff) use ($actions, $cutoffDate, $limit) {
+        $files = [];
+        foreach ($actions as $filePath => $action) {
+            if ($action === 'delete') continue;
+            
+            // Extract date from filename: CH_BGer_007_7B-835-2025_2025-09-18.json → 2025-09-18
+            if ($enforceCutoff && preg_match('/_(\d{4}-\d{2}-\d{2})\.json$/', $filePath, $m)) {
+                $fileDate = $m[1];
+                if ($fileDate < $cutoffDate) continue; // Skip old decisions
+            }
+            
+            $files[] = $filePath;
+            if (count($files) >= $limit) break;
         }
-        
-        $filesToFetch[] = $filePath;
-        if (count($filesToFetch) >= $limit) break;
+        return $files;
+    };
+    
+    // BGE publication can lag significantly; on first sync we seed entries first, then enforce lookback on later runs.
+    $disableDateCutoffForFirstSync = (!$sourceHasEntries && ($sourceKey === 'ch_bge' || $usedBootstrapActions));
+    $enforceDateCutoff = !$disableDateCutoffForFirstSync;
+    $filesToFetch = $collectFiles($enforceDateCutoff);
+    if (empty($filesToFetch) && !$sourceHasEntries) {
+        // First sync fallback: allow older decisions so the source is not permanently empty.
+        $filesToFetch = $collectFiles(false);
+        $enforceDateCutoff = false;
     }
     
     if (empty($filesToFetch)) return 0;
@@ -3419,7 +3528,7 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
             
             // Filter by date again (from JSON Datum field for accuracy)
             $datum = $decision['Datum'] ?? null;
-            if ($datum && $datum < $cutoffDate) continue;
+            if ($enforceDateCutoff && $datum && $datum < $cutoffDate) continue;
             
             // Map fields
             $signatur = $decision['Signatur'] ?? '';
