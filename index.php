@@ -166,7 +166,7 @@ switch ($action) {
         $scraperItemsForFeed = [];
         try {
             $scraperItemsStmt = $pdo->query("
-                SELECT fi.*, f.name as feed_name, f.feed_url as source_url
+                SELECT fi.*, f.title as feed_name, f.url as source_url
                 FROM feed_items fi
                 JOIN feeds f ON fi.feed_id = f.id
                 WHERE f.source_type = 'scraper' AND f.disabled = 0
@@ -1500,12 +1500,12 @@ foreach ($scrapers as $scraper) {
     $contentHash = md5($content);
     
     // Ensure a feeds row exists for this scraper source
-    $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE feed_url = ? AND source_type = 'scraper'");
+    $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE url = ? AND source_type = 'scraper'");
     $feedStmt->execute([$url]);
     $feedId = $feedStmt->fetchColumn();
     
     if (!$feedId) {
-        $ins = $pdo->prepare("INSERT INTO feeds (name, feed_url, site_url, source_type, category) VALUES (?, ?, ?, 'scraper', 'scraper')");
+        $ins = $pdo->prepare("INSERT INTO feeds (title, url, link, source_type, category) VALUES (?, ?, ?, 'scraper', 'scraper')");
         $ins->execute([$name, $url, $url]);
         $feedId = $pdo->lastInsertId();
         echo "  Created feed #{$feedId}\n";
@@ -1751,7 +1751,7 @@ SCRIPT_BODY;
         $scraperSources = []; // for filter pills
         try {
             // Get all scraper feeds for pills
-            $scraperFeedsStmt = $pdo->query("SELECT f.id, f.name FROM feeds f WHERE f.source_type = 'scraper' ORDER BY f.name");
+            $scraperFeedsStmt = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' ORDER BY f.title");
             $scraperSources = $scraperFeedsStmt->fetchAll();
             
             // Determine active sources from query params
@@ -1767,7 +1767,7 @@ SCRIPT_BODY;
             if (!empty($activeScraperIds)) {
                 $placeholders = implode(',', array_fill(0, count($activeScraperIds), '?'));
                 $stmt = $pdo->prepare("
-                    SELECT fi.*, f.name as feed_name, f.feed_url as source_url
+                    SELECT fi.*, f.title as feed_name, f.url as source_url
                     FROM feed_items fi
                     JOIN feeds f ON fi.feed_id = f.id
                     WHERE f.source_type = 'scraper' AND f.id IN ($placeholders)
