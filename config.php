@@ -532,6 +532,15 @@ function getLexConfig() {
         $json = file_get_contents(LEX_CONFIG_PATH);
         $config = json_decode($json, true);
         if ($config !== null) {
+            // Fix legacy DE feed URL that included wrong path segment
+            if (isset($config['de']['feed_url']) && 
+                strpos($config['de']['feed_url'], '/de/serviceseiten/rss/rss/feeds/') !== false) {
+                $config['de']['feed_url'] = str_replace(
+                    '/de/serviceseiten/rss/rss/feeds/',
+                    '/rss/feeds/',
+                    $config['de']['feed_url']
+                );
+            }
             return $config;
         }
     }
@@ -569,7 +578,7 @@ function getLexConfig() {
         ],
         'de' => [
             'enabled' => true,
-            'feed_url' => 'https://www.recht.bund.de/de/serviceseiten/rss/rss/feeds/rss_bgbl-1-2.xml?nn=211452',
+            'feed_url' => 'https://www.recht.bund.de/rss/feeds/rss_bgbl-1-2.xml?nn=211452',
             'lookback_days' => 90,
             'limit' => 100,
             'notes' => '',

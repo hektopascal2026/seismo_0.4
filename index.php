@@ -3003,18 +3003,48 @@ function refreshRechtBundItems($pdo) {
     $lookback = (int)($deCfg['lookback_days'] ?? 90);
     $sinceDate = date('Y-m-d', strtotime("-{$lookback} days"));
     $limit = (int)($deCfg['limit'] ?? 100);
-    $feedUrl = $deCfg['feed_url'] ?? 'https://www.recht.bund.de/de/serviceseiten/rss/rss/feeds/rss_bgbl-1-2.xml?nn=211452';
+    $feedUrl = $deCfg['feed_url'] ?? 'https://www.recht.bund.de/rss/feeds/rss_bgbl-1-2.xml?nn=211452';
     
-    // Fetch RSS feed
-    $ctx = stream_context_create([
-        'http' => [
-            'timeout' => 30,
-            'user_agent' => 'Seismo/0.4 (legislation monitor)',
-        ],
+    // Fetch RSS feed — recht.bund.de requires a load-balancer cookie (AL_LB-S).
+    // The first request sets the cookie via a 303 redirect. We use cURL with a
+    // cookie jar so the redirect-follow picks it up automatically.
+    $cookieFile = tempnam(sys_get_temp_dir(), 'recht_');
+    $curlOpts = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_COOKIEJAR => $cookieFile,
+        CURLOPT_COOKIEFILE => $cookieFile,
+        CURLOPT_USERAGENT => 'Seismo/0.4 (legislation monitor)',
+        CURLOPT_SSL_VERIFYPEER => true,
+    ];
+    
+    // Step 1: hit the homepage to establish the session cookie
+    $ch = curl_init();
+    curl_setopt_array($ch, $curlOpts + [
+        CURLOPT_URL => 'https://www.recht.bund.de/de/home/home_node.html',
+        CURLOPT_TIMEOUT => 15,
     ]);
-    $xmlContent = @file_get_contents($feedUrl, false, $ctx);
-    if ($xmlContent === false) {
-        throw new Exception("Failed to fetch RSS feed from recht.bund.de");
+    curl_exec($ch);
+    curl_close($ch);
+    
+    // Step 2: fetch the RSS feed with the session cookie
+    $ch = curl_init();
+    curl_setopt_array($ch, $curlOpts + [
+        CURLOPT_URL => $feedUrl,
+    ]);
+    $xmlContent = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+    @unlink($cookieFile);
+    
+    if ($xmlContent === false || empty($xmlContent)) {
+        throw new Exception("Failed to fetch RSS feed from recht.bund.de: " . ($curlError ?: "empty response, HTTP $httpCode"));
+    }
+    if (strpos($xmlContent, '<?xml') === false && strpos($xmlContent, '<rss') === false) {
+        throw new Exception("Failed to fetch RSS feed from recht.bund.de (HTTP $httpCode, response is not XML)");
     }
     
     // Suppress XML warnings and parse
@@ -3073,8 +3103,10 @@ function refreshRechtBundItems($pdo) {
             $eliId = $m[1];
         }
         
-        // Parse document type from title
-        $docType = parseRechtBundType($title);
+        // Parse document type — prefer <meta:typ> from the feed, fall back to title parsing
+        $meta = $item->children('http://recht.bund.de/rss/meta');
+        $metaType = isset($meta->typ) ? trim((string)$meta->typ) : '';
+        $docType = !empty($metaType) ? $metaType : parseRechtBundType($title);
         
         $stmt->execute([
             $eliId,       // celex (unique ID)

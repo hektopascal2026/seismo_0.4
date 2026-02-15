@@ -108,7 +108,7 @@
             <h2>What is Seismo?</h2>
             <p>
                 Seismo is a self-hosted monitoring dashboard that aggregates information from multiple sources into a single feed.
-                It tracks RSS feeds, email newsletters, Substack publications, and legislative changes from both the European Union and Switzerland — helping you stay informed about policy, regulation, and media that matter.
+                It tracks RSS feeds, email newsletters, Substack publications, and legislative changes from the European Union, Switzerland, and Germany — helping you stay informed about policy, regulation, and media that matter.
             </p>
         </section>
 
@@ -135,6 +135,10 @@
                 <li>
                     <span class="about-source-label" style="background-color: #f5f562;">🇨🇭 CH Lex</span>
                     Swiss federal legislation via SPARQL queries to <a href="https://fedlex.data.admin.ch/sparqlendpoint" class="about-link" target="_blank" rel="noopener">Fedlex</a> (JOLux ontology) — Bundesgesetze, Verordnungen, Bundesbeschlüsse, and international treaties
+                </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #f5f562;">🇩🇪 DE Lex</span>
+                    German federal legislation via RSS from <a href="https://www.recht.bund.de/" class="about-link" target="_blank" rel="noopener">recht.bund.de</a> — Bundesgesetzblatt Teil I + II (Gesetze, Verordnungen, Bekanntmachungen)
                 </li>
             </ul>
         </section>
@@ -191,6 +195,7 @@
                 <li><strong>RSS parsing:</strong> <a href="https://github.com/simplepie/simplepie" class="about-link" target="_blank" rel="noopener">SimplePie</a></li>
                 <li><strong>Email parsing:</strong> <a href="https://github.com/php-mime-mail-parser/php-mime-mail-parser" class="about-link" target="_blank" rel="noopener">PHP MIME Mail Parser</a></li>
                 <li><strong>SPARQL / RDF:</strong> <a href="https://github.com/easyrdf/easyrdf" class="about-link" target="_blank" rel="noopener">EasyRdf</a></li>
+                <li><strong>German Lex feed:</strong> PHP cURL with cookie-jar (recht.bund.de requires a session cookie)</li>
                 <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS — no framework, no build step</li>
             </ul>
         </section>
@@ -201,7 +206,7 @@
             <ul>
                 <li><strong>RSS feeds:</strong> <?= number_format($stats['feeds'] ?? 0) ?> feeds, <?= number_format($stats['feed_items'] ?? 0) ?> items</li>
                 <li><strong>Emails:</strong> <?= number_format($stats['emails'] ?? 0) ?> messages</li>
-                <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH</li>
+                <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE</li>
             </ul>
         </section>
 
