@@ -146,7 +146,7 @@
                             <?php if ($magnituSortByRelevance): ?>
                                 <button onclick="toggleSort('date')" class="btn btn-secondary entry-expand-all-btn" style="background:#FF6B6B;" title="Currently sorted by relevance. Click for chronological.">Sort by Date</button>
                             <?php else: ?>
-                                <button onclick="toggleSort('relevance')" class="btn btn-secondary entry-expand-all-btn" title="Currently chronological. Click to sort by Magnitu relevance.">Magnitu</button>
+                                <button onclick="toggleSort('relevance')" class="btn btn-secondary entry-expand-all-btn" style="background:#FF6B6B;" title="Currently chronological. Click to sort by Magnitu relevance.">Magnitu</button>
                             <?php endif; ?>
                         <?php endif; ?>
                         <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
