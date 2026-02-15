@@ -878,9 +878,27 @@ switch ($action) {
             }
         }
         
+        // 4. Magnitu recipe scoring for new entries
+        try {
+            $recipeJson = getMagnituConfig($pdo, 'recipe_json');
+            if ($recipeJson) {
+                $recipeData = json_decode($recipeJson, true);
+                if ($recipeData && !empty($recipeData['keywords'])) {
+                    magnituRescore($pdo, $recipeData);
+                    $results[] = 'Scores updated';
+                }
+            }
+        } catch (Exception $e) {
+            $results[] = 'Scoring: ' . $e->getMessage();
+        }
+        
         $_SESSION['success'] = implode(' · ', $results);
         $currentAction = $_GET['from'] ?? 'index';
-        header('Location: ?action=' . $currentAction);
+        $redirectUrl = '?action=' . $currentAction;
+        if ($currentAction === 'view_feed' && isset($_GET['id'])) {
+            $redirectUrl .= '&id=' . (int)$_GET['id'];
+        }
+        header('Location: ' . $redirectUrl);
         break;
     
     case 'refresh_all_feeds':
