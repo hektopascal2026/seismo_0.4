@@ -1287,10 +1287,11 @@ switch ($action) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['scraper_name'] ?? '');
             $url = trim($_POST['scraper_url'] ?? '');
+            $linkPattern = trim($_POST['scraper_link_pattern'] ?? '');
             if (!empty($name) && !empty($url)) {
                 try {
-                    $stmt = $pdo->prepare("INSERT INTO scraper_configs (name, url) VALUES (?, ?)");
-                    $stmt->execute([$name, $url]);
+                    $stmt = $pdo->prepare("INSERT INTO scraper_configs (name, url, link_pattern) VALUES (?, ?, ?)");
+                    $stmt->execute([$name, $url, $linkPattern ?: null]);
                     $_SESSION['success'] = "Scraper \"$name\" added.";
                 } catch (PDOException $e) {
                     if (strpos($e->getMessage(), 'Duplicate entry') !== false) {

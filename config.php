@@ -323,12 +323,20 @@ function initDatabase() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         url VARCHAR(500) NOT NULL UNIQUE,
+        link_pattern VARCHAR(500) DEFAULT NULL,
         category VARCHAR(100) DEFAULT 'scraper',
         disabled TINYINT(1) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_url (url),
         INDEX idx_disabled (disabled)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Add link_pattern column if it doesn't exist (for existing installations)
+    try {
+        $pdo->exec("ALTER TABLE scraper_configs ADD COLUMN link_pattern VARCHAR(500) DEFAULT NULL AFTER url");
+    } catch (PDOException $e) {
+        // Column already exists
+    }
 
     // Add missing indexes for commonly queried columns
     $missingIndexes = [

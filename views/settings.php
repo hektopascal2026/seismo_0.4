@@ -589,6 +589,9 @@
                     <div class="settings-item-info">
                         <div class="settings-item-title"><?= htmlspecialchars($sc['name']) ?></div>
                         <div class="settings-item-meta"><?= htmlspecialchars($sc['url']) ?></div>
+                        <?php if (!empty($sc['link_pattern'])): ?>
+                            <div class="settings-item-meta" style="font-family: monospace; font-size: 11px;">Links: <?= htmlspecialchars($sc['link_pattern']) ?></div>
+                        <?php endif; ?>
                     </div>
                     <div class="settings-item-actions" style="display: flex; gap: 10px;">
                         <form method="POST" action="<?= getBasePath() ?>/index.php?action=toggle_scraper" style="margin: 0;">
@@ -624,6 +627,10 @@
                         </div>
                         <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Save</button>
                         <button type="button" class="btn" onclick="document.getElementById('scraper-add-row').style.display='none'">Cancel</button>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 4px;">Link pattern <span style="font-weight: 400; font-size: 11px;">(optional — if set, follows links on the page matching this substring)</span></label>
+                        <input type="text" name="scraper_link_pattern" placeholder="e.g. /de/mediencorner/medienmitteilungen/" style="width: 100%; padding: 8px; border: 2px solid #000; font-family: monospace; font-size: 13px;">
                     </div>
                 </form>
             </div>

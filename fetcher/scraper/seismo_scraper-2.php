@@ -140,59 +140,6 @@ function extractReadableContent(string $html): array
 }
 
 // -----------------------
-// Link extraction
-// -----------------------
-function extractLinks(string $html, string $baseUrl, string $pattern): array
-{
-    libxml_use_internal_errors(true);
-    $dom = new DOMDocument();
-    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
-    libxml_clear_errors();
-
-    $parsedBase = parse_url($baseUrl);
-    $baseScheme = ($parsedBase['scheme'] ?? 'https') . '://';
-    $baseHost = $parsedBase['host'] ?? '';
-    $baseOrigin = $baseScheme . $baseHost;
-
-    $links = $dom->getElementsByTagName('a');
-    $urls = [];
-    $seen = [];
-
-    for ($i = 0; $i < $links->length; $i++) {
-        $href = trim($links->item($i)->getAttribute('href'));
-        if (empty($href) || $href[0] === '#') continue;
-
-        // Resolve relative URLs
-        if (strpos($href, '//') === 0) {
-            $href = ($parsedBase['scheme'] ?? 'https') . ':' . $href;
-        } elseif ($href[0] === '/') {
-            $href = $baseOrigin . $href;
-        } elseif (strpos($href, 'http') !== 0) {
-            $href = rtrim($baseUrl, '/') . '/' . $href;
-        }
-
-        // Only follow links on the same host
-        $parsedLink = parse_url($href);
-        if (($parsedLink['host'] ?? '') !== $baseHost) continue;
-
-        // Match against the pattern (simple substring match)
-        if (strpos($href, $pattern) === false) continue;
-
-        // Skip the listing page itself
-        if (rtrim($href, '/') === rtrim($baseUrl, '/')) continue;
-
-        // Deduplicate
-        $canonical = strtok($href, '#');
-        if (isset($seen[$canonical])) continue;
-        $seen[$canonical] = true;
-
-        $urls[] = $canonical;
-    }
-
-    return $urls;
-}
-
-// -----------------------
 // HTTP fetch (polite)
 // -----------------------
 function fetchUrl(string $url, array $config): array
@@ -240,7 +187,7 @@ try {
     $pdo = db_connect($config);
 
     // Read enabled scrapers from the database
-    $scrapers = $pdo->query("SELECT name, url, link_pattern FROM scraper_configs WHERE disabled = 0 ORDER BY id")->fetchAll();
+    $scrapers = $pdo->query("SELECT name, url FROM scraper_configs WHERE disabled = 0 ORDER BY id")->fetchAll();
 
     if (empty($scrapers)) {
         log_msg($config, 'info', 'No enabled scrapers configured. Add URLs in Seismo Settings > Script.');
@@ -252,42 +199,28 @@ try {
     // Polite scraping settings
     $minDelay = (float) ($config['scraping']['min_delay'] ?? 3);
     $maxDelay = (float) ($config['scraping']['max_delay'] ?? 8);
-    $maxLinksPerScraper = (int) ($config['scraping']['max_links'] ?? 20);
 
     $inserted = 0;
     $updated = 0;
     $skipped = 0;
     $errors = 0;
-    $fetchCount = 0;
+    $isFirst = true;
 
     foreach ($scrapers as $scraper) {
         $name = $scraper['name'];
-        $baseUrl = $scraper['url'];
-        $linkPattern = $scraper['link_pattern'] ?? null;
+        $url = $scraper['url'];
 
-        // Ensure a feeds row exists for this scraper source
-        $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE url = ? AND source_type = 'scraper'");
-        $feedStmt->execute([$baseUrl]);
-        $feedId = $feedStmt->fetchColumn();
-
-        if (!$feedId) {
-            $ins = $pdo->prepare("INSERT INTO feeds (title, url, link, source_type, category) VALUES (?, ?, ?, 'scraper', 'scraper')");
-            $ins->execute([$name, $baseUrl, $baseUrl]);
-            $feedId = $pdo->lastInsertId();
-            log_msg($config, 'info', "[{$name}] Created feed #{$feedId}");
-        }
-
-        // Polite delay between fetches
-        if ($fetchCount > 0) {
+        // Polite delay between requests
+        if (!$isFirst) {
             $delay = rand((int)($minDelay * 10), (int)($maxDelay * 10)) / 10;
             log_msg($config, 'debug', "Sleeping {$delay}s...");
             usleep((int)($delay * 1000000));
         }
-        $fetchCount++;
+        $isFirst = false;
 
-        log_msg($config, 'info', "[{$name}] Fetching: {$baseUrl}");
+        log_msg($config, 'info', "[{$name}] Fetching: {$url}");
 
-        $result = fetchUrl($baseUrl, $config);
+        $result = fetchUrl($url, $config);
 
         if ($result['html'] === false || $result['http_code'] >= 400) {
             log_msg($config, 'warn', "[{$name}] HTTP {$result['http_code']}, error: {$result['error']}");
@@ -295,77 +228,54 @@ try {
             continue;
         }
 
-        // Determine which URLs to scrape
-        if (!empty($linkPattern)) {
-            // Link-following mode: extract article links from the listing page
-            $articleUrls = extractLinks($result['html'], $baseUrl, $linkPattern);
-            if (empty($articleUrls)) {
-                log_msg($config, 'warn', "[{$name}] No links matching pattern '{$linkPattern}' found.");
-                $errors++;
-                continue;
-            }
-            $articleUrls = array_slice($articleUrls, 0, $maxLinksPerScraper);
-            log_msg($config, 'info', "[{$name}] Found " . count($articleUrls) . " article link(s)");
-        } else {
-            // Single-page mode: scrape the page itself
-            $articleUrls = [$baseUrl];
+        $extracted = extractReadableContent($result['html']);
+        $title = !empty($extracted['title']) ? $extracted['title'] : $name;
+        $content = $extracted['content'];
+
+        if (empty($content)) {
+            log_msg($config, 'warn', "[{$name}] No content extracted, skipping.");
+            $errors++;
+            continue;
         }
 
-        foreach ($articleUrls as $articleUrl) {
-            // For link-following mode, fetch each article page (listing page already fetched)
-            if ($articleUrl !== $baseUrl) {
-                $delay = rand((int)($minDelay * 10), (int)($maxDelay * 10)) / 10;
-                log_msg($config, 'debug', "Sleeping {$delay}s...");
-                usleep((int)($delay * 1000000));
-                $fetchCount++;
+        $contentHash = md5($content);
 
-                log_msg($config, 'info', "[{$name}] Fetching article: {$articleUrl}");
-                $result = fetchUrl($articleUrl, $config);
+        // Ensure a feeds row exists for this scraper source
+        $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE url = ? AND source_type = 'scraper'");
+        $feedStmt->execute([$url]);
+        $feedId = $feedStmt->fetchColumn();
 
-                if ($result['html'] === false || $result['http_code'] >= 400) {
-                    log_msg($config, 'warn', "[{$name}] HTTP {$result['http_code']}, error: {$result['error']}");
-                    $errors++;
-                    continue;
-                }
-            }
+        if (!$feedId) {
+            $ins = $pdo->prepare("INSERT INTO feeds (title, url, link, source_type, category) VALUES (?, ?, ?, 'scraper', 'scraper')");
+            $ins->execute([$name, $url, $url]);
+            $feedId = $pdo->lastInsertId();
+            log_msg($config, 'info', "[{$name}] Created feed #{$feedId}");
+        }
 
-            $extracted = extractReadableContent($result['html']);
-            $title = !empty($extracted['title']) ? $extracted['title'] : $name;
-            $content = $extracted['content'];
+        // Check for existing entry by guid (= URL)
+        $existStmt = $pdo->prepare("SELECT id, content_hash FROM feed_items WHERE guid = ? AND feed_id = ?");
+        $existStmt->execute([$url, $feedId]);
+        $existing = $existStmt->fetch();
 
-            if (empty($content)) {
-                log_msg($config, 'warn', "[{$name}] No content extracted from {$articleUrl}, skipping.");
-                $errors++;
+        if ($existing) {
+            if ($existing['content_hash'] === $contentHash) {
+                log_msg($config, 'debug', "[{$name}] Content unchanged, skipping.");
+                $skipped++;
                 continue;
             }
-
-            $contentHash = md5($content);
-
-            // Check for existing entry by guid (= article URL)
-            $existStmt = $pdo->prepare("SELECT id, content_hash FROM feed_items WHERE guid = ? AND feed_id = ?");
-            $existStmt->execute([$articleUrl, $feedId]);
-            $existing = $existStmt->fetch();
-
-            if ($existing) {
-                if ($existing['content_hash'] === $contentHash) {
-                    log_msg($config, 'debug', "[{$name}] Content unchanged: {$articleUrl}");
-                    $skipped++;
-                    continue;
-                }
-                $upd = $pdo->prepare("UPDATE feed_items SET title = ?, content = ?, content_hash = ?, published_date = NOW() WHERE id = ?");
-                $upd->execute([$title, $content, $contentHash, $existing['id']]);
-                log_msg($config, 'info', "[{$name}] Updated item #{$existing['id']}");
-                $updated++;
-            } else {
-                $ins = $pdo->prepare("INSERT INTO feed_items (feed_id, title, content, link, guid, content_hash, published_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-                $ins->execute([$feedId, $title, $content, $articleUrl, $articleUrl, $contentHash]);
-                log_msg($config, 'info', "[{$name}] New item #" . $pdo->lastInsertId());
-                $inserted++;
-            }
+            $upd = $pdo->prepare("UPDATE feed_items SET title = ?, content = ?, content_hash = ?, published_date = NOW() WHERE id = ?");
+            $upd->execute([$title, $content, $contentHash, $existing['id']]);
+            log_msg($config, 'info', "[{$name}] Content changed, updated item #{$existing['id']}");
+            $updated++;
+        } else {
+            $ins = $pdo->prepare("INSERT INTO feed_items (feed_id, title, content, link, guid, content_hash, published_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+            $ins->execute([$feedId, $title, $content, $url, $url, $contentHash]);
+            log_msg($config, 'info', "[{$name}] New item #" . $pdo->lastInsertId());
+            $inserted++;
         }
     }
 
-    log_msg($config, 'info', "Done. inserted={$inserted} updated={$updated} skipped={$skipped} errors={$errors} fetches={$fetchCount}");
+    log_msg($config, 'info', "Done. inserted={$inserted} updated={$updated} skipped={$skipped} errors={$errors}");
     exit(0);
 } catch (Throwable $e) {
     log_msg($config, 'error', $e->getMessage());
