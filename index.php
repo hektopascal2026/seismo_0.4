@@ -198,7 +198,7 @@ switch ($action) {
                     SELECT fi.*, f.title as feed_name, f.url as source_url
                     FROM feed_items fi
                     JOIN feeds f ON fi.feed_id = f.id
-                    WHERE f.source_type = 'scraper' AND f.id IN ($ph)
+                    WHERE f.source_type = 'scraper' AND f.id IN ($ph) AND fi.hidden = 0
                     ORDER BY fi.published_date DESC
                     LIMIT 30
                 ");
@@ -1372,6 +1372,17 @@ switch ($action) {
         header('Location: ?action=settings&tab=script');
         exit;
     
+    case 'hide_scraper_item':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $itemId = (int)($_POST['item_id'] ?? 0);
+            if ($itemId > 0) {
+                $pdo->prepare("UPDATE feed_items SET hidden = 1 WHERE id = ?")->execute([$itemId]);
+                $_SESSION['success'] = 'Entry hidden.';
+            }
+        }
+        header('Location: ?action=scraper');
+        exit;
+    
     case 'download_scraper_config':
         // Generate config.php for the scraper script (DB credentials only)
         // The scraper script itself lives in fetcher/scraper/seismo_scraper.php
@@ -1655,7 +1666,7 @@ switch ($action) {
                     SELECT fi.*, f.title as feed_name, f.url as source_url
                     FROM feed_items fi
                     JOIN feeds f ON fi.feed_id = f.id
-                    WHERE f.source_type = 'scraper' AND f.id IN ($placeholders)
+                    WHERE f.source_type = 'scraper' AND f.id IN ($placeholders) AND fi.hidden = 0
                     ORDER BY fi.published_date DESC
                     LIMIT 50
                 ");

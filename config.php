@@ -40,7 +40,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 5);
+define('SCHEMA_VERSION', 6);
 
 /**
  * Initialize database tables
@@ -314,6 +314,13 @@ function initDatabase() {
     // Add content_hash column to feed_items for scraper deduplication
     try {
         $pdo->exec("ALTER TABLE feed_items ADD COLUMN content_hash VARCHAR(32) DEFAULT NULL");
+    } catch (PDOException $e) {
+        // Column already exists
+    }
+    
+    // Add hidden column to feed_items for soft-delete (scraper items etc.)
+    try {
+        $pdo->exec("ALTER TABLE feed_items ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0");
     } catch (PDOException $e) {
         // Column already exists
     }

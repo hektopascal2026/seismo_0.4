@@ -117,6 +117,10 @@
                             <?php if ($item['published_date']): ?>
                                 <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
                             <?php endif; ?>
+                            <form method="POST" action="<?= getBasePath() ?>/index.php?action=hide_scraper_item" style="margin: 0; display: inline;">
+                                <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
+                                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Hide this entry? It won\'t appear again.')">delete</button>
+                            </form>
                         </div>
                     </div>
                 <?php endforeach; ?>
