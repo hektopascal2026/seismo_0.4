@@ -883,6 +883,23 @@
                     </div>
                 </div>
 
+                <!-- JUS: Banned Words Filter -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <label style="font-weight: 700; font-size: 18px; display: block; margin-bottom: 8px;">🚫 Banned Words</label>
+                    <p style="font-size: 12px; margin: 0 0 12px 0;">
+                        Case law entries whose title contains any of these words will be hidden from the Jus page and the main feed. One word or phrase per line, case-insensitive.
+                    </p>
+                    <?php
+                        $bannedWords = $lexConfig['jus_banned_words'] ?? [];
+                        $bannedWordsText = is_array($bannedWords) ? implode("\n", $bannedWords) : '';
+                    ?>
+                    <textarea name="jus_banned_words" rows="5" placeholder="e.g.&#10;Asyl&#10;Sozialhilfe&#10;Familiennachzug"
+                              style="width: 100%; padding: 8px 10px; border: 2px solid #000000; font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($bannedWordsText) ?></textarea>
+                    <div style="margin-top: 6px; font-size: 12px; color: #666;">
+                        <?= count(array_filter(is_array($bannedWords) ? $bannedWords : [], 'strlen')) ?> word(s) active
+                    </div>
+                </div>
+
             </form>
 
             <!-- Config file management -->

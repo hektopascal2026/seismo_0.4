@@ -615,6 +615,38 @@ function getLexConfig() {
 }
 
 /**
+ * Get JUS banned words from the lex config.
+ * Returns an array of lowercase words/phrases to filter out.
+ */
+function getJusBannedWords() {
+    $config = getLexConfig();
+    $words = $config['jus_banned_words'] ?? [];
+    if (!is_array($words)) return [];
+    return array_values(array_filter(array_map(function($w) {
+        return mb_strtolower(trim($w));
+    }, $words), 'strlen'));
+}
+
+/**
+ * Filter out JUS items whose title contains any banned word (case-insensitive).
+ * Works on arrays of lex_items rows. Non-JUS sources are passed through.
+ */
+function filterJusBannedWords(array $items, ?array $bannedWords = null) {
+    if ($bannedWords === null) $bannedWords = getJusBannedWords();
+    if (empty($bannedWords)) return $items;
+    $jusSources = ['ch_bger', 'ch_bge', 'ch_bvger'];
+    return array_values(array_filter($items, function($item) use ($bannedWords, $jusSources) {
+        $source = $item['source'] ?? 'eu';
+        if (!in_array($source, $jusSources)) return true;
+        $title = mb_strtolower($item['title'] ?? '');
+        foreach ($bannedWords as $word) {
+            if (mb_strpos($title, $word) !== false) return false;
+        }
+        return true;
+    }));
+}
+
+/**
  * Map a BGer/BGE Signatur code to a human-readable chamber label.
  * Falls back to the raw signatur if unknown.
  */

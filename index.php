@@ -158,18 +158,18 @@ switch ($action) {
                     SELECT * FROM lex_items
                     WHERE source IN ($lexPlaceholders)
                     ORDER BY document_date DESC
-                    LIMIT 30
+                    LIMIT 100
                 ");
                 $lexStmt->execute($selectedLexSources);
-                $lexItems = $lexStmt->fetchAll();
+                $lexItems = array_slice(filterJusBannedWords($lexStmt->fetchAll()), 0, 30);
             } elseif (!$tagsSubmitted) {
                 // First visit: show all
                 $lexStmt = $pdo->query("
                     SELECT * FROM lex_items
                     ORDER BY document_date DESC
-                    LIMIT 30
+                    LIMIT 100
                 ");
-                $lexItems = $lexStmt->fetchAll();
+                $lexItems = array_slice(filterJusBannedWords($lexStmt->fetchAll()), 0, 30);
             }
             // else: user explicitly deselected all lex sources → $lexItems stays empty
         } catch (PDOException $e) {
@@ -1394,9 +1394,10 @@ switch ($action) {
         try {
             if (!empty($activeJusSources)) {
                 $placeholders = implode(',', array_fill(0, count($activeJusSources), '?'));
-                $stmt = $pdo->prepare("SELECT * FROM lex_items WHERE source IN ($placeholders) ORDER BY document_date DESC LIMIT 50");
+                $stmt = $pdo->prepare("SELECT * FROM lex_items WHERE source IN ($placeholders) ORDER BY document_date DESC LIMIT 200");
                 $stmt->execute($activeJusSources);
-                $jusItems = $stmt->fetchAll();
+                $jusItems = filterJusBannedWords($stmt->fetchAll());
+                $jusItems = array_slice($jusItems, 0, 50);
             }
             
             // Get last refresh dates per source
@@ -1536,6 +1537,13 @@ switch ($action) {
             $config['ch_bvger']['lookback_days'] = max(1, (int)($_POST['ch_bvger_lookback_days'] ?? 90));
             $config['ch_bvger']['limit']         = max(1, (int)($_POST['ch_bvger_limit'] ?? 100));
             $config['ch_bvger']['notes']         = trim($_POST['ch_bvger_notes'] ?? '');
+            
+            // JUS: Banned words
+            $rawBanned = trim($_POST['jus_banned_words'] ?? '');
+            $config['jus_banned_words'] = array_values(array_filter(
+                array_map('trim', preg_split('/\r?\n/', $rawBanned)),
+                'strlen'
+            ));
             
             if (saveLexConfig($config)) {
                 if (!$isAutoSave) {
