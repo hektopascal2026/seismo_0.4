@@ -127,7 +127,7 @@
                 <span class="top-bar-subtitle">Manage sources and tags</span>
             </div>
             <div class="top-bar-actions">
-                <a href="?action=refresh_all&from=settings" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
+                <a href="?action=refresh_all&amp;from=settings" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
                 <button type="button" class="top-bar-btn" id="menuToggle" title="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
             </div>
         </div>
@@ -180,7 +180,7 @@
                                style="flex: 1; padding: 6px 10px; border: 2px solid #000000; font-family: monospace; font-size: 12px; background: #f5f5f5; cursor: pointer;"
                                onclick="this.select(); document.execCommand('copy'); this.style.borderColor='#00aa00'; setTimeout(()=>this.style.borderColor='#000000', 1500);"
                                title="Click to copy">
-                        <form method="POST" action="?action=regenerate_magnitu_key" style="margin: 0;">
+                        <form method="POST" action="<?= getBasePath() ?>/index.php?action=regenerate_magnitu_key" style="margin: 0;">
                             <button type="submit" class="btn" onclick="return confirm('Regenerate API key? Magnitu will need the new key.');">Regenerate</button>
                         </form>
                     </div>
@@ -254,7 +254,7 @@
             </div>
 
             <!-- Scoring Settings -->
-            <form method="POST" action="?action=save_magnitu_config">
+            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_magnitu_config">
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <h3 style="margin-top: 0; margin-bottom: 12px;">Scoring Settings</h3>
                     
@@ -289,7 +289,7 @@
                     Clear all Magnitu scores and the scoring recipe. The feed will return to chronological order.
                     Your Magnitu labels (in the Magnitu app) are not affected.
                 </p>
-                <form method="POST" action="?action=clear_magnitu_scores">
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=clear_magnitu_scores">
                     <button type="submit" class="btn btn-danger" onclick="return confirm('Clear all Magnitu scores and recipe? This cannot be undone.');">
                         Clear All Scores
                     </button>
@@ -307,7 +307,7 @@
             
             <!-- Add Feed Section -->
             <div class="add-feed-section" style="margin-bottom: 16px;">
-                <form method="POST" action="?action=add_feed" class="add-feed-form">
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=add_feed" class="add-feed-form">
                     <input type="hidden" name="from" value="settings">
                     <input type="url" name="url" placeholder="Enter RSS feed URL (e.g., https://example.com/feed.xml)" required class="feed-input">
                     <button type="submit" class="btn btn-primary">Add Feed</button>
@@ -356,10 +356,10 @@
                             </div>
                             <div class="settings-item-actions" style="flex-direction: column; align-items: flex-end; gap: 10px;">
                                 <div style="display: flex; gap: 10px;">
-                                    <a href="?action=toggle_feed&id=<?= $feed['id'] ?>&from=settings" class="btn <?= $feed['disabled'] ? 'btn-success' : 'btn-warning' ?>">
+                                    <a href="?action=toggle_feed&amp;id=<?= $feed['id'] ?>&amp;from=settings" class="btn <?= $feed['disabled'] ? 'btn-success' : 'btn-warning' ?>">
                                         <?= $feed['disabled'] ? 'Enable' : 'Disable' ?>
                                     </a>
-                                    <a href="?action=delete_feed&id=<?= $feed['id'] ?>&from=settings" 
+                                    <a href="?action=delete_feed&amp;id=<?= $feed['id'] ?>&amp;from=settings" 
                                        class="btn btn-danger" 
                                        onclick="return confirm('Are you sure you want to delete this feed? This action cannot be undone.');">
                                         Delete
@@ -395,7 +395,7 @@
                     <a href="?action=download_rss_config" class="btn" style="text-decoration: none;">
                         Download rss_feeds.json
                     </a>
-                    <form method="POST" action="?action=upload_rss_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+                    <form method="POST" action="<?= getBasePath() ?>/index.php?action=upload_rss_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
                         <input type="file" name="rss_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
                         <button type="submit" class="btn">Upload</button>
                     </form>
@@ -449,10 +449,10 @@
                             </div>
                             <div class="settings-item-actions" style="flex-direction: column; align-items: flex-end; gap: 10px;">
                                 <div style="display: flex; gap: 10px;">
-                                    <a href="?action=toggle_feed&id=<?= $feed['id'] ?>&from=settings" class="btn <?= $feed['disabled'] ? 'btn-success' : 'btn-warning' ?>">
+                                    <a href="?action=toggle_feed&amp;id=<?= $feed['id'] ?>&amp;from=settings" class="btn <?= $feed['disabled'] ? 'btn-success' : 'btn-warning' ?>">
                                         <?= $feed['disabled'] ? 'Enable' : 'Disable' ?>
                                     </a>
-                                    <a href="?action=delete_feed&id=<?= $feed['id'] ?>&from=settings" 
+                                    <a href="?action=delete_feed&amp;id=<?= $feed['id'] ?>&amp;from=settings" 
                                        class="btn btn-danger" 
                                        onclick="return confirm('Are you sure you want to unsubscribe from this Substack?');">
                                         Delete
@@ -487,7 +487,7 @@
                     <a href="?action=download_substack_config" class="btn" style="text-decoration: none;">
                         Download substack_feeds.json
                     </a>
-                    <form method="POST" action="?action=upload_substack_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+                    <form method="POST" action="<?= getBasePath() ?>/index.php?action=upload_substack_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
                         <input type="file" name="substack_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
                         <button type="submit" class="btn">Upload</button>
                     </form>
@@ -541,13 +541,13 @@
                             </div>
                             <div class="settings-item-actions" style="flex-direction: column; align-items: flex-end; gap: 10px;">
                                 <div style="display: flex; gap: 10px;">
-                                    <form method="POST" action="?action=toggle_sender" style="margin: 0;">
+                                    <form method="POST" action="<?= getBasePath() ?>/index.php?action=toggle_sender" style="margin: 0;">
                                         <input type="hidden" name="email" value="<?= htmlspecialchars($sender['email']) ?>">
                                         <button type="submit" class="btn <?= $sender['disabled'] ? 'btn-success' : 'btn-warning' ?>">
                                             <?= $sender['disabled'] ? 'Enable' : 'Disable' ?>
                                         </button>
                                     </form>
-                                    <form method="POST" action="?action=delete_sender" style="margin: 0;">
+                                    <form method="POST" action="<?= getBasePath() ?>/index.php?action=delete_sender" style="margin: 0;">
                                         <input type="hidden" name="email" value="<?= htmlspecialchars($sender['email']) ?>">
                                         <button type="submit" class="btn btn-danger">
                                             Remove
@@ -583,7 +583,7 @@
         <section class="settings-section" id="lex-settings">
             <h2 style="background-color: #f5f562; padding: 8px 14px; display: inline-block;">Lex</h2>
 
-            <form method="POST" action="?action=save_lex_config">
+            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_lex_config">
                 <!-- EU Configuration -->
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -775,7 +775,7 @@
                     <a href="?action=download_lex_config" class="btn" style="text-decoration: none;">
                         Download lex_config.json
                     </a>
-                    <form method="POST" action="?action=upload_lex_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+                    <form method="POST" action="<?= getBasePath() ?>/index.php?action=upload_lex_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
                         <input type="file" name="lex_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
                         <button type="submit" class="btn">Upload</button>
                     </form>

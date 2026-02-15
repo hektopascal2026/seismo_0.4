@@ -1194,7 +1194,7 @@ switch ($action) {
             
             $_SESSION['success'] = 'Magnitu settings saved.';
         }
-        header('Location: ?action=settings&tab=magnitu');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=magnitu');
         exit;
     
     case 'regenerate_magnitu_key':
@@ -1204,7 +1204,7 @@ switch ($action) {
             setMagnituConfig($pdo, 'api_key', $newKey);
             $_SESSION['success'] = 'New Magnitu API key generated.';
         }
-        header('Location: ?action=settings&tab=magnitu');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=magnitu');
         exit;
     
     case 'clear_magnitu_scores':
@@ -1216,7 +1216,7 @@ switch ($action) {
             setMagnituConfig($pdo, 'last_sync_at', '');
             $_SESSION['success'] = 'All Magnitu scores and recipe cleared.';
         }
-        header('Location: ?action=settings&tab=magnitu');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=magnitu');
         exit;
         
     case 'api_email_tags':
@@ -1372,7 +1372,7 @@ switch ($action) {
                 $_SESSION['error'] = 'Failed to save Lex configuration.';
             }
         }
-        header('Location: ?action=settings&tab=lex');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=lex');
         exit;
     
     case 'upload_lex_config':
@@ -1395,7 +1395,7 @@ switch ($action) {
                 $_SESSION['error'] = 'No file uploaded or upload error.';
             }
         }
-        header('Location: ?action=settings&tab=lex');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=lex');
         exit;
     
     case 'download_lex_config':
@@ -1433,7 +1433,7 @@ switch ($action) {
                 $_SESSION['error'] = 'No file uploaded or upload error.';
             }
         }
-        header('Location: ?action=settings&tab=basic');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=basic');
         exit;
     
     case 'download_substack_config':
@@ -1463,7 +1463,7 @@ switch ($action) {
                 $_SESSION['error'] = 'No file uploaded or upload error.';
             }
         }
-        header('Location: ?action=settings&tab=basic');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=basic');
         exit;
     
     case 'about':
@@ -1881,7 +1881,7 @@ switch ($action) {
 function handleAddFeed($pdo) {
     $url = filter_input(INPUT_POST, 'url', FILTER_SANITIZE_URL);
     $from = $_POST['from'] ?? $_GET['from'] ?? 'feeds';
-    $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
+    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
     
     if (!$url) {
         $_SESSION['error'] = 'Please provide a valid URL';
@@ -2003,7 +2003,7 @@ function handleDeleteFeed($pdo) {
     $stmt->execute([$feedId]);
     
     $_SESSION['success'] = 'Feed deleted successfully';
-    $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
+    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -2019,7 +2019,7 @@ function handleToggleFeed($pdo) {
     
     if (!$feed) {
         $_SESSION['error'] = 'Feed not found';
-        $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
+        $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
         header('Location: ' . $redirectUrl);
         return;
     }
@@ -2031,7 +2031,7 @@ function handleToggleFeed($pdo) {
     
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Feed ' . $statusText . ' successfully';
-    $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
+    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -2678,7 +2678,7 @@ function handleToggleSender($pdo) {
     
     if (empty($fromEmail)) {
         $_SESSION['error'] = 'Invalid sender email';
-        header('Location: ?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
         return;
     }
     
@@ -2701,7 +2701,7 @@ function handleToggleSender($pdo) {
     
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Sender ' . $statusText . ' successfully';
-    header('Location: ?action=settings&tab=script');
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
     exit;
 }
 
@@ -2711,7 +2711,7 @@ function handleDeleteSender($pdo) {
     
     if (empty($fromEmail)) {
         $_SESSION['error'] = 'Invalid sender email';
-        header('Location: ?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
         return;
     }
     
@@ -2721,7 +2721,7 @@ function handleDeleteSender($pdo) {
     $stmt->execute([$fromEmail]);
     
     $_SESSION['success'] = "Sender removed from Seismo.\nFuture emails from this address will be tagged as \"unsortiert\" until you reassign them.\nTo stop receiving these emails, you need to manually unsubscribe from the sender's press releases.";
-    header('Location: ?action=settings&tab=script');
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
     exit;
 }
 
