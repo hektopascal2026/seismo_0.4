@@ -237,7 +237,7 @@
                 Built by <a href="https://hektopascal.org" class="about-link" target="_blank" rel="noopener">hektopascal.org</a>.
             </p>
             <p class="about-version" style="margin-top: 8px;">
-                Version 0.4 · Last updated: <?= $lastChangeDate ?>
+                Version 0.4.1 · Last updated: <?= $lastChangeDate ?>
             </p>
         </section>
     </div>

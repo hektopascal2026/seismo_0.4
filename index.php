@@ -1350,10 +1350,8 @@ switch ($action) {
         
         $script = <<<'SCRIPT_HEAD'
 <?php
-/**
- * Seismo Web Scraper — generated script
- * Run via cronjob, e.g.: 0 */6 * * * php /path/to/seismo_scraper.php
- */
+// Seismo Web Scraper — generated script
+// Run via cronjob, e.g.: 0 */6 * * * php /path/to/seismo_scraper.php
 
 SCRIPT_HEAD;
         $script .= "\$dbHost = " . var_export($dbHost, true) . ";\n";
@@ -2348,7 +2346,7 @@ SCRIPT_BODY;
         
         echo json_encode([
             'status' => 'ok',
-            'version' => '0.4',
+            'version' => '0.4.1',
             'entries' => [
                 'feed_items' => (int)$totalFeedItems,
                 'emails' => (int)$totalEmails,
