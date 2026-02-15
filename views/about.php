@@ -99,6 +99,7 @@
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
             <a href="?action=substack" class="nav-link">Substack</a>
+            <a href="?action=scraper" class="nav-link">Scraper</a>
             <a href="?action=settings" class="nav-link">Settings</a>
             <a href="?action=about" class="nav-link active">About</a>
             <a href="?action=beta" class="nav-link">Beta</a>
@@ -109,7 +110,7 @@
             <h2>What is Seismo?</h2>
             <p>
                 Seismo is a self-hosted monitoring dashboard that aggregates information from multiple sources into a single feed.
-                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the European Union, Switzerland, and Germany, and Swiss case law — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
+                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the European Union, Switzerland, and Germany, Swiss case law, and scraped web pages — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
             </p>
         </section>
 
@@ -152,6 +153,10 @@
                 <li>
                     <span class="about-source-label" style="background-color: #f5f562;">⚖️ BVGer Jus</span>
                     Swiss Federal Administrative Court decisions via <a href="https://entscheidsuche.ch" class="about-link" target="_blank" rel="noopener">entscheidsuche.ch</a> — incremental sync via index manifests
+                </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #FFDBBB;">🌐 Scraper</span>
+                    Web pages scraped periodically via a cronjob script — content extracted automatically with readability heuristics
                 </li>
             </ul>
         </section>
@@ -221,6 +226,7 @@
                 <li><strong>Emails:</strong> <?= number_format($stats['emails'] ?? 0) ?> messages</li>
                 <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE</li>
                 <li><strong>Jus items:</strong> <?= number_format($stats['jus_bger'] ?? 0) ?> BGer, <?= number_format($stats['jus_bge'] ?? 0) ?> BGE, <?= number_format($stats['jus_bvger'] ?? 0) ?> BVGer</li>
+                <li><strong>Scraper:</strong> <?= number_format($stats['scraper_configs'] ?? 0) ?> configured, <?= number_format($stats['scraper_items'] ?? 0) ?> items</li>
             </ul>
         </section>
 

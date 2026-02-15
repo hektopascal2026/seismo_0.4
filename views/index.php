@@ -38,6 +38,7 @@
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
             <a href="?action=substack" class="nav-link">Substack</a>
+            <a href="?action=scraper" class="nav-link">Scraper</a>
             <a href="?action=settings" class="nav-link">Settings</a>
             <a href="?action=about" class="nav-link">About</a>
             <a href="?action=beta" class="nav-link">Beta</a>
@@ -120,6 +121,12 @@
                                 <span><?= $pill['emoji'] ?> <?= $pill['label'] ?></span>
                             </label>
                             <?php endforeach; ?>
+                            <?php if (!empty($scraperItemsForFeed)): ?>
+                            <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #FFDBBB;">
+                                <input type="checkbox" checked disabled>
+                                <span>🌐 Scraper</span>
+                            </label>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -219,6 +226,44 @@
                             <div class="entry-actions">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <?php if ($hasMore): ?>
+                                        <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($item['published_date']): ?>
+                                    <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php elseif ($itemWrapper['type'] === 'scraper'): ?>
+                        <?php $item = $itemWrapper['data']; ?>
+                        <?php
+                            $scraperContent = strip_tags($item['content'] ?? '');
+                            $scraperPreview = mb_substr($scraperContent, 0, 200);
+                            if (mb_strlen($scraperContent) > 200) $scraperPreview .= '...';
+                            $scraperHasMore = mb_strlen($scraperContent) > 200;
+                        ?>
+                        <div class="entry-card">
+                            <div class="entry-header">
+                                <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">🌐 <?= htmlspecialchars($item['feed_name'] ?? 'Scraper') ?></span>
+                                <?php if ($relevanceScore !== null): ?>
+                                    <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <h3 class="entry-title">
+                                <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener">
+                                    <?= htmlspecialchars($item['title']) ?>
+                                </a>
+                            </h3>
+                            <?php if (!empty($scraperContent)): ?>
+                                <div class="entry-content entry-preview">
+                                    <?= htmlspecialchars($scraperPreview) ?>
+                                    <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener" class="entry-link" style="margin-left: 4px;">Open page &rarr;</a>
+                                </div>
+                                <div class="entry-full-content" style="display:none"><?= htmlspecialchars($scraperContent) ?></div>
+                            <?php endif; ?>
+                            <div class="entry-actions">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <?php if ($scraperHasMore): ?>
                                         <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>

@@ -140,6 +140,7 @@
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
             <a href="?action=substack" class="nav-link">Substack</a>
+            <a href="?action=scraper" class="nav-link">Scraper</a>
             <a href="?action=settings" class="nav-link active">Settings</a>
             <a href="?action=about" class="nav-link">About</a>
             <a href="?action=beta" class="nav-link">Beta</a>
@@ -498,7 +499,7 @@
         <?php endif; ?>
 
         <?php if ($settingsTab === 'script'): ?>
-        <p style="font-size: 12px; margin-bottom: 16px;">Manage email sources fetched by server-side scripts.</p>
+        <p style="font-size: 12px; margin-bottom: 16px;">Manage email sources and web page scrapers fetched by server-side scripts.</p>
 
         <!-- Mail Section -->
         <section class="settings-section">
@@ -574,6 +575,65 @@
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </section>
+
+        <!-- Scraper Section -->
+        <section class="settings-section" style="margin-top: 32px;">
+            <h2 style="background-color: #FFDBBB; padding: 8px 14px; display: inline-block;">🌐 Scraper</h2>
+            <p style="font-size: 12px; margin-bottom: 12px;">Configure web pages to scrape periodically. After adding URLs, download the generated script and set up a cronjob on your hoster.</p>
+
+            <?php if (!empty($scraperConfigs)): ?>
+            <div class="settings-list" style="margin-bottom: 16px;">
+                <?php foreach ($scraperConfigs as $sc): ?>
+                <div class="settings-item">
+                    <div class="settings-item-info">
+                        <div class="settings-item-title"><?= htmlspecialchars($sc['name']) ?></div>
+                        <div class="settings-item-meta"><?= htmlspecialchars($sc['url']) ?></div>
+                    </div>
+                    <div class="settings-item-actions" style="display: flex; gap: 10px;">
+                        <form method="POST" action="<?= getBasePath() ?>/index.php?action=toggle_scraper" style="margin: 0;">
+                            <input type="hidden" name="scraper_id" value="<?= $sc['id'] ?>">
+                            <button type="submit" class="btn <?= $sc['disabled'] ? 'btn-success' : 'btn-warning' ?>">
+                                <?= $sc['disabled'] ? 'Enable' : 'Disable' ?>
+                            </button>
+                        </form>
+                        <form method="POST" action="<?= getBasePath() ?>/index.php?action=remove_scraper" style="margin: 0;">
+                            <input type="hidden" name="scraper_id" value="<?= $sc['id'] ?>">
+                            <button type="submit" class="btn btn-danger">Remove</button>
+                        </form>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
+            <div class="empty-state" style="margin-bottom: 16px;">
+                <p>No scrapers configured yet. Add a URL below.</p>
+            </div>
+            <?php endif; ?>
+
+            <div id="scraper-add-row" style="display: none; margin-bottom: 16px; padding: 16px; border: 2px solid #000; background: #fafafa;">
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=add_scraper">
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 4px;">Name</label>
+                            <input type="text" name="scraper_name" placeholder="e.g. BAG News" required style="width: 100%; padding: 8px; border: 2px solid #000; font-family: inherit;">
+                        </div>
+                        <div style="flex: 2; min-width: 250px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 4px;">URL</label>
+                            <input type="url" name="scraper_url" placeholder="https://example.com/page" required style="width: 100%; padding: 8px; border: 2px solid #000; font-family: inherit;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Save</button>
+                        <button type="button" class="btn" onclick="document.getElementById('scraper-add-row').style.display='none'">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('scraper-add-row').style.display='block'" style="font-size: 18px; padding: 6px 16px;">＋ Add URL</button>
+                <?php if (!empty($scraperConfigs)): ?>
+                <a href="<?= getBasePath() ?>/index.php?action=download_scraper_script" class="btn" style="text-decoration: none;">⬇ Download Script</a>
+                <?php endif; ?>
+            </div>
         </section>
         <?php endif; ?>
 

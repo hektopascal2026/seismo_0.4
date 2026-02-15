@@ -40,7 +40,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 3);
+define('SCHEMA_VERSION', 4);
 
 /**
  * Initialize database tables
@@ -311,6 +311,25 @@ function initDatabase() {
         INDEX idx_key (config_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     
+    // Add content_hash column to feed_items for scraper deduplication
+    try {
+        $pdo->exec("ALTER TABLE feed_items ADD COLUMN content_hash VARCHAR(32) DEFAULT NULL");
+    } catch (PDOException $e) {
+        // Column already exists
+    }
+
+    // Create scraper_configs table for web page scraper targets
+    $pdo->exec("CREATE TABLE IF NOT EXISTS scraper_configs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        url VARCHAR(500) NOT NULL UNIQUE,
+        category VARCHAR(100) DEFAULT 'scraper',
+        disabled TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_url (url),
+        INDEX idx_disabled (disabled)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     // Add missing indexes for commonly queried columns
     $missingIndexes = [
         "CREATE INDEX idx_source_type ON feeds(source_type)",

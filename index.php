@@ -162,6 +162,20 @@ switch ($action) {
             $substackItems = [];
         }
         
+        // Fetch Scraper items for the main timeline
+        $scraperItemsForFeed = [];
+        try {
+            $scraperItemsStmt = $pdo->query("
+                SELECT fi.*, f.name as feed_name, f.feed_url as source_url
+                FROM feed_items fi
+                JOIN feeds f ON fi.feed_id = f.id
+                WHERE f.source_type = 'scraper' AND f.disabled = 0
+                ORDER BY fi.published_date DESC
+                LIMIT 30
+            ");
+            $scraperItemsForFeed = $scraperItemsStmt->fetchAll();
+        } catch (PDOException $e) {}
+        
         // Fetch Lex items (EU + CH legislation), filtered by selected lex sources
         $lexItems = [];
         try {
@@ -261,6 +275,19 @@ switch ($action) {
                 'type' => 'lex',
                 'date' => $dateValue ? strtotime($dateValue) : 0,
                 'data' => $lexItem,
+                'score' => $score,
+            ];
+        }
+        
+        // Add Scraper items
+        foreach ($scraperItemsForFeed as $item) {
+            $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
+            $scoreKey = 'feed_item:' . $item['id'];
+            $score = $scoreMap[$scoreKey] ?? null;
+            $allItems[] = [
+                'type' => 'scraper',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $item,
                 'score' => $score,
             ];
         }
@@ -1223,6 +1250,12 @@ switch ($action) {
             $magnituScoreStats['recipe'] = (int)$pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'recipe'")->fetchColumn();
         } catch (PDOException $e) {}
         
+        // Load scraper configs for Script tab
+        $scraperConfigs = [];
+        try {
+            $scraperConfigs = $pdo->query("SELECT * FROM scraper_configs ORDER BY created_at DESC")->fetchAll();
+        } catch (PDOException $e) {}
+        
         include 'views/settings.php';
         break;
         
@@ -1249,6 +1282,271 @@ switch ($action) {
     case 'rename_email_tag':
         handleRenameEmailTag($pdo);
         break;
+    
+    case 'add_scraper':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $name = trim($_POST['scraper_name'] ?? '');
+            $url = trim($_POST['scraper_url'] ?? '');
+            if (!empty($name) && !empty($url)) {
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO scraper_configs (name, url) VALUES (?, ?)");
+                    $stmt->execute([$name, $url]);
+                    $_SESSION['success'] = "Scraper \"$name\" added.";
+                } catch (PDOException $e) {
+                    if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                        $_SESSION['error'] = 'This URL is already configured.';
+                    } else {
+                        $_SESSION['error'] = 'Failed to add scraper: ' . $e->getMessage();
+                    }
+                }
+            } else {
+                $_SESSION['error'] = 'Name and URL are required.';
+            }
+        }
+        header('Location: ?action=settings&tab=script');
+        exit;
+    
+    case 'toggle_scraper':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = (int)($_POST['scraper_id'] ?? 0);
+            if ($id > 0) {
+                $pdo->prepare("UPDATE scraper_configs SET disabled = NOT disabled WHERE id = ?")->execute([$id]);
+            }
+        }
+        header('Location: ?action=settings&tab=script');
+        exit;
+    
+    case 'remove_scraper':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = (int)($_POST['scraper_id'] ?? 0);
+            if ($id > 0) {
+                $pdo->prepare("DELETE FROM scraper_configs WHERE id = ?")->execute([$id]);
+                $_SESSION['success'] = 'Scraper removed.';
+            }
+        }
+        header('Location: ?action=settings&tab=script');
+        exit;
+    
+    case 'download_scraper_script':
+        $scrapers = $pdo->query("SELECT name, url FROM scraper_configs WHERE disabled = 0 ORDER BY id")->fetchAll();
+        if (empty($scrapers)) {
+            $_SESSION['error'] = 'No enabled scrapers to generate script for.';
+            header('Location: ?action=settings&tab=script');
+            exit;
+        }
+        
+        $dbHost = DB_HOST;
+        $dbName = DB_NAME;
+        $dbUser = DB_USER;
+        $dbPass = DB_PASS;
+        
+        $scraperListPhp = "[\n";
+        foreach ($scrapers as $s) {
+            $escapedName = addslashes($s['name']);
+            $escapedUrl = addslashes($s['url']);
+            $scraperListPhp .= "    ['name' => '{$escapedName}', 'url' => '{$escapedUrl}'],\n";
+        }
+        $scraperListPhp .= "]";
+        
+        $script = <<<'SCRIPT_HEAD'
+<?php
+/**
+ * Seismo Web Scraper — generated script
+ * Run via cronjob, e.g.: 0 */6 * * * php /path/to/seismo_scraper.php
+ */
+
+SCRIPT_HEAD;
+        $script .= "\$dbHost = " . var_export($dbHost, true) . ";\n";
+        $script .= "\$dbName = " . var_export($dbName, true) . ";\n";
+        $script .= "\$dbUser = " . var_export($dbUser, true) . ";\n";
+        $script .= "\$dbPass = " . var_export($dbPass, true) . ";\n\n";
+        $script .= "\$scrapers = {$scraperListPhp};\n\n";
+        $script .= <<<'SCRIPT_BODY'
+try {
+    $pdo = new PDO("mysql:host={$dbHost};dbname={$dbName};charset=utf8mb4", $dbUser, $dbPass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+} catch (PDOException $e) {
+    echo "[ERROR] DB connection failed: " . $e->getMessage() . "\n";
+    exit(1);
+}
+
+function extractReadableContent(string $html): array {
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_NOWARNING | LIBXML_NOERROR);
+    libxml_clear_errors();
+    
+    // Extract <title>
+    $titleNodes = $dom->getElementsByTagName('title');
+    $title = $titleNodes->length > 0 ? trim($titleNodes->item(0)->textContent) : '';
+    
+    // Remove unwanted tags
+    foreach (['script', 'style', 'nav', 'header', 'footer', 'aside', 'noscript', 'iframe'] as $tag) {
+        $nodes = $dom->getElementsByTagName($tag);
+        $toRemove = [];
+        for ($i = 0; $i < $nodes->length; $i++) {
+            $toRemove[] = $nodes->item($i);
+        }
+        foreach ($toRemove as $node) {
+            $node->parentNode->removeChild($node);
+        }
+    }
+    
+    // Find the largest text-bearing block
+    $body = $dom->getElementsByTagName('body')->item(0);
+    if (!$body) {
+        return ['title' => $title, 'content' => ''];
+    }
+    
+    $bestText = '';
+    $bestLen = 0;
+    $candidates = ['article', 'main', 'div', 'section'];
+    foreach ($candidates as $tagName) {
+        $elements = $dom->getElementsByTagName($tagName);
+        for ($i = 0; $i < $elements->length; $i++) {
+            $text = trim($elements->item($i)->textContent);
+            $len = mb_strlen($text);
+            if ($len > $bestLen) {
+                $bestLen = $len;
+                $bestText = $text;
+            }
+        }
+        if ($bestLen > 200) break;
+    }
+    
+    if ($bestLen < 50) {
+        $bestText = trim($body->textContent);
+    }
+    
+    // Normalize whitespace
+    $bestText = preg_replace('/[ \t]+/', ' ', $bestText);
+    $bestText = preg_replace('/\n{3,}/', "\n\n", $bestText);
+    
+    return ['title' => $title, 'content' => trim($bestText)];
+}
+
+// Polite scraping: randomised delay between requests (seconds)
+$minDelay = 3;
+$maxDelay = 8;
+
+// Rotate through realistic browser User-Agent strings
+$userAgents = [
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+];
+
+echo "Seismo Scraper — " . date('Y-m-d H:i:s') . "\n";
+echo str_repeat('-', 50) . "\n";
+
+$inserted = 0;
+$updated = 0;
+$skipped = 0;
+$isFirst = true;
+
+foreach ($scrapers as $scraper) {
+    $name = $scraper['name'];
+    $url = $scraper['url'];
+    
+    // Polite delay between requests (skip before the first one)
+    if (!$isFirst) {
+        $delay = rand($minDelay * 10, $maxDelay * 10) / 10;
+        echo "  [WAIT] Sleeping {$delay}s...\n";
+        usleep((int)($delay * 1000000));
+    }
+    $isFirst = false;
+    
+    echo "\n[{$name}] Fetching: {$url}\n";
+    
+    $ua = $userAgents[array_rand($userAgents)];
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS      => 5,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_USERAGENT      => $ua,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_ENCODING       => '',          // accept gzip/deflate
+        CURLOPT_HTTPHEADER     => [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language: de-CH,de;q=0.9,en;q=0.8',
+            'Cache-Control: no-cache',
+            'DNT: 1',
+        ],
+    ]);
+    $html = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    
+    if ($html === false || $httpCode >= 400) {
+        echo "  [WARN] HTTP {$httpCode}, curl error: {$err}\n";
+        continue;
+    }
+    
+    $extracted = extractReadableContent($html);
+    $title = !empty($extracted['title']) ? $extracted['title'] : $name;
+    $content = $extracted['content'];
+    
+    if (empty($content)) {
+        echo "  [WARN] No content extracted, skipping.\n";
+        continue;
+    }
+    
+    $contentHash = md5($content);
+    
+    // Ensure a feeds row exists for this scraper source
+    $feedStmt = $pdo->prepare("SELECT id FROM feeds WHERE feed_url = ? AND source_type = 'scraper'");
+    $feedStmt->execute([$url]);
+    $feedId = $feedStmt->fetchColumn();
+    
+    if (!$feedId) {
+        $ins = $pdo->prepare("INSERT INTO feeds (name, feed_url, site_url, source_type, category) VALUES (?, ?, ?, 'scraper', 'scraper')");
+        $ins->execute([$name, $url, $url]);
+        $feedId = $pdo->lastInsertId();
+        echo "  Created feed #{$feedId}\n";
+    }
+    
+    // Check for existing entry by guid (= URL)
+    $existStmt = $pdo->prepare("SELECT id, content_hash FROM feed_items WHERE guid = ? AND feed_id = ?");
+    $existStmt->execute([$url, $feedId]);
+    $existing = $existStmt->fetch();
+    
+    if ($existing) {
+        if ($existing['content_hash'] === $contentHash) {
+            echo "  [SKIP] Content unchanged.\n";
+            $skipped++;
+            continue;
+        }
+        // Content changed — update
+        $upd = $pdo->prepare("UPDATE feed_items SET title = ?, content = ?, content_hash = ?, published_date = NOW() WHERE id = ?");
+        $upd->execute([$title, $content, $contentHash, $existing['id']]);
+        echo "  [UPDATE] Content changed, updated item #{$existing['id']}\n";
+        $updated++;
+    } else {
+        // New entry
+        $ins = $pdo->prepare("INSERT INTO feed_items (feed_id, title, content, link, guid, content_hash, published_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+        $ins->execute([$feedId, $title, $content, $url, $url, $contentHash]);
+        echo "  [INSERT] New item #" . $pdo->lastInsertId() . "\n";
+        $inserted++;
+    }
+}
+
+echo "\n" . str_repeat('-', 50) . "\n";
+echo "Done. Inserted: {$inserted}, Updated: {$updated}, Skipped: {$skipped}\n";
+SCRIPT_BODY;
+        
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="seismo_scraper.php"');
+        header('Content-Length: ' . strlen($script));
+        echo $script;
+        exit;
     
     case 'save_magnitu_config':
         // Save Magnitu settings from settings page
@@ -1447,6 +1745,45 @@ switch ($action) {
         }
         
         include 'views/jus.php';
+        break;
+    
+    case 'scraper':
+        // Show scraped web page entries
+        $scraperItems = [];
+        $scraperSources = []; // for filter pills
+        try {
+            // Get all scraper feeds for pills
+            $scraperFeedsStmt = $pdo->query("SELECT f.id, f.name FROM feeds f WHERE f.source_type = 'scraper' ORDER BY f.name");
+            $scraperSources = $scraperFeedsStmt->fetchAll();
+            
+            // Determine active sources from query params
+            $allScraperIds = array_column($scraperSources, 'id');
+            $sourcesSubmitted = isset($_GET['sources_submitted']);
+            if ($sourcesSubmitted) {
+                $activeScraperIds = isset($_GET['sources']) ? array_map('intval', (array)$_GET['sources']) : [];
+            } else {
+                $activeScraperIds = $allScraperIds;
+            }
+            $activeScraperIds = array_values(array_intersect($activeScraperIds, $allScraperIds));
+            
+            if (!empty($activeScraperIds)) {
+                $placeholders = implode(',', array_fill(0, count($activeScraperIds), '?'));
+                $stmt = $pdo->prepare("
+                    SELECT fi.*, f.name as feed_name, f.feed_url as source_url
+                    FROM feed_items fi
+                    JOIN feeds f ON fi.feed_id = f.id
+                    WHERE f.source_type = 'scraper' AND f.id IN ($placeholders)
+                    ORDER BY fi.published_date DESC
+                    LIMIT 50
+                ");
+                $stmt->execute($activeScraperIds);
+                $scraperItems = $stmt->fetchAll();
+            }
+        } catch (PDOException $e) {
+            // Table might not exist yet
+        }
+        
+        include 'views/scraper.php';
         break;
     
     case 'refresh_all_jus':
@@ -1696,6 +2033,8 @@ switch ($action) {
             $stats['jus_bger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bger'")->fetchColumn();
             $stats['jus_bge'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bge'")->fetchColumn();
             $stats['jus_bvger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bvger'")->fetchColumn();
+            $stats['scraper_configs'] = $pdo->query("SELECT COUNT(*) FROM scraper_configs")->fetchColumn();
+            $stats['scraper_items'] = $pdo->query("SELECT COUNT(*) FROM feed_items fi JOIN feeds f ON fi.feed_id = f.id WHERE f.source_type = 'scraper'")->fetchColumn();
         } catch (PDOException $e) {
             // Tables might not exist yet
         }
