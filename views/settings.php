@@ -584,15 +584,17 @@
         <section class="settings-section" id="lex-settings">
             <h2 style="background-color: #f5f562; padding: 8px 14px; display: inline-block;">Lex</h2>
 
-            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_lex_config" enctype="multipart/form-data">
+            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_lex_config" id="lex-config-form">
+                <input type="hidden" name="autosave" value="1">
                 <!-- EU Configuration -->
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                         <label style="font-weight: 700; font-size: 18px;">🇪🇺 EUR-Lex</label>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-                            <input type="checkbox" name="eu_enabled" value="1" <?= ($lexConfig['eu']['enabled'] ?? true) ? 'checked' : '' ?>>
-                            Enabled
-                        </label>
+                        <?php $euEnabled = (bool)($lexConfig['eu']['enabled'] ?? true); ?>
+                        <input type="hidden" name="eu_enabled" value="<?= $euEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $euEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="eu_enabled">
+                            <?= $euEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -652,10 +654,11 @@
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                         <label style="font-weight: 700; font-size: 18px;">🇨🇭 Fedlex</label>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-                            <input type="checkbox" name="ch_enabled" value="1" <?= ($lexConfig['ch']['enabled'] ?? true) ? 'checked' : '' ?>>
-                            Enabled
-                        </label>
+                        <?php $chEnabled = (bool)($lexConfig['ch']['enabled'] ?? true); ?>
+                        <input type="hidden" name="ch_enabled" value="<?= $chEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $chEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="ch_enabled">
+                            <?= $chEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -725,10 +728,11 @@
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                         <label style="font-weight: 700; font-size: 18px;">🇩🇪 recht.bund.de</label>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-                            <input type="checkbox" name="de_enabled" value="1" <?= ($lexConfig['de']['enabled'] ?? true) ? 'checked' : '' ?>>
-                            Enabled
-                        </label>
+                        <?php $deEnabled = (bool)($lexConfig['de']['enabled'] ?? true); ?>
+                        <input type="hidden" name="de_enabled" value="<?= $deEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $deEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="de_enabled">
+                            <?= $deEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -765,10 +769,11 @@
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                         <label style="font-weight: 700; font-size: 18px;">⚖️ BGer (Bundesgericht)</label>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-                            <input type="checkbox" name="ch_bger_enabled" value="1" <?= ($lexConfig['ch_bger']['enabled'] ?? false) ? 'checked' : '' ?>>
-                            Enabled
-                        </label>
+                        <?php $bgerEnabled = (bool)($lexConfig['ch_bger']['enabled'] ?? false); ?>
+                        <input type="hidden" name="ch_bger_enabled" value="<?= $bgerEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $bgerEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="ch_bger_enabled">
+                            <?= $bgerEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -806,10 +811,11 @@
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                         <label style="font-weight: 700; font-size: 18px;">⚖️ BGE (Leitentscheide)</label>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-                            <input type="checkbox" name="ch_bge_enabled" value="1" <?= ($lexConfig['ch_bge']['enabled'] ?? false) ? 'checked' : '' ?>>
-                            Enabled
-                        </label>
+                        <?php $bgeEnabled = (bool)($lexConfig['ch_bge']['enabled'] ?? false); ?>
+                        <input type="hidden" name="ch_bge_enabled" value="<?= $bgeEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $bgeEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="ch_bge_enabled">
+                            <?= $bgeEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -839,9 +845,6 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <button type="submit" class="btn btn-primary">Save Configuration</button>
-                </div>
             </form>
 
             <!-- Config file management -->
@@ -1214,6 +1217,33 @@
                 }
             });
         });
+
+        // Lex settings: auto-save on change and button-based enable/disable toggles.
+        (function() {
+            const lexForm = document.getElementById('lex-config-form');
+            if (!lexForm) return;
+
+            let isSubmitting = false;
+            const submitLexForm = () => {
+                if (isSubmitting) return;
+                isSubmitting = true;
+                lexForm.submit();
+            };
+
+            lexForm.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach((field) => {
+                field.addEventListener('change', submitLexForm);
+            });
+
+            lexForm.querySelectorAll('[data-lex-toggle]').forEach((button) => {
+                button.addEventListener('click', function() {
+                    const inputName = this.dataset.lexToggle;
+                    const hiddenInput = lexForm.querySelector('input[name="' + inputName + '"]');
+                    if (!hiddenInput) return;
+                    hiddenInput.value = hiddenInput.value === '1' ? '0' : '1';
+                    submitLexForm();
+                });
+            });
+        })();
     </script>
     <script>
     (function() {

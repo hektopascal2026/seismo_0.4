@@ -1450,9 +1450,17 @@ switch ($action) {
         // Save Lex config from the settings form
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $config = getLexConfig();
+            $isEnabled = function($field, $default = false) {
+                if (!array_key_exists($field, $_POST)) return (bool)$default;
+                $raw = $_POST[$field];
+                if (is_array($raw)) return !empty($raw);
+                $value = strtolower(trim((string)$raw));
+                return in_array($value, ['1', 'true', 'yes', 'on'], true);
+            };
+            $isAutoSave = isset($_POST['autosave']) && $_POST['autosave'] === '1';
             
             // EU settings
-            $config['eu']['enabled']        = isset($_POST['eu_enabled']);
+            $config['eu']['enabled']        = $isEnabled('eu_enabled', $config['eu']['enabled'] ?? true);
             $config['eu']['language']       = trim($_POST['eu_language'] ?? 'ENG');
             $config['eu']['lookback_days']  = max(1, (int)($_POST['eu_lookback_days'] ?? 90));
             $config['eu']['limit']          = max(1, (int)($_POST['eu_limit'] ?? 100));
@@ -1460,7 +1468,7 @@ switch ($action) {
             $config['eu']['notes']          = trim($_POST['eu_notes'] ?? '');
             
             // CH settings
-            $config['ch']['enabled']       = isset($_POST['ch_enabled']);
+            $config['ch']['enabled']       = $isEnabled('ch_enabled', $config['ch']['enabled'] ?? true);
             $config['ch']['language']      = trim($_POST['ch_language'] ?? 'DEU');
             $config['ch']['lookback_days'] = max(1, (int)($_POST['ch_lookback_days'] ?? 90));
             $config['ch']['limit']         = max(1, (int)($_POST['ch_limit'] ?? 100));
@@ -1482,25 +1490,27 @@ switch ($action) {
             }
             
             // DE settings
-            $config['de']['enabled']       = isset($_POST['de_enabled']);
+            $config['de']['enabled']       = $isEnabled('de_enabled', $config['de']['enabled'] ?? true);
             $config['de']['lookback_days'] = max(1, (int)($_POST['de_lookback_days'] ?? 90));
             $config['de']['limit']         = max(1, (int)($_POST['de_limit'] ?? 100));
             $config['de']['notes']         = trim($_POST['de_notes'] ?? '');
             
             // JUS: CH_BGer settings
-            $config['ch_bger']['enabled']       = isset($_POST['ch_bger_enabled']);
+            $config['ch_bger']['enabled']       = $isEnabled('ch_bger_enabled', $config['ch_bger']['enabled'] ?? false);
             $config['ch_bger']['lookback_days'] = max(1, (int)($_POST['ch_bger_lookback_days'] ?? 90));
             $config['ch_bger']['limit']         = max(1, (int)($_POST['ch_bger_limit'] ?? 100));
             $config['ch_bger']['notes']         = trim($_POST['ch_bger_notes'] ?? '');
             
             // JUS: CH_BGE settings
-            $config['ch_bge']['enabled']       = isset($_POST['ch_bge_enabled']);
+            $config['ch_bge']['enabled']       = $isEnabled('ch_bge_enabled', $config['ch_bge']['enabled'] ?? false);
             $config['ch_bge']['lookback_days'] = max(1, (int)($_POST['ch_bge_lookback_days'] ?? 90));
             $config['ch_bge']['limit']         = max(1, (int)($_POST['ch_bge_limit'] ?? 50));
             $config['ch_bge']['notes']         = trim($_POST['ch_bge_notes'] ?? '');
             
             if (saveLexConfig($config)) {
-                $_SESSION['success'] = 'Lex configuration saved.';
+                if (!$isAutoSave) {
+                    $_SESSION['success'] = 'Lex configuration saved.';
+                }
             } else {
                 $_SESSION['error'] = 'Failed to save Lex configuration.';
             }
