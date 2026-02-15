@@ -222,6 +222,28 @@
                         No sync yet. Connect Magnitu using the API key and URL above.
                     </div>
                 <?php endif; ?>
+
+                <?php if (!empty($magnituConfig['model_name'])): ?>
+                <!-- Connected Model -->
+                <div style="margin-top: 16px; padding: 12px 14px; border: 2px solid #000000; background: #ffffff;">
+                    <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px;">Connected Model</div>
+                    <div style="display: flex; gap: 16px; align-items: baseline;">
+                        <span style="font-size: 18px; font-weight: 700;"><?= htmlspecialchars($magnituConfig['model_name']) ?></span>
+                        <?php if (!empty($magnituConfig['model_version'])): ?>
+                            <span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border: 2px solid #000000; background: #FF6B6B;">v<?= htmlspecialchars($magnituConfig['model_version']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($magnituConfig['model_description'])): ?>
+                        <div style="font-size: 12px; margin-top: 4px; color: #000000;"><?= htmlspecialchars($magnituConfig['model_description']) ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($magnituConfig['model_trained_at'])): ?>
+                        <div style="font-size: 12px; margin-top: 6px; color: #000000;">
+                            Last trained: <strong><?= htmlspecialchars(substr($magnituConfig['model_trained_at'], 0, 16)) ?></strong>
+                        </div>
+                    <?php endif; ?>
+                    <div style="font-size: 11px; margin-top: 8px; color: #000000; opacity: 0.6; font-style: italic;">Model files are managed in the Magnitu app.</div>
+                </div>
+                <?php endif; ?>
             </div>
 
             <!-- Scoring Settings -->

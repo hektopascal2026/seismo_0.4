@@ -1672,6 +1672,23 @@ switch ($action) {
         // Update last sync timestamp
         setMagnituConfig($pdo, 'last_sync_at', date('Y-m-d H:i:s'));
         
+        // Store model metadata if provided
+        $modelMeta = $input['model_meta'] ?? null;
+        if ($modelMeta && is_array($modelMeta)) {
+            if (!empty($modelMeta['model_name'])) {
+                setMagnituConfig($pdo, 'model_name', $modelMeta['model_name']);
+            }
+            if (isset($modelMeta['model_description'])) {
+                setMagnituConfig($pdo, 'model_description', $modelMeta['model_description']);
+            }
+            if (!empty($modelMeta['model_version'])) {
+                setMagnituConfig($pdo, 'model_version', (string)$modelMeta['model_version']);
+            }
+            if (!empty($modelMeta['model_trained_at'])) {
+                setMagnituConfig($pdo, 'model_trained_at', $modelMeta['model_trained_at']);
+            }
+        }
+        
         echo json_encode([
             'success' => true,
             'inserted' => $inserted,
