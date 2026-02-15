@@ -154,13 +154,20 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
+        <!-- Settings Tab Bar -->
+        <div class="top-bar-nav" style="margin-bottom: 16px;">
+            <a href="?action=settings&tab=basic" class="nav-link <?= $settingsTab === 'basic' ? 'active' : '' ?>">Basic</a>
+            <a href="?action=settings&tab=script" class="nav-link <?= $settingsTab === 'script' ? 'active' : '' ?>">Script</a>
+            <a href="?action=settings&tab=lex" class="nav-link <?= $settingsTab === 'lex' ? 'active' : '' ?>">Lex</a>
+            <a href="?action=settings&tab=magnitu" class="nav-link <?= $settingsTab === 'magnitu' ? 'active' : '' ?>">Magnitu</a>
+        </div>
+
+        <?php if ($settingsTab === 'magnitu'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">ML-powered relevance scoring. Connect to your Magnitu instance and manage scoring settings.</p>
+
         <!-- Magnitu Section -->
         <section class="settings-section" id="magnitu-settings">
             <h2 style="background-color: #FF6B6B; padding: 8px 14px; display: inline-block;">Magnitu</h2>
-            <p style="margin: 8px 0 16px; font-size: 12px;">
-                Magnitu is a separate app that learns what feed entries are relevant to you as a journalist.
-                It connects to Seismo via API to fetch entries, train a model, and push relevance scores back.
-            </p>
 
             <!-- Connection Info -->
             <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
@@ -289,6 +296,10 @@
                 </form>
             </div>
         </section>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'basic'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">Add and manage RSS feeds and Substack newsletters.</p>
 
         <!-- RSS Section -->
         <section class="settings-section">
@@ -482,6 +493,10 @@
                 </div>
             </div>
         </section>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'script'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">Manage email sources fetched by server-side scripts.</p>
 
         <!-- Mail Section -->
         <section class="settings-section">
@@ -558,6 +573,10 @@
                 </div>
             <?php endif; ?>
         </section>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'lex'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">Configure SPARQL queries for EU and Swiss legislation monitoring.</p>
 
         <!-- Lex Section -->
         <section class="settings-section" id="lex-settings">
@@ -725,6 +744,8 @@
                 </div>
             </div>
         </section>
+        <?php endif; ?>
+
     </div>
 
     <script>

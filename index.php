@@ -983,6 +983,7 @@ switch ($action) {
     case 'settings':
         // Show settings page
         $pdo = getDbConnection();
+        $settingsTab = $_GET['tab'] ?? 'basic';
         
         // Get all RSS feeds for RSS section
         $feedsStmt = $pdo->query("SELECT * FROM feeds WHERE source_type = 'rss' OR source_type IS NULL ORDER BY created_at DESC");
