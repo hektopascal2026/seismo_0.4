@@ -108,6 +108,20 @@
                         }
                         $docType = htmlspecialchars($item['document_type'] ?? 'Entscheid');
                         $itemUrl = htmlspecialchars($item['eurlex_url'] ?? '#');
+                        
+                        // Parse readable case number from slug:
+                        // CH_BGer_007_7B-835-2025_2025-09-18 → 7B 835/2025
+                        $slug = $item['celex'] ?? '';
+                        $caseNum = $slug;
+                        if (preg_match('/^CH_BG(?:er|E)_\d{3}_(.+)_\d{4}-\d{2}-\d{2}$/', $slug, $m)) {
+                            $raw = $m[1]; // e.g. "7B-835-2025"
+                            $parts = explode('-', $raw, 3);
+                            if (count($parts) === 3) {
+                                $caseNum = $parts[0] . ' ' . $parts[1] . '/' . $parts[2];
+                            } else {
+                                $caseNum = str_replace('-', ' ', $raw);
+                            }
+                        }
                     ?>
                     <div class="entry-card">
                         <div class="entry-header">
@@ -127,7 +141,7 @@
                         </h3>
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-family: monospace; font-size: 11px;"><?= htmlspecialchars($item['celex']) ?></span>
+                                <span style="font-family: monospace; font-size: 12px; font-weight: 600;"><?= htmlspecialchars($caseNum) ?></span>
                                 <a href="<?= $itemUrl ?>" target="_blank" rel="noopener" class="entry-link"><?= $linkLabel ?></a>
                             </div>
                             <?php if ($item['document_date']): ?>

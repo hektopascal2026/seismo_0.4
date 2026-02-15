@@ -261,6 +261,24 @@
                             $lexDocType = $lexItem['document_type'] ?? 'Legislation';
                             $lexUrl = $lexItem['eurlex_url'] ?? '#';
                             $lexDate = $lexItem['document_date'] ? date('d.m.Y', strtotime($lexItem['document_date'])) : '';
+                            $isJus = in_array($lexSource, ['ch_bger', 'ch_bge']);
+                            
+                            // For JUS items: parse readable case number from slug
+                            $lexCelexDisplay = $lexItem['celex'] ?? '';
+                            if ($isJus && preg_match('/^CH_BG(?:er|E)_\d{3}_(.+)_\d{4}-\d{2}-\d{2}$/', $lexCelexDisplay, $m)) {
+                                $rawCn = $m[1];
+                                $cnParts = explode('-', $rawCn, 3);
+                                $lexCelexDisplay = (count($cnParts) === 3) 
+                                    ? $cnParts[0] . ' ' . $cnParts[1] . '/' . $cnParts[2] 
+                                    : str_replace('-', ' ', $rawCn);
+                            }
+                            
+                            // Link label per source
+                            if ($lexSource === 'ch_bger') $lexLinkLabel = 'Entscheid →';
+                            elseif ($lexSource === 'ch_bge') $lexLinkLabel = 'Leitentscheid →';
+                            elseif ($lexSource === 'de') $lexLinkLabel = 'recht.bund.de →';
+                            elseif ($lexSource === 'ch') $lexLinkLabel = 'Fedlex →';
+                            else $lexLinkLabel = 'EUR-Lex →';
                         ?>
                         <div class="entry-card">
                             <div class="entry-header">
@@ -281,8 +299,8 @@
                             </h3>
                             <div class="entry-actions">
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span style="font-family: monospace;"><?= htmlspecialchars($lexItem['celex'] ?? '') ?></span>
-                                    <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexIsEu ? 'EUR-Lex →' : 'Fedlex →' ?></a>
+                                    <span style="font-family: monospace;<?= $isJus ? ' font-size: 12px; font-weight: 600;' : '' ?>"><?= htmlspecialchars($lexCelexDisplay) ?></span>
+                                    <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexLinkLabel ?></a>
                                 </div>
                                 <?php if ($lexDate): ?>
                                     <span class="entry-date"><?= $lexDate ?></span>

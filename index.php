@@ -3543,16 +3543,22 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
             // Map fields
             $signatur = $decision['Signatur'] ?? '';
             
-            // Title: Kopfzeile[0].Text (fallback to Num)
-            $title = '';
-            if (!empty($decision['Kopfzeile'][0]['Text'])) {
-                $title = $decision['Kopfzeile'][0]['Text'];
-            } elseif (!empty($decision['Abstract'][0]['Text'])) {
-                $title = $decision['Abstract'][0]['Text'];
-            }
-            if (empty($title)) {
-                $nums = $decision['Num'] ?? [];
-                $title = is_array($nums) ? ($nums[0] ?? $slug) : ($nums ?: $slug);
+            // Title: prefer Abstract (case topic), fall back to Num, then Kopfzeile
+            $abstract = $decision['Abstract'][0]['Text'] ?? '';
+            $nums = $decision['Num'] ?? [];
+            $caseNum = is_array($nums) ? ($nums[0] ?? '') : ($nums ?: '');
+            $kopfzeile = $decision['Kopfzeile'][0]['Text'] ?? '';
+            
+            if (!empty($abstract) && !empty($caseNum)) {
+                $title = $caseNum . ' — ' . $abstract;
+            } elseif (!empty($abstract)) {
+                $title = $abstract;
+            } elseif (!empty($caseNum)) {
+                $title = $caseNum;
+            } elseif (!empty($kopfzeile)) {
+                $title = $kopfzeile;
+            } else {
+                $title = $slug;
             }
             
             // Document type: chamber label from Signatur
