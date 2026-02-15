@@ -19,7 +19,7 @@
                     </a>
                     Lex
                 </span>
-                <span class="top-bar-subtitle">EU &amp; Swiss legislation — finalized acts via SPARQL</span>
+                <span class="top-bar-subtitle">EU, Swiss &amp; German legislation</span>
             </div>
             <div class="top-bar-actions">
                 <a href="?action=refresh_all&from=lex" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
@@ -65,6 +65,11 @@
                         <input type="checkbox" name="sources[]" value="ch" <?= $chActive ? 'checked' : '' ?> onchange="this.form.submit()">
                         <span>🇨🇭 Switzerland</span>
                     </label>
+                    <?php $deActive = in_array('de', $activeSources); ?>
+                    <label class="tag-filter-pill<?= $deActive ? ' tag-filter-pill-active' : '' ?>"<?= $deActive ? ' style="background-color: #f5f562;"' : '' ?>>
+                        <input type="checkbox" name="sources[]" value="de" <?= $deActive ? 'checked' : '' ?> onchange="this.form.submit()">
+                        <span>🇩🇪 Germany</span>
+                    </label>
                 </div>
             </div>
         </form>
@@ -76,6 +81,7 @@
                         $refreshParts = [];
                         if (!empty($lastLexRefreshDateEu)) $refreshParts[] = '🇪🇺 ' . $lastLexRefreshDateEu;
                         if (!empty($lastLexRefreshDateCh)) $refreshParts[] = '🇨🇭 ' . $lastLexRefreshDateCh;
+                        if (!empty($lastLexRefreshDateDe)) $refreshParts[] = '🇩🇪 ' . $lastLexRefreshDateDe;
                         if (!empty($refreshParts)):
                     ?>
                         Refreshed: <?= implode(' · ', $refreshParts) ?>
@@ -91,18 +97,28 @@
                 </div>
             <?php else: ?>
                 <?php
-                    // Check if both sources are active (merged view)
-                    $showSourceTag = (in_array('eu', $activeSources) && in_array('ch', $activeSources));
+                    // Check if multiple sources are active (merged view)
+                    $activeCount = (int)in_array('eu', $activeSources) + (int)in_array('ch', $activeSources) + (int)in_array('de', $activeSources);
+                    $showSourceTag = ($activeCount > 1);
                 ?>
                 <?php foreach ($lexItems as $item): ?>
                     <?php
                         $source = $item['source'] ?? 'eu';
-                        $isEu = ($source === 'eu');
-                        $sourceEmoji = $isEu ? '🇪🇺' : '🇨🇭';
-                        $sourceLabel = $isEu ? 'EU' : 'CH';
+                        if ($source === 'de') {
+                            $sourceEmoji = '🇩🇪';
+                            $sourceLabel = 'DE';
+                            $linkLabel = 'recht.bund.de →';
+                        } elseif ($source === 'ch') {
+                            $sourceEmoji = '🇨🇭';
+                            $sourceLabel = 'CH';
+                            $linkLabel = 'Fedlex →';
+                        } else {
+                            $sourceEmoji = '🇪🇺';
+                            $sourceLabel = 'EU';
+                            $linkLabel = 'EUR-Lex →';
+                        }
                         $docType = htmlspecialchars($item['document_type'] ?? 'Legislation');
                         $itemUrl = htmlspecialchars($item['eurlex_url'] ?? '#');
-                        $linkLabel = $isEu ? 'EUR-Lex →' : 'Fedlex →';
                     ?>
                     <div class="entry-card">
                         <div class="entry-header">

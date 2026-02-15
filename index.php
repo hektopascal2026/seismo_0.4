@@ -42,7 +42,7 @@ switch ($action) {
             $selectedTags = array_values(array_filter($tags, function($t) { return $t !== 'unsortiert'; }));
             $selectedEmailTags = array_values(array_filter($emailTags, function($t) { return $t !== 'unsortiert' && $t !== 'unclassified'; }));
             $selectedSubstackTags = $substackTags; // select all by default
-            $selectedLexSources = ['eu', 'ch']; // both active by default
+            $selectedLexSources = ['eu', 'ch', 'de']; // all active by default
         }
         
         // If search query exists, show search results instead of latest items
@@ -899,6 +899,14 @@ switch ($action) {
                 $results[] = '🇨🇭 CH: ' . $e->getMessage();
             }
         }
+        if ($lexCfg['de']['enabled'] ?? true) {
+            try {
+                $countDe = refreshRechtBundItems($pdo);
+                $results[] = "🇩🇪 $countDe lex items";
+            } catch (Exception $e) {
+                $results[] = '🇩🇪 DE: ' . $e->getMessage();
+            }
+        }
         
         // 4. Magnitu recipe scoring for new entries
         try {
@@ -1186,7 +1194,7 @@ switch ($action) {
             
             $_SESSION['success'] = 'Magnitu settings saved.';
         }
-        header('Location: ?action=settings#magnitu-settings');
+        header('Location: ?action=settings&tab=magnitu');
         exit;
     
     case 'regenerate_magnitu_key':
@@ -1196,7 +1204,7 @@ switch ($action) {
             setMagnituConfig($pdo, 'api_key', $newKey);
             $_SESSION['success'] = 'New Magnitu API key generated.';
         }
-        header('Location: ?action=settings#magnitu-settings');
+        header('Location: ?action=settings&tab=magnitu');
         exit;
     
     case 'clear_magnitu_scores':
@@ -1208,7 +1216,7 @@ switch ($action) {
             setMagnituConfig($pdo, 'last_sync_at', '');
             $_SESSION['success'] = 'All Magnitu scores and recipe cleared.';
         }
-        header('Location: ?action=settings#magnitu-settings');
+        header('Location: ?action=settings&tab=magnitu');
         exit;
         
     case 'api_email_tags':
@@ -1219,16 +1227,16 @@ switch ($action) {
         break;
         
     case 'lex':
-        // Show Lex entries page — EU + CH legislation via SPARQL
+        // Show Lex entries page — EU, CH + DE legislation
         $lexItems = [];
         $lastLexRefreshDate = null;
         
-        // Determine active sources from query params (default: both active)
+        // Determine active sources from query params (default: all active)
         $sourcesSubmitted = isset($_GET['sources_submitted']);
         if ($sourcesSubmitted) {
             $activeSources = isset($_GET['sources']) ? (array)$_GET['sources'] : [];
         } else {
-            $activeSources = ['eu', 'ch']; // Both active by default
+            $activeSources = ['eu', 'ch', 'de']; // All active by default
         }
         
         try {
@@ -1249,6 +1257,11 @@ switch ($action) {
             $lastRefreshChRow = $lastRefreshChStmt->fetch();
             $lastLexRefreshDateCh = ($lastRefreshChRow && $lastRefreshChRow['last_refresh']) 
                 ? date('d.m.Y H:i', strtotime($lastRefreshChRow['last_refresh'])) : null;
+            
+            $lastRefreshDeStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'de'");
+            $lastRefreshDeRow = $lastRefreshDeStmt->fetch();
+            $lastLexRefreshDateDe = ($lastRefreshDeRow && $lastRefreshDeRow['last_refresh']) 
+                ? date('d.m.Y H:i', strtotime($lastRefreshDeRow['last_refresh'])) : null;
             
             // Combined last refresh
             $lastRefreshStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items");
@@ -1289,6 +1302,17 @@ switch ($action) {
             }
         } else {
             $messages[] = '🇨🇭 CH skipped (disabled)';
+        }
+        
+        if ($lexCfg['de']['enabled'] ?? true) {
+            try {
+                $countDe = refreshRechtBundItems($pdo);
+                $messages[] = "🇩🇪 $countDe items from recht.bund.de";
+            } catch (Exception $e) {
+                $errors[] = '🇩🇪 DE: ' . $e->getMessage();
+            }
+        } else {
+            $messages[] = '🇩🇪 DE skipped (disabled)';
         }
         
         if (!empty($messages)) {
@@ -1336,13 +1360,19 @@ switch ($action) {
                 $config['ch']['resource_types'] = $newTypes;
             }
             
+            // DE settings
+            $config['de']['enabled']       = isset($_POST['de_enabled']);
+            $config['de']['lookback_days'] = max(1, (int)($_POST['de_lookback_days'] ?? 90));
+            $config['de']['limit']         = max(1, (int)($_POST['de_limit'] ?? 100));
+            $config['de']['notes']         = trim($_POST['de_notes'] ?? '');
+            
             if (saveLexConfig($config)) {
                 $_SESSION['success'] = 'Lex configuration saved.';
             } else {
                 $_SESSION['error'] = 'Failed to save Lex configuration.';
             }
         }
-        header('Location: ?action=settings#lex-settings');
+        header('Location: ?action=settings&tab=lex');
         exit;
     
     case 'upload_lex_config':
@@ -1352,20 +1382,20 @@ switch ($action) {
             if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
                 $content = file_get_contents($file['tmp_name']);
                 $parsed = json_decode($content, true);
-                if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']))) {
+                if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']))) {
                     if (saveLexConfig($parsed)) {
                         $_SESSION['success'] = 'Lex config file uploaded and applied.';
                     } else {
                         $_SESSION['error'] = 'Failed to write uploaded config.';
                     }
                 } else {
-                    $_SESSION['error'] = 'Invalid JSON config file. Must contain "eu" and/or "ch" keys.';
+                    $_SESSION['error'] = 'Invalid JSON config file. Must contain "eu", "ch", and/or "de" keys.';
                 }
             } else {
                 $_SESSION['error'] = 'No file uploaded or upload error.';
             }
         }
-        header('Location: ?action=settings#lex-settings');
+        header('Location: ?action=settings&tab=lex');
         exit;
     
     case 'download_lex_config':
@@ -1403,7 +1433,7 @@ switch ($action) {
                 $_SESSION['error'] = 'No file uploaded or upload error.';
             }
         }
-        header('Location: ?action=settings');
+        header('Location: ?action=settings&tab=basic');
         exit;
     
     case 'download_substack_config':
@@ -1433,7 +1463,7 @@ switch ($action) {
                 $_SESSION['error'] = 'No file uploaded or upload error.';
             }
         }
-        header('Location: ?action=settings');
+        header('Location: ?action=settings&tab=basic');
         exit;
     
     case 'about':
@@ -1454,6 +1484,7 @@ switch ($action) {
             
             $stats['lex_eu'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'eu'")->fetchColumn();
             $stats['lex_ch'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch'")->fetchColumn();
+            $stats['lex_de'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'de'")->fetchColumn();
         } catch (PDOException $e) {
             // Tables might not exist yet
         }
@@ -1602,7 +1633,7 @@ switch ($action) {
                         'link' => $row['eurlex_url'] ?? '',
                         'author' => '',
                         'published_date' => $row['document_date'],
-                        'source_name' => $row['source'] === 'ch' ? 'Fedlex' : 'EUR-Lex',
+                        'source_name' => $row['source'] === 'ch' ? 'Fedlex' : ($row['source'] === 'de' ? 'recht.bund.de' : 'EUR-Lex'),
                         'source_category' => $row['document_type'] ?? 'Legislation',
                         'source_type' => 'lex_' . ($row['source'] ?? 'eu'),
                     ];
@@ -1849,10 +1880,12 @@ switch ($action) {
 
 function handleAddFeed($pdo) {
     $url = filter_input(INPUT_POST, 'url', FILTER_SANITIZE_URL);
+    $from = $_POST['from'] ?? $_GET['from'] ?? 'feeds';
+    $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
     
     if (!$url) {
         $_SESSION['error'] = 'Please provide a valid URL';
-        header('Location: ?action=feeds');
+        header('Location: ' . $redirectUrl);
         return;
     }
     
@@ -1865,7 +1898,7 @@ function handleAddFeed($pdo) {
     
     if ($feed->error()) {
         $_SESSION['error'] = 'Error parsing feed: ' . $feed->error();
-        header('Location: ?action=feeds');
+        header('Location: ' . $redirectUrl);
         return;
     }
     
@@ -1874,7 +1907,7 @@ function handleAddFeed($pdo) {
     $stmt->execute([$url]);
     if ($stmt->fetch()) {
         $_SESSION['error'] = 'Feed already exists';
-        header('Location: ?action=feeds');
+        header('Location: ' . $redirectUrl);
         return;
     }
     
@@ -1894,7 +1927,7 @@ function handleAddFeed($pdo) {
     cacheFeedItems($pdo, $feedId, $feed);
     
     $_SESSION['success'] = 'Feed added successfully';
-    header('Location: ?action=feeds');
+    header('Location: ' . $redirectUrl);
     exit;
 }
 
@@ -1970,7 +2003,7 @@ function handleDeleteFeed($pdo) {
     $stmt->execute([$feedId]);
     
     $_SESSION['success'] = 'Feed deleted successfully';
-    $redirectUrl = $from === 'settings' ? '?action=settings' : '?action=feeds';
+    $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -1986,7 +2019,7 @@ function handleToggleFeed($pdo) {
     
     if (!$feed) {
         $_SESSION['error'] = 'Feed not found';
-        $redirectUrl = $from === 'settings' ? '?action=settings' : '?action=feeds';
+        $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
         header('Location: ' . $redirectUrl);
         return;
     }
@@ -1998,7 +2031,7 @@ function handleToggleFeed($pdo) {
     
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Feed ' . $statusText . ' successfully';
-    $redirectUrl = $from === 'settings' ? '?action=settings' : '?action=feeds';
+    $redirectUrl = $from === 'settings' ? '?action=settings&tab=basic' : '?action=feeds';
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -2645,7 +2678,7 @@ function handleToggleSender($pdo) {
     
     if (empty($fromEmail)) {
         $_SESSION['error'] = 'Invalid sender email';
-        header('Location: ?action=settings');
+        header('Location: ?action=settings&tab=script');
         return;
     }
     
@@ -2668,7 +2701,7 @@ function handleToggleSender($pdo) {
     
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Sender ' . $statusText . ' successfully';
-    header('Location: ?action=settings');
+    header('Location: ?action=settings&tab=script');
     exit;
 }
 
@@ -2678,7 +2711,7 @@ function handleDeleteSender($pdo) {
     
     if (empty($fromEmail)) {
         $_SESSION['error'] = 'Invalid sender email';
-        header('Location: ?action=settings');
+        header('Location: ?action=settings&tab=script');
         return;
     }
     
@@ -2688,7 +2721,7 @@ function handleDeleteSender($pdo) {
     $stmt->execute([$fromEmail]);
     
     $_SESSION['success'] = "Sender removed from Seismo.\nFuture emails from this address will be tagged as \"unsortiert\" until you reassign them.\nTo stop receiving these emails, you need to manually unsubscribe from the sender's press releases.";
-    header('Location: ?action=settings');
+    header('Location: ?action=settings&tab=script');
     exit;
 }
 
@@ -2957,6 +2990,136 @@ function parseFedlexType($typeUri) {
         return $map[$m[1]] ?? 'Other';
     }
     return 'Other';
+}
+
+/**
+ * Refresh German legislation from the recht.bund.de Bundesgesetzblatt RSS feed.
+ * Returns the number of new/updated items.
+ */
+function refreshRechtBundItems($pdo) {
+    $config = getLexConfig();
+    $deCfg = $config['de'] ?? [];
+    
+    $lookback = (int)($deCfg['lookback_days'] ?? 90);
+    $sinceDate = date('Y-m-d', strtotime("-{$lookback} days"));
+    $limit = (int)($deCfg['limit'] ?? 100);
+    $feedUrl = $deCfg['feed_url'] ?? 'https://www.recht.bund.de/de/serviceseiten/rss/rss/feeds/rss_bgbl-1-2.xml?nn=211452';
+    
+    // Fetch RSS feed
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 30,
+            'user_agent' => 'Seismo/0.4 (legislation monitor)',
+        ],
+    ]);
+    $xmlContent = @file_get_contents($feedUrl, false, $ctx);
+    if ($xmlContent === false) {
+        throw new Exception("Failed to fetch RSS feed from recht.bund.de");
+    }
+    
+    // Suppress XML warnings and parse
+    libxml_use_internal_errors(true);
+    $rss = simplexml_load_string($xmlContent);
+    libxml_clear_errors();
+    
+    if ($rss === false) {
+        throw new Exception("Failed to parse RSS feed from recht.bund.de");
+    }
+    
+    // Navigate to items — RSS 2.0 format: rss > channel > item
+    $items = [];
+    if (isset($rss->channel->item)) {
+        $items = $rss->channel->item;
+    }
+    
+    $count = 0;
+    $stmt = $pdo->prepare("
+        INSERT INTO lex_items (celex, title, document_date, document_type, eurlex_url, work_uri, source, fetched_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'de', NOW())
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            document_type = VALUES(document_type),
+            eurlex_url = VALUES(eurlex_url),
+            fetched_at = NOW()
+    ");
+    
+    foreach ($items as $item) {
+        if ($count >= $limit) break;
+        
+        $title = trim((string)($item->title ?? ''));
+        $link = trim((string)($item->link ?? ''));
+        $pubDate = trim((string)($item->pubDate ?? ''));
+        $description = trim((string)($item->description ?? ''));
+        
+        if (empty($title) || empty($link)) continue;
+        
+        // Parse publication date
+        $docDate = null;
+        if (!empty($pubDate)) {
+            $ts = strtotime($pubDate);
+            if ($ts !== false) {
+                $docDate = date('Y-m-d', $ts);
+                // Skip items older than lookback window
+                if ($docDate < $sinceDate) continue;
+            }
+        }
+        
+        // Extract ELI identifier from the permalink URL
+        // Example: https://www.recht.bund.de/eli/bund/BGBl-1/2026/42 → BGBl-1/2026/42
+        $eliId = $link;
+        if (preg_match('#/eli/bund/(.+?)/?$#', $link, $m)) {
+            $eliId = $m[1];
+        } elseif (preg_match('#recht\.bund\.de/(.+?)/?$#', $link, $m)) {
+            $eliId = $m[1];
+        }
+        
+        // Parse document type from title
+        $docType = parseRechtBundType($title);
+        
+        $stmt->execute([
+            $eliId,       // celex (unique ID)
+            $title,       // title
+            $docDate,     // document_date
+            $docType,     // document_type
+            $link,        // eurlex_url (stores the permalink)
+            $link,        // work_uri
+        ]);
+        
+        $count++;
+    }
+    
+    return $count;
+}
+
+/**
+ * Parse the document type from a Bundesgesetzblatt title.
+ * Typical patterns: "Gesetz zur ...", "Verordnung über ...", "Bekanntmachung ..."
+ */
+function parseRechtBundType($title) {
+    $title = trim($title);
+    $patterns = [
+        '/^(Gesetz)\b/i' => 'Gesetz',
+        '/^(Verordnung)\b/i' => 'Verordnung',
+        '/^(Bekanntmachung)\b/i' => 'Bekanntmachung',
+        '/^(Beschluss)\b/i' => 'Beschluss',
+        '/^(Anordnung)\b/i' => 'Anordnung',
+        '/^(Richtlinie)\b/i' => 'Richtlinie',
+        '/^(Satzung)\b/i' => 'Satzung',
+        '/Änderungsgesetz/i' => 'Änderungsgesetz',
+        '/Haushaltsgesetz/i' => 'Haushaltsgesetz',
+    ];
+    
+    foreach ($patterns as $regex => $type) {
+        if (preg_match($regex, $title)) {
+            return $type;
+        }
+    }
+    
+    // Fallback: check for common keywords anywhere in the title
+    if (stripos($title, 'gesetz') !== false) return 'Gesetz';
+    if (stripos($title, 'verordnung') !== false) return 'Verordnung';
+    
+    return 'BGBl';
 }
 
 function refreshEmails($pdo) {

@@ -308,6 +308,7 @@
             <!-- Add Feed Section -->
             <div class="add-feed-section" style="margin-bottom: 16px;">
                 <form method="POST" action="?action=add_feed" class="add-feed-form">
+                    <input type="hidden" name="from" value="settings">
                     <input type="url" name="url" placeholder="Enter RSS feed URL (e.g., https://example.com/feed.xml)" required class="feed-input">
                     <button type="submit" class="btn btn-primary">Add Feed</button>
                 </form>
@@ -576,14 +577,11 @@
         <?php endif; ?>
 
         <?php if ($settingsTab === 'lex'): ?>
-        <p style="font-size: 12px; margin-bottom: 16px;">Configure SPARQL queries for EU and Swiss legislation monitoring.</p>
+        <p style="font-size: 12px; margin-bottom: 16px;">Configure EU, Swiss and German legislation monitoring.</p>
 
         <!-- Lex Section -->
         <section class="settings-section" id="lex-settings">
             <h2 style="background-color: #f5f562; padding: 8px 14px; display: inline-block;">Lex</h2>
-            <p style="margin: 8px 0 16px; font-size: 12px;">
-                Configure how Seismo queries EU and Swiss legislative databases via SPARQL.
-            </p>
 
             <form method="POST" action="?action=save_lex_config">
                 <!-- EU Configuration -->
@@ -719,6 +717,46 @@
                     
                     <div style="margin-top: 8px; font-size: 12px;">
                         Endpoint: <code style="font-size: 12px;"><?= htmlspecialchars($lexConfig['ch']['endpoint'] ?? '') ?></code>
+                    </div>
+                </div>
+
+                <!-- DE Configuration -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">🇩🇪 recht.bund.de</label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                            <input type="checkbox" name="de_enabled" value="1" <?= ($lexConfig['de']['enabled'] ?? true) ? 'checked' : '' ?>>
+                            Enabled
+                        </label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Lookback (days)</label>
+                            <input type="number" name="de_lookback_days" value="<?= (int)($lexConfig['de']['lookback_days'] ?? 90) ?>" min="1" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results</label>
+                            <input type="number" name="de_limit" value="<?= (int)($lexConfig['de']['limit'] ?? 100) ?>" min="1" max="500"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="de_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($lexConfig['de']['notes'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        Feed: <code style="font-size: 12px;"><?= htmlspecialchars($lexConfig['de']['feed_url'] ?? '') ?></code>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 12px; line-height: 1.6;">
+                        Source: Bundesgesetzblatt (BGBl) Teil I + II via RSS.
+                        <a href="https://www.recht.bund.de/" target="_blank" rel="noopener" style="text-decoration: underline;">recht.bund.de</a>
+                        &middot;
+                        <a href="https://www.gesetze-im-internet.de/" target="_blank" rel="noopener" style="text-decoration: underline;">gesetze-im-internet.de</a>
                     </div>
                 </div>
 

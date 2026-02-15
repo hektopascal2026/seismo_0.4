@@ -104,6 +104,7 @@
                             <?php
                                 $lexEuSelected = !empty($selectedLexSources) && in_array('eu', $selectedLexSources, true);
                                 $lexChSelected = !empty($selectedLexSources) && in_array('ch', $selectedLexSources, true);
+                                $lexDeSelected = !empty($selectedLexSources) && in_array('de', $selectedLexSources, true);
                             ?>
                             <label class="tag-filter-pill<?= $lexEuSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexEuSelected ? ' style="background-color: #f5f562;"' : '' ?>>
                                 <input type="checkbox" name="lex_sources[]" value="eu" <?= $lexEuSelected ? 'checked' : '' ?> onchange="this.form.submit()">
@@ -112,6 +113,10 @@
                             <label class="tag-filter-pill<?= $lexChSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexChSelected ? ' style="background-color: #f5f562;"' : '' ?>>
                                 <input type="checkbox" name="lex_sources[]" value="ch" <?= $lexChSelected ? 'checked' : '' ?> onchange="this.form.submit()">
                                 <span>🇨🇭 CH Lex</span>
+                            </label>
+                            <label class="tag-filter-pill<?= $lexDeSelected ? ' tag-filter-pill-active' : '' ?>"<?= $lexDeSelected ? ' style="background-color: #f5f562;"' : '' ?>>
+                                <input type="checkbox" name="lex_sources[]" value="de" <?= $lexDeSelected ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span>🇩🇪 DE Lex</span>
                             </label>
                         </div>
                     </div>
@@ -224,9 +229,16 @@
                         <?php $lexItem = $itemWrapper['data']; ?>
                         <?php
                             $lexSource = $lexItem['source'] ?? 'eu';
-                            $lexIsEu = ($lexSource === 'eu');
-                            $lexSourceEmoji = $lexIsEu ? '🇪🇺' : '🇨🇭';
-                            $lexSourceLabel = $lexIsEu ? 'EU' : 'CH';
+                            if ($lexSource === 'de') {
+                                $lexSourceEmoji = '🇩🇪';
+                                $lexSourceLabel = 'DE';
+                            } elseif ($lexSource === 'ch') {
+                                $lexSourceEmoji = '🇨🇭';
+                                $lexSourceLabel = 'CH';
+                            } else {
+                                $lexSourceEmoji = '🇪🇺';
+                                $lexSourceLabel = 'EU';
+                            }
                             $lexDocType = $lexItem['document_type'] ?? 'Legislation';
                             $lexUrl = $lexItem['eurlex_url'] ?? '#';
                             $lexDate = $lexItem['document_date'] ? date('d.m.Y', strtotime($lexItem['document_date'])) : '';

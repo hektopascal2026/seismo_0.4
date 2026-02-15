@@ -567,6 +567,13 @@ function getLexConfig() {
             ],
             'notes' => '',
         ],
+        'de' => [
+            'enabled' => true,
+            'feed_url' => 'https://www.recht.bund.de/de/serviceseiten/rss/rss/feeds/rss_bgbl-1-2.xml?nn=211452',
+            'lookback_days' => 90,
+            'limit' => 100,
+            'notes' => '',
+        ],
     ];
 }
 
