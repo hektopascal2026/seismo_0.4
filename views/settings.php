@@ -156,10 +156,10 @@
 
         <!-- Settings Tab Bar -->
         <div class="tag-filter-list" style="margin-bottom: 16px;">
-            <a href="index.php?action=settings&tab=basic" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
-            <a href="index.php?action=settings&tab=script" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
-            <a href="index.php?action=settings&tab=lex" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
-            <a href="index.php?action=settings&tab=magnitu" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
+            <a href="?action=settings&amp;tab=basic" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
+            <a href="?action=settings&amp;tab=script" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
+            <a href="?action=settings&amp;tab=lex" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
+            <a href="?action=settings&amp;tab=magnitu" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
         </div>
 
         <?php if ($settingsTab === 'magnitu'): ?>
