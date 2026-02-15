@@ -139,6 +139,38 @@
             </ul>
         </section>
 
+        <!-- Magnitu -->
+        <section class="about-section">
+            <h2>Magnitu</h2>
+            <p>
+                Magnitu is Seismo's companion scoring engine — a local Python application that learns which entries are relevant to you and pushes relevance scores back to Seismo via API.
+            </p>
+            <p style="margin-top: 8px;">
+                Every entry in Seismo (feed items, emails, lex items) can be scored on a four-level scale:
+            </p>
+            <ul>
+                <li><strong>Investigation Lead</strong> — could be the starting point of an investigative story</li>
+                <li><strong>Important</strong> — significant development you should be aware of</li>
+                <li><strong>Background</strong> — contextual information, worth archiving</li>
+                <li><strong>Noise</strong> — not relevant to your work</li>
+            </ul>
+            <p style="margin-top: 8px;">
+                Scoring works at two levels. The <strong>recipe scorer</strong> runs inside Seismo itself — it uses a keyword-based recipe with source weights and class weights to score new entries immediately during refresh. The <strong>Magnitu model</strong> is a full ML classifier that trains on your labels and pushes higher-quality scores via the API, overriding recipe scores when available.
+            </p>
+            <p style="margin-top: 8px;">
+                Magnitu connects to Seismo through four API endpoints:
+            </p>
+            <ul>
+                <li><strong>magnitu_entries</strong> — exports entries for Magnitu to fetch and label</li>
+                <li><strong>magnitu_scores</strong> — receives batch scores from the trained model</li>
+                <li><strong>magnitu_recipe</strong> — exchanges the keyword recipe between both systems</li>
+                <li><strong>magnitu_status</strong> — connectivity check and score coverage statistics</li>
+            </ul>
+            <p style="margin-top: 8px;">
+                The more you label, the sharper the model gets. Results appear on the <a href="?action=magnitu" class="about-link">Magnitu page</a> and influence sort order on the main feed when relevance sorting is enabled.
+            </p>
+        </section>
+
         <!-- Tech Stack -->
         <section class="about-section">
             <h2>Technical Details</h2>
@@ -169,7 +201,7 @@
                 Built by <a href="https://hektopascal.org" class="about-link" target="_blank" rel="noopener">hektopascal.org</a>.
             </p>
             <p class="about-version" style="margin-top: 8px;">
-                Version 0.3 · Last updated: <?= $lastChangeDate ?>
+                Version 0.4 · Last updated: <?= $lastChangeDate ?>
             </p>
         </section>
     </div>
