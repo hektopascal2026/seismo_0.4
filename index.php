@@ -711,7 +711,7 @@ switch ($action) {
                             body_html as html_body,
                             created_at
                         ";
-                        $orderBy = "created_at DESC";
+                        $orderBy = "date_utc DESC";
                     } else {
                         // Try standard column names
                         $selectColumns = [];
@@ -740,9 +740,9 @@ switch ($action) {
                             $selectClause = implode(', ', $selectColumns);
                         }
                         
-                        // Determine ORDER BY column
+                        // Determine ORDER BY column — prefer actual email date over insertion timestamp
                         $orderBy = 'id DESC'; // Default
-                        foreach (['created_at', 'date_utc', 'date_received', 'date_sent', 'id'] as $orderCol) {
+                        foreach (['date_received', 'date_utc', 'date_sent', 'created_at', 'id'] as $orderCol) {
                             if (in_array($orderCol, $tableColumns)) {
                                 $orderBy = "`$orderCol` DESC";
                                 break;
@@ -2676,7 +2676,7 @@ function getEmailsForIndex($pdo, $limit = 30, $selectedEmailTags = []) {
                     body_html as html_body,
                     created_at
                 ";
-                $orderBy = "created_at DESC";
+                $orderBy = "date_utc DESC";
             } else {
                 $selectColumns = [];
                 $columnMap = [
@@ -2704,7 +2704,7 @@ function getEmailsForIndex($pdo, $limit = 30, $selectedEmailTags = []) {
                 }
                 
                 $orderBy = 'id DESC';
-                foreach (['created_at', 'date_utc', 'date_received', 'date_sent', 'id'] as $orderCol) {
+                foreach (['date_received', 'date_utc', 'date_sent', 'created_at', 'id'] as $orderCol) {
                     if (in_array($orderCol, $tableColumns)) {
                         $orderBy = "`$orderCol` DESC";
                         break;
@@ -2916,11 +2916,23 @@ function searchEmails($pdo, $query, $limit = 100, $selectedEmailTags = []) {
             
             $finalWhereClause = implode(' AND ', $whereParts);
             
+            if ($isCronjobTable) {
+                $searchOrderBy = "date_utc DESC, id DESC";
+            } else {
+                $searchOrderBy = 'id DESC';
+                foreach (['date_received', 'date_utc', 'date_sent', 'created_at', 'id'] as $sOrdCol) {
+                    if (in_array($sOrdCol, $tableColumns)) {
+                        $searchOrderBy = "`$sOrdCol` DESC";
+                        break;
+                    }
+                }
+            }
+            
             $stmt = $pdo->prepare("
                 SELECT $selectClause
                 FROM `$tableName`
                 WHERE $finalWhereClause
-                ORDER BY created_at DESC, date_received DESC, id DESC
+                ORDER BY $searchOrderBy
                 LIMIT $limit
             ");
             $stmt->execute($whereParams);
