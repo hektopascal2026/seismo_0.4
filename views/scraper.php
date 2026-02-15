@@ -67,14 +67,6 @@
                 </div>
             </div>
         </form>
-        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-            <?php foreach ($scraperSources as $src): ?>
-            <form method="POST" action="<?= getBasePath() ?>/index.php?action=rescrape_source" style="margin: 0;">
-                <input type="hidden" name="feed_id" value="<?= $src['id'] ?>">
-                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Delete all entries for &quot;<?= htmlspecialchars($src['name']) ?>&quot; and re-scrape on next cronjob run?')">re-scrape <?= htmlspecialchars($src['name']) ?></button>
-            </form>
-            <?php endforeach; ?>
-        </div>
         <?php endif; ?>
 
         <div class="latest-entries-section">
@@ -102,15 +94,21 @@
                         elseif ($predictedLabel === 'noise') $scoreBadgeClass = 'magnitu-badge-noise';
                     ?>
                     <div class="entry-card">
-                        <div class="entry-header">
-                            <?php if ($showSourceTag): ?>
-                                <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">
-                                    🌐 <?= htmlspecialchars($item['feed_name']) ?>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($relevanceScore !== null): ?>
-                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
-                            <?php endif; ?>
+                        <div class="entry-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <?php if ($showSourceTag): ?>
+                                    <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">
+                                        🌐 <?= htmlspecialchars($item['feed_name']) ?>
+                                    </span>
+                                <?php endif; ?>
+                                <?php if ($relevanceScore !== null): ?>
+                                    <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <form method="POST" action="<?= getBasePath() ?>/index.php?action=hide_scraper_item" style="margin: 0;">
+                                <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
+                                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Hide this entry? It won\'t appear again.')">delete</button>
+                            </form>
                         </div>
                         <h3 class="entry-title">
                             <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener">
@@ -120,15 +118,11 @@
                         <?php if (!empty($item['content'])): ?>
                             <p class="entry-description"><?= htmlspecialchars(mb_strimwidth(strip_tags($item['content']), 0, 300, '...')) ?></p>
                         <?php endif; ?>
-                        <div class="entry-actions">
+                        <div class="entry-actions" style="display: flex; justify-content: space-between; align-items: center;">
                             <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener" class="entry-link">Open page &rarr;</a>
                             <?php if ($item['published_date']): ?>
                                 <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
                             <?php endif; ?>
-                            <form method="POST" action="<?= getBasePath() ?>/index.php?action=hide_scraper_item" style="margin: 0; display: inline;">
-                                <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
-                                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Hide this entry? It won\'t appear again.')">delete</button>
-                            </form>
                         </div>
                     </div>
                 <?php endforeach; ?>
