@@ -36,7 +36,20 @@ switch ($action) {
         $searchQuery = trim($_GET['q'] ?? '');
 
         // Get all unique tags (categories) from enabled RSS feeds only (not Substack)
-        $tagsStmt = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND disabled = 0 AND (source_type = 'rss' OR source_type IS NULL) ORDER BY category");
+        $tagsStmt = $pdo->query("
+            SELECT DISTINCT f.category
+            FROM feeds f
+            WHERE f.category IS NOT NULL
+              AND f.category != ''
+              AND f.disabled = 0
+              AND (f.source_type = 'rss' OR f.source_type IS NULL)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM scraper_configs sc
+                  WHERE sc.url = f.url
+              )
+            ORDER BY f.category
+        ");
         $tags = $tagsStmt->fetchAll(PDO::FETCH_COLUMN);
         
         // Get all unique email tags (excluding unclassified and disabled senders)
@@ -91,6 +104,11 @@ switch ($action) {
                     JOIN feeds f ON fi.feed_id = f.id
                     WHERE f.disabled = 0
                       AND (f.source_type = 'rss' OR f.source_type IS NULL)
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM scraper_configs sc
+                          WHERE sc.url = f.url
+                      )
                       AND f.category IN ($placeholders)
                     ORDER BY fi.published_date DESC, fi.cached_at DESC
                     LIMIT 30
@@ -106,6 +124,11 @@ switch ($action) {
                     JOIN feeds f ON fi.feed_id = f.id
                     WHERE f.disabled = 0
                       AND (f.source_type = 'rss' OR f.source_type IS NULL)
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM scraper_configs sc
+                          WHERE sc.url = f.url
+                      )
                     ORDER BY fi.published_date DESC, fi.cached_at DESC
                     LIMIT 30
                 ");
@@ -166,7 +189,18 @@ switch ($action) {
         $scraperItemsForFeed = [];
         $scraperFeedsForIndex = []; // grouped by name for pills
         try {
-            $allScraperFeedsIdx = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' AND f.disabled = 0 ORDER BY f.title")->fetchAll();
+            $allScraperFeedsIdx = $pdo->query("
+                SELECT f.id, f.title AS name
+                FROM feeds f
+                WHERE (f.source_type = 'scraper' OR f.category = 'scraper')
+                  AND EXISTS (
+                      SELECT 1
+                      FROM scraper_configs sc
+                      WHERE sc.disabled = 0
+                        AND (sc.url = f.url OR sc.name = f.title)
+                  )
+                ORDER BY f.title
+            ")->fetchAll();
             $scraperNameToIds = [];
             foreach ($allScraperFeedsIdx as $sf) {
                 $n = $sf['name'];
@@ -198,7 +232,7 @@ switch ($action) {
                     SELECT fi.*, f.title as feed_name, f.url as source_url
                     FROM feed_items fi
                     JOIN feeds f ON fi.feed_id = f.id
-                    WHERE f.source_type = 'scraper' AND f.id IN ($ph) AND fi.hidden = 0
+                    WHERE f.id IN ($ph) AND fi.hidden = 0
                     ORDER BY fi.published_date DESC
                     LIMIT 30
                 ");
@@ -1543,7 +1577,7 @@ switch ($action) {
                 $sc = $scStmt->fetch();
                 if ($sc) {
                     $newDisabled = (int)$sc['disabled'];
-                    $pdo->prepare("UPDATE feeds SET disabled = ? WHERE source_type = 'scraper' AND (url = ? OR title = ?)")
+                    $pdo->prepare("UPDATE feeds SET disabled = ?, source_type = 'scraper' WHERE (url = ? OR title = ?) AND (source_type = 'scraper' OR source_type IS NULL OR category = 'scraper')")
                         ->execute([$newDisabled, $sc['url'], $sc['name']]);
                 }
             }
@@ -1864,7 +1898,18 @@ switch ($action) {
         $scraperSources = []; // for filter pills
         try {
             // Get all scraper feeds for pills, grouped by name to avoid duplicates
-            $scraperFeedsStmt = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' AND f.disabled = 0 ORDER BY f.title");
+            $scraperFeedsStmt = $pdo->query("
+                SELECT f.id, f.title AS name
+                FROM feeds f
+                WHERE (f.source_type = 'scraper' OR f.category = 'scraper')
+                  AND EXISTS (
+                      SELECT 1
+                      FROM scraper_configs sc
+                      WHERE sc.disabled = 0
+                        AND (sc.url = f.url OR sc.name = f.title)
+                  )
+                ORDER BY f.title
+            ");
             $allScraperFeeds = $scraperFeedsStmt->fetchAll();
             $allScraperIds = array_column($allScraperFeeds, 'id');
             
@@ -1902,7 +1947,7 @@ switch ($action) {
                     SELECT fi.*, f.title as feed_name, f.url as source_url
                     FROM feed_items fi
                     JOIN feeds f ON fi.feed_id = f.id
-                    WHERE f.source_type = 'scraper' AND f.id IN ($placeholders) AND fi.hidden = 0
+                    WHERE f.id IN ($placeholders) AND fi.hidden = 0
                     ORDER BY fi.published_date DESC
                     LIMIT 50
                 ");
