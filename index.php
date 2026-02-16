@@ -457,86 +457,265 @@ switch ($action) {
         break;
 
         case 'ai_view_unified':
-    // 1. Fetch RSS Items
-    $latestItemsStmt = $pdo->query("
-        SELECT fi.*, f.title as feed_title, f.category as feed_category 
-        FROM feed_items fi
-        JOIN feeds f ON fi.feed_id = f.id
-        WHERE f.disabled = 0
-        ORDER BY fi.published_date DESC
-        LIMIT 50
-    ");
-    $latestItems = $latestItemsStmt->fetchAll();
-
-    // 2. Fetch Emails
-    $emails = getEmailsForIndex($pdo, 50, []);
-
-    // 3. Fetch Lex items
-    $lexItems = [];
+    // Read filter parameters from GET (submitted by beta page form)
+    $aiSources = isset($_GET['sources']) ? (array)$_GET['sources'] : ['rss', 'substack', 'email', 'lex', 'jus', 'scraper'];
+    $aiSince = $_GET['since'] ?? '7d';
+    $aiLabels = isset($_GET['labels']) ? (array)$_GET['labels'] : ['investigation_lead', 'important', 'background', 'noise', 'unscored'];
+    $aiMinScore = isset($_GET['min_score']) && $_GET['min_score'] !== '' ? (int)$_GET['min_score'] : null;
+    $aiKeywords = trim($_GET['keywords'] ?? '');
+    $aiLimit = min(max((int)($_GET['limit'] ?? 100), 1), 1000);
+    
+    // Convert date range to SQL date string
+    $sinceMap = [
+        '24h' => '-1 day', '3d' => '-3 days', '7d' => '-7 days',
+        '30d' => '-30 days', '90d' => '-90 days', 'all' => null,
+    ];
+    $sinceDate = isset($sinceMap[$aiSince]) && $sinceMap[$aiSince] !== null
+        ? date('Y-m-d H:i:s', strtotime($sinceMap[$aiSince]))
+        : null;
+    
+    // Build a score map for all entry types
+    $aiScoreMap = [];
     try {
-        $lexItemsStmt = $pdo->query("
-            SELECT *
-            FROM lex_items
-            ORDER BY document_date DESC
-            LIMIT 50
-        ");
-        $lexItems = $lexItemsStmt->fetchAll();
-    } catch (PDOException $e) {
-        // lex_items table might not exist yet
-        $lexItems = [];
-    }
-
-    // 4. Merge into unified list
+        $scoreStmt = $pdo->query("SELECT entry_type, entry_id, relevance_score, predicted_label FROM entry_scores");
+        foreach ($scoreStmt->fetchAll() as $s) {
+            $aiScoreMap[$s['entry_type'] . ':' . $s['entry_id']] = $s;
+        }
+    } catch (PDOException $e) {}
+    
+    $perSourceLimit = (int)ceil($aiLimit / max(count($aiSources), 1));
     $allItems = [];
-    foreach ($latestItems as $item) {
-        $date = $item['published_date'] ?? $item['cached_at'] ?? 0;
-        $allItems[] = [
-            'source'  => $item['feed_title'],
-            'date'    => strtotime($date),
-            'title'   => $item['title'],
-            'content' => strip_tags($item['content'] ?: $item['description']),
-            'link'    => $item['link']
-        ];
+    
+    // 1. RSS items
+    if (in_array('rss', $aiSources)) {
+        try {
+            $sql = "SELECT fi.*, f.title as feed_title, f.category as feed_category
+                    FROM feed_items fi
+                    JOIN feeds f ON fi.feed_id = f.id
+                    WHERE f.disabled = 0 AND (f.source_type = 'rss' OR f.source_type IS NULL) AND fi.hidden = 0";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND fi.published_date >= ?"; $params[] = $sinceDate; }
+            $sql .= " ORDER BY fi.published_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $item) {
+                $date = $item['published_date'] ?? $item['cached_at'] ?? 0;
+                $scoreKey = 'feed_item:' . $item['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'RSS: ' . $item['feed_title'],
+                    'source_type' => 'rss',
+                    'date' => strtotime($date),
+                    'title' => $item['title'],
+                    'content' => strip_tags($item['content'] ?: $item['description']),
+                    'link' => $item['link'],
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
     }
-
-    foreach ($emails as $email) {
-        $date = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? 0;
-        $from = ($email['from_name'] ?: $email['from_email']) ?: 'Unknown';
-        $allItems[] = [
-            'source'  => "EMAIL: $from",
-            'date'    => strtotime($date),
-            'title'   => $email['subject'] ?: '(No Subject)',
-            'content' => strip_tags($email['text_body'] ?: $email['html_body'] ?: ''),
-            'link'    => '#'
-        ];
+    
+    // 2. Substack items
+    if (in_array('substack', $aiSources)) {
+        try {
+            $sql = "SELECT fi.*, f.title as feed_title
+                    FROM feed_items fi
+                    JOIN feeds f ON fi.feed_id = f.id
+                    WHERE f.disabled = 0 AND f.source_type = 'substack' AND fi.hidden = 0";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND fi.published_date >= ?"; $params[] = $sinceDate; }
+            $sql .= " ORDER BY fi.published_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $item) {
+                $date = $item['published_date'] ?? $item['cached_at'] ?? 0;
+                $scoreKey = 'feed_item:' . $item['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'SUBSTACK: ' . $item['feed_title'],
+                    'source_type' => 'substack',
+                    'date' => strtotime($date),
+                    'title' => $item['title'],
+                    'content' => strip_tags($item['content'] ?: $item['description']),
+                    'link' => $item['link'],
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
     }
-
-    foreach ($lexItems as $lexItem) {
-        $date = $lexItem['document_date'] ?? $lexItem['created_at'] ?? 0;
-        $source = strtoupper((string)($lexItem['source'] ?? 'eu'));
-        $docType = trim((string)($lexItem['document_type'] ?? 'Legislation'));
-        $celex = trim((string)($lexItem['celex'] ?? ''));
-        $workUri = trim((string)($lexItem['work_uri'] ?? ''));
-
-        $contentParts = [];
-        if ($docType !== '') $contentParts[] = 'Type: ' . $docType;
-        if ($celex !== '') $contentParts[] = 'ID: ' . $celex;
-        if ($workUri !== '') $contentParts[] = 'URI: ' . $workUri;
-
-        $allItems[] = [
-            'source'  => 'LEX: ' . $source,
-            'date'    => $date ? strtotime($date) : 0,
-            'title'   => $lexItem['title'] ?: '(No Title)',
-            'content' => !empty($contentParts) ? implode("\n", $contentParts) : '',
-            'link'    => $lexItem['eurlex_url'] ?: '#'
-        ];
+    
+    // 3. Emails
+    if (in_array('email', $aiSources)) {
+        $emails = getEmailsForIndex($pdo, $perSourceLimit, []);
+        foreach ($emails as $email) {
+            $date = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? 0;
+            $ts = $date ? strtotime($date) : 0;
+            if ($sinceDate && $ts < strtotime($sinceDate)) continue;
+            $from = ($email['from_name'] ?: $email['from_email']) ?: 'Unknown';
+            $scoreKey = 'email:' . $email['id'];
+            $score = $aiScoreMap[$scoreKey] ?? null;
+            $allItems[] = [
+                'source' => "EMAIL: $from",
+                'source_type' => 'email',
+                'date' => $ts,
+                'title' => $email['subject'] ?: '(No Subject)',
+                'content' => strip_tags($email['text_body'] ?: $email['html_body'] ?: ''),
+                'link' => '#',
+                'score' => $score ? (float)$score['relevance_score'] : null,
+                'label' => $score['predicted_label'] ?? null,
+            ];
+        }
     }
-
-    // 5. Sort chronologically (Newest First)
+    
+    // 4. Lex items
+    if (in_array('lex', $aiSources)) {
+        try {
+            $sql = "SELECT * FROM lex_items WHERE source IN ('eu','ch','de')";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND (document_date >= ? OR created_at >= ?)"; $params[] = $sinceDate; $params[] = $sinceDate; }
+            $sql .= " ORDER BY document_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $lexItem) {
+                $date = $lexItem['document_date'] ?? $lexItem['created_at'] ?? 0;
+                $src = strtoupper((string)($lexItem['source'] ?? 'eu'));
+                $docType = trim((string)($lexItem['document_type'] ?? 'Legislation'));
+                $celex = trim((string)($lexItem['celex'] ?? ''));
+                $workUri = trim((string)($lexItem['work_uri'] ?? ''));
+                $contentParts = [];
+                if ($docType !== '') $contentParts[] = 'Type: ' . $docType;
+                if ($celex !== '') $contentParts[] = 'ID: ' . $celex;
+                if ($workUri !== '') $contentParts[] = 'URI: ' . $workUri;
+                $scoreKey = 'lex_item:' . $lexItem['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'LEX: ' . $src,
+                    'source_type' => 'lex',
+                    'date' => $date ? strtotime($date) : 0,
+                    'title' => $lexItem['title'] ?: '(No Title)',
+                    'content' => !empty($contentParts) ? implode("\n", $contentParts) : '',
+                    'link' => $lexItem['eurlex_url'] ?: '#',
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
+    }
+    
+    // 5. Jus items (Swiss case law)
+    if (in_array('jus', $aiSources)) {
+        try {
+            $sql = "SELECT * FROM lex_items WHERE source IN ('ch_bger','ch_bge','ch_bvger')";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND (document_date >= ? OR created_at >= ?)"; $params[] = $sinceDate; $params[] = $sinceDate; }
+            $sql .= " ORDER BY document_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $lexItem) {
+                $date = $lexItem['document_date'] ?? $lexItem['created_at'] ?? 0;
+                $src = strtoupper(str_replace('ch_', '', (string)($lexItem['source'] ?? '')));
+                $scoreKey = 'lex_item:' . $lexItem['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'JUS: ' . $src,
+                    'source_type' => 'jus',
+                    'date' => $date ? strtotime($date) : 0,
+                    'title' => $lexItem['title'] ?: '(No Title)',
+                    'content' => trim((string)($lexItem['document_type'] ?? '')),
+                    'link' => $lexItem['eurlex_url'] ?: '#',
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
+    }
+    
+    // 6. Scraper items
+    if (in_array('scraper', $aiSources)) {
+        try {
+            $sql = "SELECT fi.*, f.title as feed_title
+                    FROM feed_items fi
+                    JOIN feeds f ON fi.feed_id = f.id
+                    WHERE f.disabled = 0 AND f.source_type = 'scraper' AND fi.hidden = 0";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND fi.published_date >= ?"; $params[] = $sinceDate; }
+            $sql .= " ORDER BY fi.published_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $item) {
+                $date = $item['published_date'] ?? $item['cached_at'] ?? 0;
+                $scoreKey = 'feed_item:' . $item['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'SCRAPER: ' . $item['feed_title'],
+                    'source_type' => 'scraper',
+                    'date' => strtotime($date),
+                    'title' => $item['title'],
+                    'content' => strip_tags($item['content'] ?: ''),
+                    'link' => $item['link'],
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
+    }
+    
+    // 7. Apply Magnitu label filter
+    $includeUnscored = in_array('unscored', $aiLabels);
+    $allowedLabels = array_diff($aiLabels, ['unscored']);
+    $allItems = array_filter($allItems, function($item) use ($allowedLabels, $includeUnscored) {
+        if ($item['label'] === null) return $includeUnscored;
+        return in_array($item['label'], $allowedLabels);
+    });
+    
+    // 8. Apply minimum score filter
+    if ($aiMinScore !== null) {
+        $minScoreFloat = $aiMinScore / 100.0;
+        $allItems = array_filter($allItems, function($item) use ($minScoreFloat) {
+            if ($item['score'] === null) return true; // keep unscored
+            return $item['score'] >= $minScoreFloat;
+        });
+    }
+    
+    // 9. Sort: keyword-boosted first, then by date
+    $keywordList = [];
+    if (!empty($aiKeywords)) {
+        $keywordList = array_map('trim', explode(',', mb_strtolower($aiKeywords)));
+        $keywordList = array_filter($keywordList, 'strlen');
+    }
+    
+    // Tag items as priority if they match keywords
+    $allItems = array_values($allItems);
+    foreach ($allItems as &$item) {
+        $item['priority'] = false;
+        if (!empty($keywordList)) {
+            $haystack = mb_strtolower($item['title'] . ' ' . $item['content']);
+            foreach ($keywordList as $kw) {
+                if (mb_strpos($haystack, $kw) !== false) {
+                    $item['priority'] = true;
+                    break;
+                }
+            }
+        }
+    }
+    unset($item);
+    
     usort($allItems, function($a, $b) {
+        if ($a['priority'] !== $b['priority']) return $b['priority'] <=> $a['priority'];
         return $b['date'] - $a['date'];
     });
-
+    
+    // 10. Apply total limit
+    $allItems = array_slice($allItems, 0, $aiLimit);
+    
+    // Pass filter summary to the view
+    $aiFilterSummary = [
+        'sources' => $aiSources,
+        'since' => $aiSince,
+        'labels' => $aiLabels,
+        'min_score' => $aiMinScore,
+        'keywords' => $aiKeywords,
+        'limit' => $aiLimit,
+        'total' => count($allItems),
+    ];
+    
     include 'views/ai_view_unified.php';
     break;
 
