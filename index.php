@@ -1358,6 +1358,15 @@ switch ($action) {
             $id = (int)($_POST['scraper_id'] ?? 0);
             if ($id > 0) {
                 $pdo->prepare("UPDATE scraper_configs SET disabled = NOT disabled WHERE id = ?")->execute([$id]);
+                // Also toggle the corresponding feeds rows so entries are hidden from display
+                $scStmt = $pdo->prepare("SELECT name, url, disabled FROM scraper_configs WHERE id = ?");
+                $scStmt->execute([$id]);
+                $sc = $scStmt->fetch();
+                if ($sc) {
+                    $newDisabled = (int)$sc['disabled'];
+                    $pdo->prepare("UPDATE feeds SET disabled = ? WHERE source_type = 'scraper' AND (url = ? OR title = ?)")
+                        ->execute([$newDisabled, $sc['url'], $sc['name']]);
+                }
             }
         }
         header('Location: ?action=settings&tab=script');
@@ -1676,7 +1685,7 @@ switch ($action) {
         $scraperSources = []; // for filter pills
         try {
             // Get all scraper feeds for pills, grouped by name to avoid duplicates
-            $scraperFeedsStmt = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' ORDER BY f.title");
+            $scraperFeedsStmt = $pdo->query("SELECT f.id, f.title as name FROM feeds f WHERE f.source_type = 'scraper' AND f.disabled = 0 ORDER BY f.title");
             $allScraperFeeds = $scraperFeedsStmt->fetchAll();
             $allScraperIds = array_column($allScraperFeeds, 'id');
             
