@@ -95,20 +95,14 @@
                     ?>
                     <div class="entry-card">
                         <div class="entry-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                                <?php if ($showSourceTag): ?>
-                                    <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">
-                                        🌐 <?= htmlspecialchars($item['feed_name']) ?>
-                                    </span>
-                                <?php endif; ?>
-                                <?php if ($relevanceScore !== null): ?>
-                                    <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <form method="POST" action="<?= getBasePath() ?>/index.php?action=hide_scraper_item" style="margin: 0;">
-                                <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
-                                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Hide this entry? It won\'t appear again.')">delete</button>
-                            </form>
+                            <?php if ($showSourceTag): ?>
+                                <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">
+                                    🌐 <?= htmlspecialchars($item['feed_name']) ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if ($relevanceScore !== null): ?>
+                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                            <?php endif; ?>
                         </div>
                         <h3 class="entry-title">
                             <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener">
@@ -116,10 +110,15 @@
                             </a>
                         </h3>
                         <?php if (!empty($item['content'])): ?>
-                            <p class="entry-description"><?= htmlspecialchars(mb_strimwidth(strip_tags($item['content']), 0, 300, '...')) ?></p>
+                            <p class="entry-description"><?= htmlspecialchars(mb_strimwidth(strip_tags($item['content']), 0, 300, '...')) ?> <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener" class="entry-link">Open page &rarr;</a></p>
+                        <?php else: ?>
+                            <p><a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener" class="entry-link">Open page &rarr;</a></p>
                         <?php endif; ?>
                         <div class="entry-actions" style="display: flex; justify-content: space-between; align-items: center;">
-                            <a href="<?= htmlspecialchars($item['link'] ?? '#') ?>" target="_blank" rel="noopener" class="entry-link">Open page &rarr;</a>
+                            <form method="POST" action="<?= getBasePath() ?>/index.php?action=hide_scraper_item" style="margin: 0;">
+                                <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
+                                <button type="submit" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="return confirm('Hide this entry? It won\'t appear again.')">delete</button>
+                            </form>
                             <?php if ($item['published_date']): ?>
                                 <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
                             <?php endif; ?>
