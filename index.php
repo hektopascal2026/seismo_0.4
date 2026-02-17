@@ -394,22 +394,20 @@ switch ($action) {
         break;
 
     case 'magnitu':
-        // Magnitu page: show entries labeled as investigation_lead and important
-        $investigationItems = [];
-        $importantItems = [];
+        // Magnitu page: investigation_lead entries grouped by day, sorted by score
+        $investigationByDay = []; // keyed by 'Y-m-d' => items[]
+        $cutoffDate = strtotime('-7 days');
         
         try {
-            // Get all scored entries with investigation_lead or important labels
             $scoredStmt = $pdo->query("
                 SELECT entry_type, entry_id, relevance_score, predicted_label, explanation, score_source, model_version
                 FROM entry_scores 
-                WHERE predicted_label IN ('investigation_lead', 'important')
-                ORDER BY predicted_label ASC, relevance_score DESC
+                WHERE predicted_label = 'investigation_lead'
+                ORDER BY relevance_score DESC
                 LIMIT 500
             ");
             $scoredEntries = $scoredStmt->fetchAll();
             
-            // Resolve each scored entry to its full data from the source table
             foreach ($scoredEntries as $scored) {
                 $entryData = null;
                 $entryType = null;
@@ -425,11 +423,13 @@ switch ($action) {
                     $stmt->execute([$scored['entry_id']]);
                     $entryData = $stmt->fetch();
                     if ($entryData) {
-                        $entryType = ($entryData['source_type'] === 'substack') ? 'substack' : 'feed';
+                        $st = $entryData['source_type'] ?? 'rss';
+                        if ($st === 'substack') $entryType = 'substack';
+                        elseif ($st === 'scraper') $entryType = 'scraper';
+                        else $entryType = 'feed';
                         $dateValue = $entryData['published_date'] ?? $entryData['cached_at'] ?? null;
                     }
                 } elseif ($scored['entry_type'] === 'email') {
-                    // Resolve email table dynamically (fetched_emails or emails)
                     if (!isset($emailTableName)) {
                         $emailTableName = 'emails';
                         $eTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
@@ -456,23 +456,30 @@ switch ($action) {
                 
                 if (!$entryData) continue;
                 
+                $ts = $dateValue ? strtotime($dateValue) : 0;
+                if ($ts < $cutoffDate) continue; // skip entries older than 7 days
+                
+                $dayKey = $ts > 0 ? date('Y-m-d', $ts) : '0000-00-00';
                 $item = [
                     'type' => $entryType,
-                    'date' => $dateValue ? strtotime($dateValue) : 0,
+                    'date' => $ts,
                     'data' => $entryData,
                     'score' => $scored,
                 ];
                 
-                if ($scored['predicted_label'] === 'investigation_lead') {
-                    $investigationItems[] = $item;
-                } else {
-                    $importantItems[] = $item;
-                }
+                $investigationByDay[$dayKey][] = $item;
             }
             
-            // Sort each group chronologically (newest first)
-            usort($investigationItems, function($a, $b) { return $b['date'] - $a['date']; });
-            usort($importantItems, function($a, $b) { return $b['date'] - $a['date']; });
+            // Sort days newest first
+            krsort($investigationByDay);
+            
+            // Within each day, sort by score highest first
+            foreach ($investigationByDay as &$dayItems) {
+                usort($dayItems, function($a, $b) {
+                    return (float)$b['score']['relevance_score'] <=> (float)$a['score']['relevance_score'];
+                });
+            }
+            unset($dayItems);
             
         } catch (PDOException $e) {
             // entry_scores table might not exist yet
