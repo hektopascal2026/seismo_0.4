@@ -408,7 +408,16 @@
         <!-- Substack Section -->
         <section class="settings-section">
             <h2 style="background-color: #C5B4D1; padding: 8px 14px; display: inline-block;">Substack</h2>
-            
+
+            <!-- Add Substack Section -->
+            <div class="add-feed-section" style="margin-bottom: 16px;">
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=add_substack" class="add-feed-form">
+                    <input type="hidden" name="from" value="settings">
+                    <input type="url" name="url" placeholder="Enter Substack URL (e.g., https://example.substack.com)" required class="feed-input">
+                    <button type="submit" class="btn btn-primary">Add Substack</button>
+                </form>
+            </div>
+
             <!-- All Substack Tags Section -->
             <?php if (!empty($allSubstackTags)): ?>
                 <div style="margin-bottom: 12px;">

@@ -2697,10 +2697,12 @@ function handleAddFeed($pdo) {
 
 function handleAddSubstack($pdo) {
     $url = trim(filter_input(INPUT_POST, 'url', FILTER_SANITIZE_URL) ?? '');
-    
+    $from = $_POST['from'] ?? 'substack';
+    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=substack';
+
     if (!$url) {
         $_SESSION['error'] = 'Please provide a Substack URL';
-        header('Location: ?action=substack');
+        header('Location: ' . $redirectUrl);
         return;
     }
     
@@ -2725,7 +2727,7 @@ function handleAddSubstack($pdo) {
     
     if ($feed->error()) {
         $_SESSION['error'] = 'Could not load Substack feed. Make sure the URL is correct (e.g. https://example.substack.com).';
-        header('Location: ?action=substack');
+        header('Location: ' . $redirectUrl);
         return;
     }
     
@@ -2734,7 +2736,7 @@ function handleAddSubstack($pdo) {
     $stmt->execute([$feedUrl]);
     if ($stmt->fetch()) {
         $_SESSION['error'] = 'This Substack is already subscribed';
-        header('Location: ?action=substack');
+        header('Location: ' . $redirectUrl);
         return;
     }
     
@@ -2755,7 +2757,7 @@ function handleAddSubstack($pdo) {
     cacheFeedItems($pdo, $feedId, $feed);
     
     $_SESSION['success'] = 'Substack added successfully: ' . ($feed->get_title() ?: $url);
-    header('Location: ?action=substack');
+    header('Location: ' . $redirectUrl);
     exit;
 }
 
