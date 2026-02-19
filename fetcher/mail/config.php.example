@@ -1,0 +1,31 @@
+<?php
+/**
+ * Mail fetcher configuration.
+ *
+ * Copy this file to config.php and fill in your credentials,
+ * or download a pre-filled config.php from Seismo (Settings > Script).
+ */
+
+return [
+    'imap' => [
+        'mailbox'              => '{imap.example.com:993/imap/ssl}INBOX',
+        'username'             => 'CHANGE_ME',
+        'password'             => 'CHANGE_ME',
+        'max_messages_per_run' => 50,
+        'search_criteria'      => 'UNSEEN',
+        'mark_seen'            => true,
+    ],
+    'db' => [
+        'host'     => 'localhost',
+        'port'     => 3306,
+        'database' => 'CHANGE_ME',
+        'username' => 'CHANGE_ME',
+        'password' => 'CHANGE_ME',
+        'charset'  => 'utf8mb4',
+        'table'    => 'fetched_emails',
+    ],
+    'logging' => [
+        'target' => 'stdout',  // 'stdout' or a file path
+        'level'  => 'info',    // debug, info, warn, error
+    ],
+];

@@ -513,7 +513,70 @@
         <!-- Mail Section -->
         <section class="settings-section">
             <h2 style="background-color: #FFDBBB; padding: 8px 14px; display: inline-block;">Mail</h2>
-            
+            <p style="font-size: 12px; margin-bottom: 4px; line-height: 1.6;">
+                <strong>Setup:</strong>
+                ① Fill in your IMAP credentials below and hit Save.
+                ② Download <code>fetch_mail.php</code> and <code>config.php</code>.
+                ③ Upload both files to a folder on your server and run <code>composer require zbateson/mail-mime-parser</code> there.
+                ④ Add a cronjob: <code>*/15 * * * * /usr/bin/php /path/to/fetch_mail.php</code>
+            </p>
+
+            <!-- Mail IMAP Configuration -->
+            <div style="margin-bottom: 16px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                <h3 style="margin-top: 0; margin-bottom: 12px;">IMAP Configuration</h3>
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_mail_config">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Mailbox (IMAP string)</label>
+                            <input type="text" name="mail_imap_mailbox" value="<?= htmlspecialchars($mailConfig['imap_mailbox'] ?? '') ?>" placeholder="{imap.example.com:993/imap/ssl}INBOX" style="width: 100%; padding: 6px 10px; border: 2px solid #000; font-family: monospace; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Username</label>
+                            <input type="text" name="mail_imap_username" value="<?= htmlspecialchars($mailConfig['imap_username'] ?? '') ?>" placeholder="user@example.com" style="width: 100%; padding: 6px 10px; border: 2px solid #000; font-family: inherit; font-size: 14px;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Password</label>
+                            <input type="password" name="mail_imap_password" value="<?= htmlspecialchars($mailConfig['imap_password'] ?? '') ?>" placeholder="IMAP password" style="width: 100%; padding: 6px 10px; border: 2px solid #000; font-family: inherit; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">DB table name</label>
+                            <input type="text" name="mail_db_table" value="<?= htmlspecialchars($mailConfig['db_table'] ?? 'fetched_emails') ?>" style="width: 100%; padding: 6px 10px; border: 2px solid #000; font-family: monospace; font-size: 13px;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Search criteria</label>
+                            <select name="mail_search_criteria" style="width: 100%; padding: 6px 10px; border: 2px solid #000; font-family: inherit; font-size: 14px;">
+                                <?php $criteria = $mailConfig['search_criteria'] ?? 'UNSEEN'; ?>
+                                <option value="UNSEEN" <?= $criteria === 'UNSEEN' ? 'selected' : '' ?>>UNSEEN (new only)</option>
+                                <option value="ALL" <?= $criteria === 'ALL' ? 'selected' : '' ?>>ALL</option>
+                                <option value="RECENT" <?= $criteria === 'RECENT' ? 'selected' : '' ?>>RECENT</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max messages per run</label>
+                            <input type="number" name="mail_max_messages" value="<?= htmlspecialchars($mailConfig['max_messages'] ?? '50') ?>" min="1" max="500" style="width: 100%; padding: 6px 10px; border: 2px solid #000; font-family: inherit; font-size: 14px;">
+                        </div>
+                        <div style="display: flex; align-items: flex-end; padding-bottom: 2px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                                <input type="checkbox" name="mail_mark_seen" value="1" <?= ($mailConfig['mark_seen'] ?? '1') === '1' ? 'checked' : '' ?>>
+                                Mark fetched as read
+                            </label>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <?php if ($mailConfigured ?? false): ?>
+                            <a href="<?= getBasePath() ?>/index.php?action=download_mail_config" class="btn" style="text-decoration: none;">⬇ Download config.php</a>
+                        <?php endif; ?>
+                        <a href="<?= getBasePath() ?>/index.php?action=download_mail_script" class="btn" style="text-decoration: none;">⬇ Download fetch_mail.php</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sender Tags -->
             <!-- All Email Tags Section -->
             <?php if (!empty($allEmailTags)): ?>
                 <div style="margin-bottom: 12px;">
@@ -589,7 +652,14 @@
         <!-- Scraper Section -->
         <section class="settings-section" style="margin-top: 32px;">
             <h2 style="background-color: #FFDBBB; padding: 8px 14px; display: inline-block;">🌐 Scraper</h2>
-            <p style="font-size: 12px; margin-bottom: 12px;">Configure web pages to scrape periodically. Upload <code>fetcher/scraper/</code> to your hoster, download the config below, and set up a cronjob for <code>seismo_scraper.php</code>. URLs are read from the database — no re-download needed when you add or remove pages.</p>
+            <p style="font-size: 12px; margin-bottom: 4px; line-height: 1.6;">
+                <strong>Setup:</strong>
+                ① Add the URLs you want to scrape below.
+                ② Download <code>seismo_scraper.php</code> and <code>config.php</code>.
+                ③ Upload both files to a folder on your server.
+                ④ Add a cronjob: <code>0 */6 * * * /usr/bin/php /path/to/seismo_scraper.php</code>
+                — URLs are read from the database, so no re-download needed when you add or remove pages.
+            </p>
 
             <?php if (!empty($scraperConfigs)): ?>
             <div class="settings-list" style="margin-bottom: 16px;">
@@ -659,6 +729,7 @@
                 <button type="button" class="btn btn-primary" onclick="document.getElementById('scraper-add-row').style.display='block'" style="font-size: 18px; padding: 6px 16px;">＋ Add URL</button>
                 <?php if (!empty($scraperConfigs)): ?>
                 <a href="<?= getBasePath() ?>/index.php?action=download_scraper_config" class="btn" style="text-decoration: none;">⬇ Download config.php</a>
+                <a href="<?= getBasePath() ?>/index.php?action=download_scraper_script" class="btn" style="text-decoration: none;">⬇ Download seismo_scraper.php</a>
                 <form method="POST" action="<?= getBasePath() ?>/index.php?action=delete_all_scraper_items" style="margin: 0;">
                     <button type="submit" class="btn btn-danger" onclick="return confirm('Delete ALL scraped entries from the database? This cannot be undone. Scraper configs will be kept.')">Delete all scraped entries</button>
                 </form>

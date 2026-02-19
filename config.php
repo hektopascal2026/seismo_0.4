@@ -40,7 +40,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 7);
+define('SCHEMA_VERSION', 8);
 
 /**
  * Initialize database tables
@@ -379,6 +379,20 @@ function initDatabase() {
     ];
     $insertConfig = $pdo->prepare("INSERT IGNORE INTO magnitu_config (config_key, config_value) VALUES (?, ?)");
     foreach ($magnituDefaults as $row) {
+        $insertConfig->execute($row);
+    }
+    
+    // Seed default mail fetcher config values (ignore if already exist)
+    $mailDefaults = [
+        ['mail_imap_mailbox', '{imap.example.com:993/imap/ssl}INBOX'],
+        ['mail_imap_username', ''],
+        ['mail_imap_password', ''],
+        ['mail_max_messages', '50'],
+        ['mail_search_criteria', 'UNSEEN'],
+        ['mail_mark_seen', '1'],
+        ['mail_db_table', 'fetched_emails'],
+    ];
+    foreach ($mailDefaults as $row) {
         $insertConfig->execute($row);
     }
     
