@@ -325,3 +325,83 @@ function handleDashboard($pdo) {
     
     include 'views/index.php';
 }
+
+// ---------------------------------------------------------------------------
+// Global Refresh (orchestrates all controllers)
+// ---------------------------------------------------------------------------
+
+function handleRefreshAll($pdo) {
+    $lastRefreshAt = getMagnituConfig($pdo, 'last_refresh_at');
+    if ($lastRefreshAt && (time() - (int)$lastRefreshAt) < 60) {
+        $remaining = 60 - (time() - (int)$lastRefreshAt);
+        $_SESSION['error'] = "Please wait {$remaining}s before refreshing again.";
+        $currentAction = $_GET['from'] ?? 'index';
+        header('Location: ?action=' . $currentAction);
+        exit;
+    }
+    setMagnituConfig($pdo, 'last_refresh_at', (string)time());
+
+    $results = [];
+
+    try {
+        refreshAllFeeds($pdo);
+        $results[] = 'Feeds refreshed';
+    } catch (\Exception $e) {
+        $results[] = 'Feeds: ' . $e->getMessage();
+    }
+
+    try {
+        refreshEmails($pdo);
+        $results[] = 'Emails refreshed';
+    } catch (\Exception $e) {
+        $results[] = 'Emails: ' . $e->getMessage();
+    }
+
+    $lexCfg = getLexConfig();
+    if ($lexCfg['eu']['enabled'] ?? true) {
+        try { $results[] = "🇪🇺 " . refreshLexItems($pdo) . " lex items"; }
+        catch (\Exception $e) { $results[] = '🇪🇺 EU: ' . $e->getMessage(); }
+    }
+    if ($lexCfg['ch']['enabled'] ?? true) {
+        try { $results[] = "🇨🇭 " . refreshFedlexItems($pdo) . " lex items"; }
+        catch (\Exception $e) { $results[] = '🇨🇭 CH: ' . $e->getMessage(); }
+    }
+    if ($lexCfg['de']['enabled'] ?? true) {
+        try { $results[] = "🇩🇪 " . refreshRechtBundItems($pdo) . " lex items"; }
+        catch (\Exception $e) { $results[] = '🇩🇪 DE: ' . $e->getMessage(); }
+    }
+    if ($lexCfg['ch_bger']['enabled'] ?? false) {
+        try { $results[] = "⚖️ " . refreshJusItems($pdo, 'CH_BGer') . " BGer items"; }
+        catch (\Exception $e) { $results[] = '⚖️ BGer: ' . $e->getMessage(); }
+    }
+    if ($lexCfg['ch_bge']['enabled'] ?? false) {
+        try { $results[] = "⚖️ " . refreshJusItems($pdo, 'CH_BGE') . " BGE items"; }
+        catch (\Exception $e) { $results[] = '⚖️ BGE: ' . $e->getMessage(); }
+    }
+    if ($lexCfg['ch_bvger']['enabled'] ?? false) {
+        try { $results[] = "⚖️ " . refreshJusItems($pdo, 'CH_BVGer') . " BVGer items"; }
+        catch (\Exception $e) { $results[] = '⚖️ BVGer: ' . $e->getMessage(); }
+    }
+
+    try {
+        $recipeJson = getMagnituConfig($pdo, 'recipe_json');
+        if ($recipeJson) {
+            $recipeData = json_decode($recipeJson, true);
+            if ($recipeData && !empty($recipeData['keywords'])) {
+                magnituRescore($pdo, $recipeData);
+                $results[] = 'Scores updated';
+            }
+        }
+    } catch (\Exception $e) {
+        $results[] = 'Scoring: ' . $e->getMessage();
+    }
+
+    $_SESSION['success'] = implode(' · ', $results);
+    $currentAction = $_GET['from'] ?? 'index';
+    $redirectUrl = '?action=' . $currentAction;
+    if ($currentAction === 'view_feed' && isset($_GET['id'])) {
+        $redirectUrl .= '&id=' . (int)$_GET['id'];
+    }
+    header('Location: ' . $redirectUrl);
+    exit;
+}

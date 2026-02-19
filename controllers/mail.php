@@ -478,10 +478,10 @@ function refreshEmails($pdo) {
             if ($emailCount > 0) {
                 $_SESSION['success'] = "Emails refreshed successfully. Found $emailCount email(s) in table '$tableName'.";
             } else {
-                $_SESSION['success'] = "Emails refreshed. Table '$tableName' exists but contains 0 emails. Available tables: $tableNames";
+                $_SESSION['success'] = "Emails refreshed. Table '$tableName' exists but contains 0 emails.";
             }
         } catch (PDOException $e) {
-            $_SESSION['error'] = "Error querying table '$tableName': " . $e->getMessage() . ". Available tables: $tableNames";
+            $_SESSION['error'] = "Error querying table '$tableName': " . $e->getMessage();
         }
     } catch (PDOException $e) {
         $_SESSION['error'] = 'Error refreshing emails: ' . $e->getMessage();
