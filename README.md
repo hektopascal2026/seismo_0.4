@@ -43,6 +43,14 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
    - Visit `http://localhost:8000`
    - Database tables are created automatically on first load
 
+5. **Set up automatic refresh (optional)**
+   - Add a cronjob to run `refresh_cron.php` periodically — this refreshes all feeds, lex/jus sources, and Magnitu scores in the background:
+   ```
+   */15 * * * * /usr/bin/php /path/to/seismo/refresh_cron.php
+   ```
+   - The web UI refresh button still works for manual on-demand use
+   - Feeds that fail 3+ times in a row are automatically paused (circuit breaker) — retry them manually from Settings or the feed view
+
 ## Pages
 
 | Page | Description |
@@ -116,6 +124,7 @@ seismo_0.4/
 ├── index.php              # Thin router — maps actions to controller handlers
 ├── config.php             # Database helpers, table initialization, shared utilities
 ├── config.local.php       # Database credentials (gitignored)
+├── refresh_cron.php       # CLI cronjob — full background refresh cycle
 ├── composer.json          # PHP dependencies
 ├── controllers/
 │   ├── dashboard.php      # Main feed page, search, global refresh
