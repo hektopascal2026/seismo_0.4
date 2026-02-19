@@ -32,7 +32,7 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
    ```
 
 2. **Configure database**
-   - Edit `config.php` with your database credentials (`DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`)
+   - Copy `config.local.php.example` to `config.local.php` and fill in your database credentials (`DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`)
 
 3. **Run the app**
    ```bash
@@ -113,25 +113,31 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 
 ```
 seismo_0.4/
-├── index.php          # Main router and controller logic
-├── config.php         # Database config and table initialization
-├── composer.json      # PHP dependencies
-├── assets/
-│   └── css/
-│       └── style.css  # All styles
+├── index.php              # Thin router — maps actions to controller handlers
+├── config.php             # Database helpers, table initialization, shared utilities
+├── config.local.php       # Database credentials (gitignored)
+├── composer.json          # PHP dependencies
+├── controllers/
+│   ├── dashboard.php      # Main feed page, search, global refresh
+│   ├── rss.php            # RSS & Substack feeds, CRUD, tags, config import/export
+│   ├── mail.php           # Email page, sender management, mail fetcher config
+│   ├── lex_jus.php        # EU/CH/DE legislation, Swiss case law (BGer/BGE/BVGer)
+│   ├── scraper.php        # Web scraper configs, entries, script downloads
+│   ├── magnitu.php        # ML scoring, Magnitu API, AI views
+│   └── settings.php       # Settings page, about, beta, styleguide
 ├── views/
-│   ├── index.php      # Combined feed page
-│   ├── magnitu.php    # Magnitu ML-scored entries
-│   ├── feeds.php      # RSS feed page
-│   ├── feed.php       # Single feed view
-│   ├── lex.php        # Legislation page (EU + CH + DE)
-│   ├── jus.php        # Swiss case law page (BGer / BGE / BVGer)
-│   ├── mail.php       # Email page
-│   ├── substack.php   # Substack page
-│   ├── scraper.php    # Scraped web pages
-│   ├── settings.php   # Settings page (tabbed: Basic, Script, Lex, Magnitu)
-│   ├── about.php      # About page
-│   └── styleguide.php # Internal style reference
+│   ├── index.php          # Combined feed page
+│   ├── magnitu.php        # Magnitu ML-scored entries
+│   ├── feeds.php          # RSS feed page
+│   ├── feed.php           # Single feed view
+│   ├── lex.php            # Legislation page (EU + CH + DE)
+│   ├── jus.php            # Swiss case law page (BGer / BGE / BVGer)
+│   ├── mail.php           # Email page
+│   ├── substack.php       # Substack page
+│   ├── scraper.php        # Scraped web pages
+│   ├── settings.php       # Settings page (tabbed: Basic, Script, Lex, Magnitu)
+│   ├── about.php          # About page
+│   └── styleguide.php     # Internal style reference
 ├── fetcher/
 │   ├── mail/
 │   │   ├── fetch_mail.php      # IMAP mail fetcher CLI script (cronjob)
@@ -139,8 +145,17 @@ seismo_0.4/
 │   └── scraper/
 │       ├── seismo_scraper.php  # Web scraper CLI script (cronjob)
 │       └── config.php.example  # DB config template for the scraper
-└── vendor/            # Composer dependencies
+├── tests/
+│   └── test_staging.php   # Integration tests (112 checks against staging)
+├── assets/
+│   └── css/
+│       └── style.css      # All styles
+└── vendor/                # Composer dependencies
 ```
+
+### Architecture
+
+`index.php` is a pure router (~320 lines) — every `case` is a single-line call to a handler function in `controllers/`. Controllers are organized by **how content gets into Seismo**: RSS, Mail, Scraper, Lex/Jus, and Magnitu. Shared database helpers and config live in `config.php`. Views are plain PHP templates that render variables set by their controller.
 
 ## License
 
