@@ -7,7 +7,7 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 - **Combined Feed** — merged timeline of all sources with full-text search and optional relevance sorting
 - **RSS** — add and manage standard RSS/Atom feeds with tag-based filtering
 - **Substack** — subscribe to Substack newsletters via their RSS feeds
-- **Mail** — view email newsletters stored in the database, with sender tagging
+- **Mail** — IMAP email fetcher with configurable credentials, downloadable cronjob script (native PHP IMAP, no external libraries), and sender tagging
 - **Lex** — track legislation from the EU, Switzerland, and Germany
   - 🇪🇺 **EU CELLAR** — regulations, directives, and decisions from EUR-Lex via SPARQL (CDM ontology)
   - 🇨🇭 **Fedlex** — Bundesgesetze, Verordnungen, Bundesbeschlüsse, and international treaties via SPARQL (JOLux ontology)
@@ -20,10 +20,9 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 
 ## Requirements
 
-- PHP >= 7.2 with cURL extension
+- PHP >= 7.2 with cURL and IMAP extensions
 - MySQL / MariaDB
-- Composer
-- `mailparse` PHP extension (for email parsing)
+- Composer (for the main app; fetcher scripts have no external dependencies)
 
 ## Quick Start
 
@@ -56,13 +55,13 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 | **Mail** | Email newsletters with sender tag filters |
 | **Substack** | Substack newsletter items with tag filters |
 | **Scraper** | Scraped web page entries with per-source filters and delete |
-| **Settings** | Four tabs — Basic (RSS/Substack), Script (Email/Scraper), Lex (EU/CH/DE), Magnitu |
+| **Settings** | Four tabs — Basic (RSS/Substack), Script (Mail config + Scraper config with downloadable scripts), Lex (EU/CH/DE/Jus), Magnitu |
 | **About** | Project info, data sources, and stats |
 
 ## Dependencies
 
 - [SimplePie](https://github.com/simplepie/simplepie) — RSS/Atom parsing
-- [PHP MIME Mail Parser](https://github.com/php-mime-mail-parser/php-mime-mail-parser) — email parsing
+- PHP IMAP extension — email fetching (native, no external library)
 - [EasyRdf](https://github.com/easyrdf/easyrdf) — SPARQL/RDF queries for EU CELLAR and Fedlex
 - PHP cURL — used for fetching the German legislation RSS feed (recht.bund.de requires a session cookie) and web scraping
 - PHP DOMDocument — HTML parsing for scraper content extraction and date extraction via CSS-to-XPath
@@ -89,6 +88,13 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 - **Source:** [entscheidsuche.ch](https://entscheidsuche.ch)
 - **Courts:** BGer (Federal Supreme Court), BGE (Leading decisions), BVGer (Federal Administrative Court)
 - **Sync:** Incremental via index manifests — only fetches new decisions since last sync
+
+### Email (Mail)
+- **Type:** Standalone PHP CLI script (`fetcher/mail/fetch_mail.php`) run via cronjob
+- **Protocol:** IMAP with SSL/TLS — uses PHP's native `imap_*` functions, no Composer or external libraries
+- **Setup:** Configure IMAP credentials in Settings > Script, download `config.php` + `fetch_mail.php`, upload to server, add cronjob
+- **MIME parsing:** Recursive structure traversal with base64/quoted-printable decoding and charset conversion to UTF-8
+- **Deduplication:** By IMAP UID — each message is stored once
 
 ### Web Scraper
 - **Type:** Standalone PHP CLI script (`fetcher/scraper/seismo_scraper.php`) run via cronjob
@@ -127,8 +133,11 @@ seismo_0.4/
 │   ├── about.php      # About page
 │   └── styleguide.php # Internal style reference
 ├── fetcher/
+│   ├── mail/
+│   │   ├── fetch_mail.php      # IMAP mail fetcher CLI script (cronjob)
+│   │   └── config.php.example  # IMAP + DB config template
 │   └── scraper/
-│       ├── seismo_scraper.php  # Standalone scraper CLI script (cronjob)
+│       ├── seismo_scraper.php  # Web scraper CLI script (cronjob)
 │       └── config.php.example  # DB config template for the scraper
 └── vendor/            # Composer dependencies
 ```

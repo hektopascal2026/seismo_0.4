@@ -128,7 +128,7 @@
                 </li>
                 <li>
                     <span class="about-source-label" style="background-color: #FFDBBB;">Mail</span>
-                    Email newsletters stored in the database
+                    Email newsletters fetched via IMAP cronjob — configure credentials in Settings, download the script, and deploy. Uses PHP's native IMAP extension, no external libraries needed.
                 </li>
                 <li>
                     <span class="about-source-label" style="background-color: #f5f562;">🇪🇺 EU Lex</span>
@@ -213,7 +213,7 @@
                 <li><strong>Language:</strong> PHP <?= phpversion() ?></li>
                 <li><strong>Database:</strong> MySQL / MariaDB</li>
                 <li><strong>RSS parsing:</strong> <a href="https://github.com/simplepie/simplepie" class="about-link" target="_blank" rel="noopener">SimplePie</a></li>
-                <li><strong>Email parsing:</strong> <a href="https://github.com/php-mime-mail-parser/php-mime-mail-parser" class="about-link" target="_blank" rel="noopener">PHP MIME Mail Parser</a></li>
+                <li><strong>Email fetching:</strong> PHP native IMAP extension (no external libraries)</li>
                 <li><strong>SPARQL / RDF:</strong> <a href="https://github.com/easyrdf/easyrdf" class="about-link" target="_blank" rel="noopener">EasyRdf</a></li>
                 <li><strong>German Lex feed:</strong> PHP cURL with cookie-jar (recht.bund.de requires a session cookie)</li>
                 <li><strong>Web scraping:</strong> PHP DOMDocument + cURL with polite delays, User-Agent rotation, CSS-to-XPath date extraction</li>
