@@ -482,3 +482,112 @@ function handleApiAllTags($pdo) {
     $emailTags = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag")->fetchAll(PDO::FETCH_COLUMN);
     echo json_encode(['rss' => $rssTags, 'substack' => $substackTags, 'email' => $emailTags]);
 }
+
+// ---------------------------------------------------------------------------
+// Feeds page (RSS entries view)
+// ---------------------------------------------------------------------------
+
+function handleFeedsPage($pdo) {
+    $selectedCategory = $_GET['category'] ?? null;
+    
+    $pdo->exec("UPDATE feeds SET category = 'unsortiert' WHERE (category IS NULL OR category = '') AND (source_type = 'rss' OR source_type IS NULL)");
+    
+    $categoriesStmt = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND (source_type = 'rss' OR source_type IS NULL) ORDER BY category");
+    $categories = $categoriesStmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    if ($selectedCategory) {
+        $stmt = $pdo->prepare("
+            SELECT fi.*, f.title as feed_title, f.category as feed_category
+            FROM feed_items fi
+            JOIN feeds f ON fi.feed_id = f.id
+            WHERE f.disabled = 0 AND (f.source_type = 'rss' OR f.source_type IS NULL) AND f.category = ?
+            ORDER BY fi.published_date DESC, fi.cached_at DESC
+            LIMIT 50
+        ");
+        $stmt->execute([$selectedCategory]);
+    } else {
+        $stmt = $pdo->query("
+            SELECT fi.*, f.title as feed_title, f.category as feed_category
+            FROM feed_items fi
+            JOIN feeds f ON fi.feed_id = f.id
+            WHERE f.disabled = 0 AND (f.source_type = 'rss' OR f.source_type IS NULL)
+            ORDER BY fi.published_date DESC, fi.cached_at DESC
+            LIMIT 50
+        ");
+    }
+    $rssItems = $stmt->fetchAll();
+    
+    $lastRefreshStmt = $pdo->query("SELECT MAX(last_fetched) as last_refresh FROM feeds WHERE (source_type = 'rss' OR source_type IS NULL) AND last_fetched IS NOT NULL");
+    $lastRefreshRow = $lastRefreshStmt->fetch();
+    $lastRssRefreshDate = $lastRefreshRow['last_refresh'] ? date('d.m.Y H:i', strtotime($lastRefreshRow['last_refresh'])) : null;
+    
+    include 'views/feeds.php';
+}
+
+// ---------------------------------------------------------------------------
+// Config import / export
+// ---------------------------------------------------------------------------
+
+function handleDownloadRssConfig($pdo) {
+    $feeds = exportFeeds($pdo, 'rss');
+    header('Content-Type: application/json');
+    header('Content-Disposition: attachment; filename="rss_feeds.json"');
+    echo json_encode($feeds, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function handleUploadRssConfig($pdo) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['rss_config_file'])) {
+        $file = $_FILES['rss_config_file'];
+        if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
+            $content = file_get_contents($file['tmp_name']);
+            $parsed = json_decode($content, true);
+            if (is_array($parsed) && !empty($parsed)) {
+                try {
+                    [$created, $updated] = importFeeds($pdo, $parsed, 'rss');
+                    $_SESSION['success'] = "RSS config imported: $created new, $updated updated.";
+                } catch (Exception $e) {
+                    $_SESSION['error'] = 'Import error: ' . $e->getMessage();
+                }
+            } else {
+                $_SESSION['error'] = 'Invalid JSON file. Expected an array of feed objects.';
+            }
+        } else {
+            $_SESSION['error'] = 'No file uploaded or upload error.';
+        }
+    }
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=basic');
+    exit;
+}
+
+function handleDownloadSubstackConfig($pdo) {
+    $feeds = exportFeeds($pdo, 'substack');
+    header('Content-Type: application/json');
+    header('Content-Disposition: attachment; filename="substack_feeds.json"');
+    echo json_encode($feeds, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function handleUploadSubstackConfig($pdo) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['substack_config_file'])) {
+        $file = $_FILES['substack_config_file'];
+        if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
+            $content = file_get_contents($file['tmp_name']);
+            $parsed = json_decode($content, true);
+            if (is_array($parsed) && !empty($parsed)) {
+                try {
+                    [$created, $updated] = importFeeds($pdo, $parsed, 'substack');
+                    $_SESSION['success'] = "Substack config imported: $created new, $updated updated.";
+                } catch (Exception $e) {
+                    $_SESSION['error'] = 'Import error: ' . $e->getMessage();
+                }
+            } else {
+                $_SESSION['error'] = 'Invalid JSON file. Expected an array of feed objects.';
+            }
+        } else {
+            $_SESSION['error'] = 'No file uploaded or upload error.';
+        }
+    }
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=basic');
+    exit;
+}
