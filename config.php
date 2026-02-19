@@ -1,11 +1,16 @@
 <?php
 /**
  * Database Configuration
+ * Credentials are loaded from config.local.php (gitignored).
+ * Copy config.local.php.example to config.local.php and fill in your values.
  */
-define('DB_HOST', 'localhost:3306');
-define('DB_NAME', '8879_');
-define('DB_USER', 'seismo');
-define('DB_PASS', 'Hektopascal-p07');
+$localConfig = __DIR__ . '/config.local.php';
+if (file_exists($localConfig)) {
+    require $localConfig;
+} else {
+    http_response_code(503);
+    die('Missing config.local.php — copy config.local.php.example and fill in your database credentials.');
+}
 
 /**
  * Application Settings
@@ -400,6 +405,28 @@ function initDatabase() {
     $pdo->prepare("INSERT INTO magnitu_config (config_key, config_value) VALUES ('schema_version', ?)
         ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)")
         ->execute([(string)SCHEMA_VERSION]);
+}
+
+/**
+ * Resolve the email table name. Checks for fetched_emails (cronjob default),
+ * then emails/email, then any table containing "mail" or "email".
+ * Result is cached per request so SHOW TABLES only runs once.
+ */
+function getEmailTableName($pdo) {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+
+    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($tables as $t) {
+        if (strtolower($t) === 'fetched_emails') return $cached = $t;
+    }
+    foreach ($tables as $t) {
+        if (strtolower($t) === 'emails' || strtolower($t) === 'email') return $cached = $t;
+    }
+    foreach ($tables as $t) {
+        if (stripos($t, 'mail') !== false || stripos($t, 'email') !== false) return $cached = $t;
+    }
+    return $cached = 'fetched_emails';
 }
 
 /**

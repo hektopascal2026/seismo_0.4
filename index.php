@@ -1,4 +1,8 @@
 <?php
+error_reporting(E_ALL);
+ini_set('log_errors', '1');
+ini_set('display_errors', '0');
+
 session_start();
 
 require_once 'config.php';
@@ -430,13 +434,7 @@ switch ($action) {
                         $dateValue = $entryData['published_date'] ?? $entryData['cached_at'] ?? null;
                     }
                 } elseif ($scored['entry_type'] === 'email') {
-                    if (!isset($emailTableName)) {
-                        $emailTableName = 'emails';
-                        $eTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                        foreach ($eTables as $eT) {
-                            if (strtolower($eT) === 'fetched_emails') { $emailTableName = $eT; break; }
-                        }
-                    }
+                    $emailTableName = getEmailTableName($pdo);
                     $stmt = $pdo->prepare("SELECT * FROM `$emailTableName` WHERE id = ?");
                     $stmt->execute([$scored['entry_id']]);
                     $entryData = $stmt->fetch();
@@ -761,13 +759,7 @@ switch ($action) {
     break;
 
     case 'ai_view':
-        // Find the right table name (matches your system's logic)
-        $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        $tableName = 'fetched_emails'; // default
-        foreach ($allTables as $table) {
-            if (strtolower($table) === 'fetched_emails') { $tableName = $table; break; }
-            if (strtolower($table) === 'emails') { $tableName = $table; }
-        }
+        $tableName = getEmailTableName($pdo);
 
         // Fetch emails
         $stmt = $pdo->query("SELECT * FROM `$tableName` ORDER BY id DESC LIMIT 100");
@@ -839,46 +831,14 @@ switch ($action) {
         $disabledStmt = $pdo->query("SELECT from_email FROM sender_tags WHERE disabled = 1 OR removed_at IS NOT NULL");
         $disabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // Get table name from session if available (set by refresh function)
-        $tableName = $_SESSION['email_table_name'] ?? 'emails';
+        $tableName = getEmailTableName($pdo);
         
         try {
-            // Check what tables exist
-            $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-            
-            // Try to find the emails table (case-insensitive)
-            // Priority: fetched_emails (cronjob default), then emails, then any table with mail/email
-            $foundTable = null;
-            foreach ($allTables as $table) {
-                if (strtolower($table) === 'fetched_emails') {
-                    $foundTable = $table;
-                    break;
-                }
-            }
+            $foundTable = $tableName;
             
             if (!$foundTable) {
-                foreach ($allTables as $table) {
-                    if (strtolower($table) === 'emails' || strtolower($table) === 'email') {
-                        $foundTable = $table;
-                        break;
-                    }
-                }
-            }
-            
-            // If not found, look for any table with 'mail' or 'email' in the name
-            if (!$foundTable) {
-                foreach ($allTables as $table) {
-                    if (stripos($table, 'mail') !== false || stripos($table, 'email') !== false) {
-                        $foundTable = $table;
-                        break;
-                    }
-                }
-            }
-            
-            if (!$foundTable) {
-                $mailTableError = "No emails table found. Available tables: " . implode(', ', $allTables);
+                $mailTableError = "No emails table found.";
             } else {
-                $tableName = $foundTable; // Use the actual table name (case-sensitive)
                 
                 // Refreshed: last time the fetch script added an email (latest created_at or similar timestamp column)
                 // Try different possible timestamp column names (including cronjob's date_utc)
@@ -1361,34 +1321,7 @@ switch ($action) {
         // Get all unique senders and their tags for Mail section
         $senderTags = [];
         try {
-            // Find email table
-            $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-            $emailTableName = null;
-            
-            foreach ($allTables as $table) {
-                if (strtolower($table) === 'fetched_emails') {
-                    $emailTableName = $table;
-                    break;
-                }
-            }
-            
-            if (!$emailTableName) {
-                foreach ($allTables as $table) {
-                    if (strtolower($table) === 'emails' || strtolower($table) === 'email') {
-                        $emailTableName = $table;
-                        break;
-                    }
-                }
-            }
-            
-            if (!$emailTableName) {
-                foreach ($allTables as $table) {
-                    if (stripos($table, 'mail') !== false || stripos($table, 'email') !== false) {
-                        $emailTableName = $table;
-                        break;
-                    }
-                }
-            }
+            $emailTableName = getEmailTableName($pdo);
             
             if ($emailTableName) {
                 // Get column names to determine which columns exist
@@ -2332,13 +2265,7 @@ switch ($action) {
             $stats['feeds'] = $pdo->query("SELECT COUNT(*) FROM feeds WHERE source_type = 'rss' OR source_type IS NULL")->fetchColumn();
             $stats['feed_items'] = $pdo->query("SELECT COUNT(*) FROM feed_items")->fetchColumn();
             
-            // Find the correct email table (fetched_emails or emails)
-            $emailTable = 'emails';
-            $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-            foreach ($allTables as $t) {
-                if (strtolower($t) === 'fetched_emails') { $emailTable = $t; break; }
-                if (strtolower($t) === 'emails') { $emailTable = $t; }
-            }
+            $emailTable = getEmailTableName($pdo);
             $stats['emails'] = $pdo->query("SELECT COUNT(*) FROM `$emailTable`")->fetchColumn();
             
             $stats['lex_eu'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'eu'")->fetchColumn();
@@ -2424,13 +2351,7 @@ switch ($action) {
         
         // Emails
         if ($type === 'all' || $type === 'email') {
-            $emailTable = 'emails';
-            try {
-                $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($allTables as $t) {
-                    if (strtolower($t) === 'fetched_emails') { $emailTable = $t; break; }
-                }
-            } catch (PDOException $e) {}
+            $emailTable = getEmailTableName($pdo);
             
             try {
                 $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
@@ -2646,11 +2567,7 @@ switch ($action) {
         $totalFeedItems = $pdo->query("SELECT COUNT(*) FROM feed_items")->fetchColumn();
         $totalEmails = 0;
         try {
-            $emailTable = 'emails';
-            $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-            foreach ($allTables as $t) {
-                if (strtolower($t) === 'fetched_emails') { $emailTable = $t; break; }
-            }
+            $emailTable = getEmailTableName($pdo);
             $totalEmails = $pdo->query("SELECT COUNT(*) FROM `$emailTable`")->fetchColumn();
         } catch (PDOException $e) {}
         $totalLex = 0;
@@ -3023,34 +2940,7 @@ function getEmailsForIndex($pdo, $limit = 30, $selectedEmailTags = []) {
             $taggedEmails = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
         }
         
-        // Find email table
-        $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        $tableName = null;
-        
-        foreach ($allTables as $table) {
-            if (strtolower($table) === 'fetched_emails') {
-                $tableName = $table;
-                break;
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (strtolower($table) === 'emails' || strtolower($table) === 'email') {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (stripos($table, 'mail') !== false || stripos($table, 'email') !== false) {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
+        $tableName = getEmailTableName($pdo);
         
         if ($tableName) {
             // Get column names
@@ -3195,34 +3085,7 @@ function searchEmails($pdo, $query, $limit = 100, $selectedEmailTags = []) {
             $taggedEmails = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
         }
         
-        // Find email table
-        $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        $tableName = null;
-        
-        foreach ($allTables as $table) {
-            if (strtolower($table) === 'fetched_emails') {
-                $tableName = $table;
-                break;
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (strtolower($table) === 'emails' || strtolower($table) === 'email') {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (stripos($table, 'mail') !== false || stripos($table, 'email') !== false) {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
+        $tableName = getEmailTableName($pdo);
         
         if ($tableName) {
             // Get column names
@@ -3628,34 +3491,7 @@ function handleDeleteEmail($pdo) {
     }
     
     try {
-        // Find the email table (same logic as in mail case)
-        $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        $tableName = null;
-        
-        foreach ($allTables as $table) {
-            if (strtolower($table) === 'fetched_emails') {
-                $tableName = $table;
-                break;
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (strtolower($table) === 'emails' || strtolower($table) === 'email') {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (stripos($table, 'mail') !== false || stripos($table, 'email') !== false) {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
+        $tableName = getEmailTableName($pdo);
         
         if (!$tableName) {
             $_SESSION['error'] = 'Email table not found';
@@ -4331,41 +4167,11 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
 }
 
 function refreshEmails($pdo) {
-    // This function triggers a refresh/reload of emails from the database
-    // The actual loading happens in the 'mail' case
-    // We just need to ensure the table exists and is accessible
     try {
-        // First, let's check what tables exist (for debugging)
-        $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        $tableNames = implode(', ', $allTables);
-        
-        // Check for fetched_emails (cronjob default), then emails, then any email-related table
-        $tableName = null;
-        foreach ($allTables as $table) {
-            if (strtolower($table) === 'fetched_emails') {
-                $tableName = $table;
-                break;
-            }
-        }
+        $tableName = getEmailTableName($pdo);
         
         if (!$tableName) {
-            $tableCheck = $pdo->query("SHOW TABLES LIKE 'emails'");
-            if ($tableCheck->rowCount() > 0) {
-                $tableName = 'emails';
-            }
-        }
-        
-        if (!$tableName) {
-            foreach ($allTables as $table) {
-                if (stripos($table, 'mail') !== false || stripos($table, 'email') !== false) {
-                    $tableName = $table;
-                    break;
-                }
-            }
-        }
-        
-        if (!$tableName) {
-            $_SESSION['error'] = "No emails table found. Available tables: $tableNames";
+            $_SESSION['error'] = "No emails table found.";
             return;
         }
         
@@ -4483,11 +4289,7 @@ function magnituRescore($pdo, $recipeData) {
     
     // Score emails
     try {
-        $emailTable = 'emails';
-        $allTables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
-        foreach ($allTables as $t) {
-            if (strtolower($t) === 'fetched_emails') { $emailTable = $t; break; }
-        }
+        $emailTable = getEmailTableName($pdo);
         $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
         $textBodyCol = in_array('text_body', $cols) ? 'text_body' : (in_array('body_text', $cols) ? 'body_text' : 'text_body');
         $htmlBodyCol = in_array('html_body', $cols) ? 'html_body' : (in_array('body_html', $cols) ? 'body_html' : 'html_body');

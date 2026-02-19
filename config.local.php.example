@@ -1,0 +1,8 @@
+<?php
+/**
+ * Local credentials — copy this file to config.local.php and fill in your values.
+ */
+define('DB_HOST', 'localhost:3306');
+define('DB_NAME', 'CHANGE_ME');
+define('DB_USER', 'CHANGE_ME');
+define('DB_PASS', 'CHANGE_ME');
