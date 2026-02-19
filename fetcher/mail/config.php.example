@@ -4,6 +4,9 @@
  *
  * Copy this file to config.php and fill in your credentials,
  * or download a pre-filled config.php from Seismo (Settings > Script).
+ *
+ * Only requires PHP's built-in IMAP extension (php-imap).
+ * No Composer or external libraries needed.
  */
 
 return [
@@ -25,7 +28,7 @@ return [
         'table'    => 'fetched_emails',
     ],
     'logging' => [
-        'target' => 'stdout',  // 'stdout' or a file path
-        'level'  => 'info',    // debug, info, warn, error
+        'target' => 'stdout',
+        'level'  => 'info',
     ],
 ];

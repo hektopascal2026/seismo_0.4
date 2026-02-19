@@ -3,17 +3,14 @@ declare(strict_types=1);
 
 // fetch_mail.php
 //
-// Cron-safe IMAP fetcher that parses MIME messages with zbateson/mail-mime-parser
-// and stores them into MySQL via PDO.
-//
-// IMAP credentials are configured in the Seismo UI (Settings > Script) and
-// baked into the downloaded config.php.
+// Cron-safe IMAP fetcher using only PHP's native IMAP extension.
+// No Composer or external libraries required.
 //
 // Setup:
 // - Download config.php from Seismo (Settings > Script > Mail section),
 //   or copy config.php.example and fill in credentials manually.
-// - Run: composer install (to get vendor/)
-// - Upload this folder to your hosting.
+// - Upload fetch_mail.php + config.php to a folder on your server.
+// - Requires PHP IMAP extension (php-imap) — enabled on most shared hosts.
 //
 // Run (cron):
 //   */15 * * * * /usr/bin/php /path/to/fetch_mail.php
@@ -30,15 +27,6 @@ if (!file_exists($configPath)) {
     exit(1);
 }
 $config = require $configPath;
-
-$autoloadPath = __DIR__ . '/vendor/autoload.php';
-if (!file_exists($autoloadPath)) {
-    fwrite(STDERR, "Missing vendor/autoload.php. Run 'composer install' and upload vendor/.\n");
-    exit(1);
-}
-require $autoloadPath;
-
-use ZBateson\MailMimeParser\Message;
 
 // ---------------------------------------------------------------------------
 // Logging
@@ -126,7 +114,7 @@ function insert_email(PDO $pdo, string $table, array $row): void
 }
 
 // ---------------------------------------------------------------------------
-// IMAP helpers
+// IMAP helpers (native PHP — no external libraries)
 // ---------------------------------------------------------------------------
 function imap_open_or_fail(array $config)
 {
@@ -168,44 +156,120 @@ function join_addresses(?array $addrs): ?string
     return $out ? implode(', ', $out) : null;
 }
 
-function parse_message(int $msgNo, $imapStream): array
+/**
+ * Decode a single MIME part body from its transfer encoding + charset to UTF-8.
+ */
+function decode_body(string $body, int $encoding, string $charset = 'UTF-8'): string
 {
-    $raw = imap_fetchheader($imapStream, $msgNo) . "\r\n" . imap_body($imapStream, $msgNo, FT_PEEK);
+    switch ($encoding) {
+        case 3: $body = base64_decode($body); break;       // BASE64
+        case 4: $body = quoted_printable_decode($body); break; // QUOTED-PRINTABLE
+    }
 
-    /** @var Message $message */
-    $message  = Message::from($raw, false);
-    $bodyText = $message->getTextContent();
-    $bodyHtml = $message->getHtmlContent();
+    $charset = strtoupper(trim($charset));
+    if ($charset && $charset !== 'UTF-8' && $charset !== 'UTF8') {
+        $converted = @iconv($charset, 'UTF-8//IGNORE', $body);
+        if ($converted !== false) $body = $converted;
+    }
 
-    // Derive plain text from HTML if absent
-    if ($bodyText === null || trim((string)$bodyText) === '') {
-        if ($bodyHtml !== null) {
-            $clean    = preg_replace('/<(style|script)\b[^>]*>.*<\/\\1>/is', '', (string)$bodyHtml);
-            $bodyText = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($clean))));
+    return $body;
+}
+
+/**
+ * Get the charset parameter from a MIME part's parameters list.
+ */
+function get_charset(object $part): string
+{
+    $params = [];
+    if (!empty($part->parameters))  $params = array_merge($params, $part->parameters);
+    if (!empty($part->dparameters)) $params = array_merge($params, $part->dparameters);
+
+    foreach ($params as $p) {
+        if (strtolower($p->attribute) === 'charset') {
+            return $p->value;
+        }
+    }
+    return 'UTF-8';
+}
+
+/**
+ * Recursively extract text/plain and text/html from MIME structure.
+ */
+function extract_bodies($imapStream, int $msgNo, object $structure, string $partNum = ''): array
+{
+    $result = ['text' => null, 'html' => null];
+
+    if ($structure->type === 1) {
+        // Multipart — recurse into sub-parts
+        if (!empty($structure->parts)) {
+            foreach ($structure->parts as $i => $subPart) {
+                $subPartNum = $partNum === '' ? (string)($i + 1) : $partNum . '.' . ($i + 1);
+                $sub = extract_bodies($imapStream, $msgNo, $subPart, $subPartNum);
+                if ($sub['text'] !== null && $result['text'] === null) $result['text'] = $sub['text'];
+                if ($sub['html'] !== null && $result['html'] === null) $result['html'] = $sub['html'];
+            }
+        }
+    } elseif ($structure->type === 0) {
+        // Text part
+        $fetchPart = $partNum ?: '1';
+        $body    = imap_fetchbody($imapStream, $msgNo, $fetchPart, FT_PEEK);
+        $charset = get_charset($structure);
+        $decoded = decode_body($body, $structure->encoding ?? 0, $charset);
+
+        $subtype = strtoupper($structure->subtype ?? 'PLAIN');
+        if ($subtype === 'PLAIN' && $result['text'] === null) {
+            $result['text'] = $decoded;
+        } elseif ($subtype === 'HTML' && $result['html'] === null) {
+            $result['html'] = $decoded;
         }
     }
 
+    return $result;
+}
+
+/**
+ * Parse a single message using native IMAP functions only.
+ */
+function parse_message(int $msgNo, $imapStream): array
+{
+    $structure = imap_fetchstructure($imapStream, $msgNo);
+    $bodies    = extract_bodies($imapStream, $msgNo, $structure);
+
+    $bodyText = $bodies['text'];
+    $bodyHtml = $bodies['html'];
+
+    // Derive plain text from HTML if no text/plain part exists
+    if (($bodyText === null || trim($bodyText) === '') && $bodyHtml !== null) {
+        $clean    = preg_replace('/<(style|script)\b[^>]*>.*<\/\\1>/is', '', $bodyHtml);
+        $bodyText = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($clean))));
+    }
+
     $headers   = imap_headerinfo($imapStream, $msgNo);
-    $messageId = $message->getHeaderValue('Message-ID') ?: null;
-    $subject   = $message->getHeaderValue('Subject') ?: null;
+    $rawHdrs   = imap_fetchheader($imapStream, $msgNo);
+
+    $messageId = null;
+    if (preg_match('/^Message-ID:\s*(.+)$/mi', $rawHdrs, $m)) {
+        $messageId = trim($m[1]);
+    }
+
+    $subject = isset($headers->subject) ? decode_mime_header($headers->subject) : null;
 
     $dateUtc = null;
-    $dateRaw = $message->getHeaderValue('Date') ?: null;
-    if ($dateRaw) {
-        $ts = strtotime($dateRaw);
+    if (!empty($headers->date)) {
+        $ts = strtotime($headers->date);
         if ($ts !== false) $dateUtc = gmdate('Y-m-d H:i:s', $ts);
     }
 
     return [
-        'message_id'  => $messageId ? trim($messageId) : null,
+        'message_id'  => $messageId,
         'from_addr'   => join_addresses($headers->from ?? null),
         'to_addr'     => join_addresses($headers->to ?? null),
         'cc_addr'     => join_addresses($headers->cc ?? null),
-        'subject'     => $subject ? decode_mime_header($subject) : null,
+        'subject'     => $subject,
         'date_utc'    => $dateUtc,
-        'body_text'   => $bodyText !== null ? (string)$bodyText : null,
-        'body_html'   => $bodyHtml !== null ? (string)$bodyHtml : null,
-        'raw_headers'  => imap_fetchheader($imapStream, $msgNo),
+        'body_text'   => $bodyText,
+        'body_html'   => $bodyHtml,
+        'raw_headers'  => $rawHdrs,
     ];
 }
 

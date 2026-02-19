@@ -517,7 +517,7 @@
                 <strong>Setup:</strong>
                 ① Fill in your IMAP credentials below and hit Save.
                 ② Download <code>fetch_mail.php</code> and <code>config.php</code>.
-                ③ Upload both files to a folder on your server and run <code>composer require zbateson/mail-mime-parser</code> there.
+                ③ Upload both files to a folder on your server (requires PHP IMAP extension — enabled on most hosts).
                 ④ Add a cronjob: <code>*/15 * * * * /usr/bin/php /path/to/fetch_mail.php</code>
             </p>
 
