@@ -164,6 +164,33 @@
             <a href="?action=settings&amp;tab=magnitu" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
         </div>
 
+        <?php if (!empty($trippedFeeds) || !empty($trippedLexSources)): ?>
+        <div style="background: #fff3cd; border: 2px solid #000; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;">
+            <strong>Circuit Breaker</strong> — Some sources have been automatically paused after 3+ consecutive failures.
+            A manual refresh of an individual feed will reset its counter.
+            <?php if (!empty($trippedFeeds)): ?>
+                <div style="margin-top: 6px;">
+                    <?php foreach ($trippedFeeds as $tf): ?>
+                        <div style="margin: 4px 0;">
+                            <strong><?= htmlspecialchars($tf['title']) ?></strong>
+                            <span style="color: #666;">(<?= (int)$tf['consecutive_failures'] ?> failures)</span>
+                            <?php if ($tf['last_error']): ?>
+                                — <code style="font-size: 11px;"><?= htmlspecialchars(mb_substr($tf['last_error'], 0, 120)) ?></code>
+                            <?php endif; ?>
+                            <a href="?action=refresh_feed&id=<?= $tf['id'] ?>" style="margin-left: 4px; font-size: 11px;">retry</a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($trippedLexSources)): ?>
+                <div style="margin-top: 6px;">
+                    Lex/Jus sources tripped: <strong><?= htmlspecialchars(implode(', ', $trippedLexSources)) ?></strong>
+                    — will auto-retry on next successful refresh cycle.
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <?php if ($settingsTab === 'magnitu'): ?>
         <p style="font-size: 12px; margin-bottom: 16px;">ML-powered relevance scoring. Connect to your Magnitu instance and manage scoring settings.</p>
 

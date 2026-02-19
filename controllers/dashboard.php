@@ -330,7 +330,27 @@ function handleDashboard($pdo) {
 // Global Refresh (orchestrates all controllers)
 // ---------------------------------------------------------------------------
 
+/**
+ * Check/increment a circuit breaker stored in magnitu_config.
+ * Returns true if the source is tripped (>= $threshold consecutive failures).
+ */
+function isSourceTripped($pdo, $key, $threshold = 3) {
+    $val = getMagnituConfig($pdo, $key);
+    return $val !== null && (int)$val >= $threshold;
+}
+
+function recordSourceFailure($pdo, $key) {
+    $current = (int)(getMagnituConfig($pdo, $key) ?? 0);
+    setMagnituConfig($pdo, $key, (string)($current + 1));
+}
+
+function resetSourceFailure($pdo, $key) {
+    setMagnituConfig($pdo, $key, '0');
+}
+
 function handleRefreshAll($pdo) {
+    set_time_limit(300);
+
     $lastRefreshAt = getMagnituConfig($pdo, 'last_refresh_at');
     if ($lastRefreshAt && (time() - (int)$lastRefreshAt) < 60) {
         $remaining = 60 - (time() - (int)$lastRefreshAt);
@@ -344,8 +364,11 @@ function handleRefreshAll($pdo) {
     $results = [];
 
     try {
-        refreshAllFeeds($pdo);
-        $results[] = 'Feeds refreshed';
+        [$refreshed, $skipped, $feedFailed] = refreshAllFeeds($pdo);
+        $msg = "{$refreshed} feeds refreshed";
+        if ($skipped > 0) $msg .= " ({$skipped} tripped)";
+        if ($feedFailed > 0) $msg .= " ({$feedFailed} failed)";
+        $results[] = $msg;
     } catch (\Exception $e) {
         $results[] = 'Feeds: ' . $e->getMessage();
     }
@@ -358,29 +381,31 @@ function handleRefreshAll($pdo) {
     }
 
     $lexCfg = getLexConfig();
-    if ($lexCfg['eu']['enabled'] ?? true) {
-        try { $results[] = "🇪🇺 " . refreshLexItems($pdo) . " lex items"; }
-        catch (\Exception $e) { $results[] = '🇪🇺 EU: ' . $e->getMessage(); }
-    }
-    if ($lexCfg['ch']['enabled'] ?? true) {
-        try { $results[] = "🇨🇭 " . refreshFedlexItems($pdo) . " lex items"; }
-        catch (\Exception $e) { $results[] = '🇨🇭 CH: ' . $e->getMessage(); }
-    }
-    if ($lexCfg['de']['enabled'] ?? true) {
-        try { $results[] = "🇩🇪 " . refreshRechtBundItems($pdo) . " lex items"; }
-        catch (\Exception $e) { $results[] = '🇩🇪 DE: ' . $e->getMessage(); }
-    }
-    if ($lexCfg['ch_bger']['enabled'] ?? false) {
-        try { $results[] = "⚖️ " . refreshJusItems($pdo, 'CH_BGer') . " BGer items"; }
-        catch (\Exception $e) { $results[] = '⚖️ BGer: ' . $e->getMessage(); }
-    }
-    if ($lexCfg['ch_bge']['enabled'] ?? false) {
-        try { $results[] = "⚖️ " . refreshJusItems($pdo, 'CH_BGE') . " BGE items"; }
-        catch (\Exception $e) { $results[] = '⚖️ BGE: ' . $e->getMessage(); }
-    }
-    if ($lexCfg['ch_bvger']['enabled'] ?? false) {
-        try { $results[] = "⚖️ " . refreshJusItems($pdo, 'CH_BVGer') . " BVGer items"; }
-        catch (\Exception $e) { $results[] = '⚖️ BVGer: ' . $e->getMessage(); }
+
+    $lexSources = [
+        ['key' => 'eu',      'enabled' => $lexCfg['eu']['enabled'] ?? true,  'emoji' => '🇪🇺', 'label' => 'EU',    'fn' => function($pdo) { return refreshLexItems($pdo); }],
+        ['key' => 'ch',      'enabled' => $lexCfg['ch']['enabled'] ?? true,  'emoji' => '🇨🇭', 'label' => 'CH',    'fn' => function($pdo) { return refreshFedlexItems($pdo); }],
+        ['key' => 'de',      'enabled' => $lexCfg['de']['enabled'] ?? true,  'emoji' => '🇩🇪', 'label' => 'DE',    'fn' => function($pdo) { return refreshRechtBundItems($pdo); }],
+        ['key' => 'ch_bger', 'enabled' => $lexCfg['ch_bger']['enabled'] ?? false, 'emoji' => '⚖️', 'label' => 'BGer',  'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BGer'); }],
+        ['key' => 'ch_bge',  'enabled' => $lexCfg['ch_bge']['enabled'] ?? false,  'emoji' => '⚖️', 'label' => 'BGE',   'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BGE'); }],
+        ['key' => 'ch_bvger','enabled' => $lexCfg['ch_bvger']['enabled'] ?? false, 'emoji' => '⚖️', 'label' => 'BVGer', 'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BVGer'); }],
+    ];
+
+    foreach ($lexSources as $src) {
+        if (!$src['enabled']) continue;
+        $failKey = 'lex_' . $src['key'] . '_failures';
+        if (isSourceTripped($pdo, $failKey)) {
+            $results[] = $src['emoji'] . ' ' . $src['label'] . ': skipped (tripped)';
+            continue;
+        }
+        try {
+            $count = ($src['fn'])($pdo);
+            resetSourceFailure($pdo, $failKey);
+            $results[] = $src['emoji'] . " {$count} " . $src['label'] . " items";
+        } catch (\Exception $e) {
+            recordSourceFailure($pdo, $failKey);
+            $results[] = $src['emoji'] . ' ' . $src['label'] . ': ' . $e->getMessage();
+        }
     }
 
     try {

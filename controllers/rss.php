@@ -240,14 +240,19 @@ function refreshFeed($pdo, $feedId) {
         return;
     }
     
-    $simplepie = new \SimplePie\SimplePie();
-    $simplepie->set_feed_url($feed['url']);
-    $simplepie->enable_cache(false);
-    $simplepie->init();
-    $simplepie->handle_content_type();
-    
-    if (!$simplepie->error()) {
-        $updateStmt = $pdo->prepare("UPDATE feeds SET title = ?, description = ?, link = ?, last_fetched = NOW() WHERE id = ?");
+    try {
+        $simplepie = new \SimplePie\SimplePie();
+        $simplepie->set_feed_url($feed['url']);
+        $simplepie->enable_cache(false);
+        $simplepie->init();
+        $simplepie->handle_content_type();
+        
+        if ($simplepie->error()) {
+            recordFeedFailure($pdo, $feedId, $simplepie->error());
+            return;
+        }
+        
+        $updateStmt = $pdo->prepare("UPDATE feeds SET title = ?, description = ?, link = ?, last_fetched = NOW(), consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE id = ?");
         $updateStmt->execute([
             $simplepie->get_title() ?: $feed['title'],
             $simplepie->get_description() ?: $feed['description'],
@@ -256,6 +261,8 @@ function refreshFeed($pdo, $feedId) {
         ]);
         
         cacheFeedItems($pdo, $feedId, $simplepie);
+    } catch (\Exception $e) {
+        recordFeedFailure($pdo, $feedId, $e->getMessage());
     }
 }
 
@@ -288,13 +295,113 @@ function cacheFeedItems($pdo, $feedId, $simplepie) {
     }
 }
 
+/**
+ * Record a feed fetch failure (increment circuit breaker counter).
+ */
+function recordFeedFailure($pdo, $feedId, $error) {
+    $stmt = $pdo->prepare("UPDATE feeds SET consecutive_failures = COALESCE(consecutive_failures, 0) + 1, last_error = ?, last_error_at = NOW() WHERE id = ?");
+    $stmt->execute([mb_substr($error, 0, 500), $feedId]);
+}
+
+/**
+ * Refresh all feeds in parallel using curl_multi (batches of 8).
+ * Feeds with 3+ consecutive failures are skipped (circuit breaker).
+ * Returns [int $refreshed, int $skipped, int $failed].
+ */
 function refreshAllFeeds($pdo) {
-    $stmt = $pdo->query("SELECT id FROM feeds ORDER BY id");
+    $stmt = $pdo->query("
+        SELECT id, url, title, description, link
+        FROM feeds
+        WHERE disabled = 0
+          AND (consecutive_failures < 3 OR consecutive_failures IS NULL)
+        ORDER BY id
+    ");
     $feeds = $stmt->fetchAll();
-    
-    foreach ($feeds as $feed) {
-        refreshFeed($pdo, $feed['id']);
+
+    $refreshed = 0;
+    $failed = 0;
+    $batchSize = 8;
+    $batches = array_chunk($feeds, $batchSize);
+
+    foreach ($batches as $batch) {
+        $mh = curl_multi_init();
+        $handles = [];
+
+        foreach ($batch as $feed) {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $feed['url'],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
+                CURLOPT_USERAGENT      => 'Seismo/0.4 (RSS reader)',
+                CURLOPT_ENCODING       => '',
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[(int)$ch] = ['handle' => $ch, 'feed' => $feed];
+        }
+
+        $running = 0;
+        do {
+            curl_multi_exec($mh, $running);
+            if ($running > 0) curl_multi_select($mh, 1);
+        } while ($running > 0);
+
+        foreach ($handles as $info) {
+            $ch       = $info['handle'];
+            $feed     = $info['feed'];
+            $feedId   = $feed['id'];
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
+            $body     = curl_multi_getcontent($ch);
+
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            if ($curlErr || $httpCode >= 400 || empty($body)) {
+                $errMsg = $curlErr ?: "HTTP $httpCode";
+                recordFeedFailure($pdo, $feedId, $errMsg);
+                $failed++;
+                continue;
+            }
+
+            try {
+                $simplepie = new \SimplePie\SimplePie();
+                $simplepie->set_raw_data($body);
+                $simplepie->enable_cache(false);
+                $simplepie->init();
+
+                if ($simplepie->error()) {
+                    recordFeedFailure($pdo, $feedId, 'Parse: ' . $simplepie->error());
+                    $failed++;
+                    continue;
+                }
+
+                $upd = $pdo->prepare("UPDATE feeds SET title = ?, description = ?, link = ?, last_fetched = NOW(), consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE id = ?");
+                $upd->execute([
+                    $simplepie->get_title() ?: $feed['title'],
+                    $simplepie->get_description() ?: $feed['description'],
+                    $simplepie->get_link() ?: $feed['link'],
+                    $feedId
+                ]);
+
+                cacheFeedItems($pdo, $feedId, $simplepie);
+                $refreshed++;
+            } catch (\Exception $e) {
+                recordFeedFailure($pdo, $feedId, $e->getMessage());
+                $failed++;
+            }
+        }
+
+        curl_multi_close($mh);
     }
+
+    $skippedStmt = $pdo->query("SELECT COUNT(*) FROM feeds WHERE disabled = 0 AND consecutive_failures >= 3");
+    $skipped = (int)$skippedStmt->fetchColumn();
+
+    return [$refreshed, $skipped, $failed];
 }
 
 function handleRefreshAllFeeds($pdo) {

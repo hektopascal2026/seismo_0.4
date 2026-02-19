@@ -142,6 +142,22 @@ function handleSettingsPage($pdo) {
     ];
     $mailConfigured = !empty($mailConfig['imap_username']) && !empty($mailConfig['imap_password']);
     
+    // Tripped feeds (circuit breaker: 3+ consecutive failures)
+    $trippedFeeds = [];
+    try {
+        $trippedFeeds = $pdo->query("SELECT id, title, url, consecutive_failures, last_error, last_error_at FROM feeds WHERE consecutive_failures >= 3 ORDER BY last_error_at DESC")->fetchAll();
+    } catch (PDOException $e) {}
+
+    // Tripped lex/jus sources
+    $trippedLexSources = [];
+    foreach (['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger'] as $src) {
+        $failKey = 'lex_' . $src . '_failures';
+        $val = getMagnituConfig($pdo, $failKey);
+        if ($val !== null && (int)$val >= 3) {
+            $trippedLexSources[] = $src;
+        }
+    }
+
     include 'views/settings.php';
 }
 

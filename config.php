@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 8);
+define('SCHEMA_VERSION', 9);
 
 /**
  * Initialize database tables
@@ -115,6 +115,23 @@ function initDatabase() {
         // Index might already exist, ignore error
     }
     
+    // Circuit breaker columns for feed error tracking
+    try {
+        $pdo->exec("ALTER TABLE feeds ADD COLUMN consecutive_failures INT NOT NULL DEFAULT 0");
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column name') === false) throw $e;
+    }
+    try {
+        $pdo->exec("ALTER TABLE feeds ADD COLUMN last_error TEXT DEFAULT NULL");
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column name') === false) throw $e;
+    }
+    try {
+        $pdo->exec("ALTER TABLE feeds ADD COLUMN last_error_at DATETIME DEFAULT NULL");
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column name') === false) throw $e;
+    }
+
     // Add source_type column if it doesn't exist (for Substack support)
     try {
         $pdo->exec("ALTER TABLE feeds ADD COLUMN source_type VARCHAR(20) DEFAULT 'rss' AFTER url");
