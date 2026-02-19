@@ -216,6 +216,14 @@ switch ($action) {
         handleDownloadScraperScript($pdo);
         break;
 
+    case 'download_refresh_config':
+        handleDownloadRefreshConfig($pdo);
+        break;
+
+    case 'download_refresh_script':
+        handleDownloadRefreshScript($pdo);
+        break;
+
     // ── Lex & Jus ────────────────────────────────────────────────
     case 'lex':
         handleLexPage($pdo);

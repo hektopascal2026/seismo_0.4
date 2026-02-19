@@ -763,6 +763,26 @@
                 <?php endif; ?>
             </div>
         </section>
+
+        <!-- Background Refresh Cron -->
+        <section class="settings-section" id="refresh-cron-settings">
+            <h2 style="background-color: #FFDBBB; padding: 8px 14px; display: inline-block;">Background Refresh</h2>
+            <p style="font-size: 12px; margin-bottom: 12px;">
+                Automatically refresh all feeds, lex/jus sources, and Magnitu scores via a server cronjob.
+            </p>
+            <div style="font-size: 12px; margin-bottom: 12px; padding: 12px; border: 2px solid #000; background: #fafafa;">
+                <strong>Setup:</strong>
+                <ol style="margin: 6px 0 0 18px; padding: 0;">
+                    <li>Download <code>refresh_cron.php</code> and <code>config.php</code> below.</li>
+                    <li>Upload both files to a private folder on your server (e.g. <code>cronjob_refresh/</code>).</li>
+                    <li>Add a cronjob: <code>*/15 * * * * /usr/bin/php /path/to/cronjob_refresh/refresh_cron.php</code></li>
+                </ol>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <a href="<?= getBasePath() ?>/index.php?action=download_refresh_config" class="btn" style="text-decoration: none;">⬇ Download config.php</a>
+                <a href="<?= getBasePath() ?>/index.php?action=download_refresh_script" class="btn" style="text-decoration: none;">⬇ Download refresh_cron.php</a>
+            </div>
+        </section>
         <?php endif; ?>
 
         <?php if ($settingsTab === 'lex'): ?>

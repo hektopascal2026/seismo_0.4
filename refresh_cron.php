@@ -5,6 +5,11 @@
  * Runs the same refresh cycle as the web UI "Refresh All" button:
  * feeds (parallel), emails, lex/jus sources, Magnitu rescoring.
  *
+ * Can run from the Seismo directory or from a separate folder.
+ * If placed outside Seismo, create a config.php next to this script:
+ *
+ *   <?php return ['seismo_path' => '/path/to/seismo'];
+ *
  * Setup:  star/15 * * * * /usr/bin/php /path/to/refresh_cron.php
  *          (replace "star" with *)
  */
@@ -17,7 +22,24 @@ if (PHP_SAPI !== 'cli') {
 set_time_limit(300);
 
 $startTime = microtime(true);
-$scriptDir = __DIR__;
+
+$localConfig = __DIR__ . '/config.php';
+if (file_exists($localConfig) && !function_exists('initDatabase')) {
+    $cfg = require $localConfig;
+    if (is_array($cfg) && isset($cfg['seismo_path'])) {
+        $seismoDir = rtrim($cfg['seismo_path'], '/');
+    }
+}
+if (!isset($seismoDir)) {
+    $seismoDir = __DIR__;
+}
+
+if (!file_exists($seismoDir . '/config.php')) {
+    fwrite(STDERR, "ERROR: Cannot find Seismo at: {$seismoDir}\n");
+    fwrite(STDERR, "Create a config.php next to this script with:\n");
+    fwrite(STDERR, "  <?php return ['seismo_path' => '/path/to/seismo'];\n");
+    exit(1);
+}
 
 function clog(string $level, string $msg): void {
     $ts = date('c');
@@ -26,14 +48,14 @@ function clog(string $level, string $msg): void {
 
 clog('INFO', 'Starting Seismo refresh...');
 
-require $scriptDir . '/config.php';
-require $scriptDir . '/vendor/autoload.php';
-require $scriptDir . '/controllers/magnitu.php';
-require $scriptDir . '/controllers/lex_jus.php';
-require $scriptDir . '/controllers/scraper.php';
-require $scriptDir . '/controllers/mail.php';
-require $scriptDir . '/controllers/rss.php';
-require $scriptDir . '/controllers/dashboard.php';
+require $seismoDir . '/config.php';
+require $seismoDir . '/vendor/autoload.php';
+require $seismoDir . '/controllers/magnitu.php';
+require $seismoDir . '/controllers/lex_jus.php';
+require $seismoDir . '/controllers/scraper.php';
+require $seismoDir . '/controllers/mail.php';
+require $seismoDir . '/controllers/rss.php';
+require $seismoDir . '/controllers/dashboard.php';
 
 initDatabase();
 $pdo = getDbConnection();
