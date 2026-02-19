@@ -364,11 +364,14 @@ function handleRefreshAll($pdo) {
     $results = [];
 
     try {
-        [$refreshed, $skipped, $feedFailed] = refreshAllFeeds($pdo);
+        [$refreshed, $skipped, $feedFailed, $failedNames] = refreshAllFeeds($pdo);
         $msg = "{$refreshed} feeds refreshed";
         if ($skipped > 0) $msg .= " ({$skipped} tripped)";
         if ($feedFailed > 0) $msg .= " ({$feedFailed} failed)";
         $results[] = $msg;
+        if (!empty($failedNames)) {
+            $results[] = 'Failed: ' . implode(', ', $failedNames);
+        }
     } catch (\Exception $e) {
         $results[] = 'Feeds: ' . $e->getMessage();
     }

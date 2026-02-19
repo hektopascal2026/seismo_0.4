@@ -320,6 +320,7 @@ function refreshAllFeeds($pdo) {
 
     $refreshed = 0;
     $failed = 0;
+    $failedNames = [];
     $batchSize = 8;
     $batches = array_chunk($feeds, $batchSize);
 
@@ -363,6 +364,7 @@ function refreshAllFeeds($pdo) {
             if ($curlErr || $httpCode >= 400 || empty($body)) {
                 $errMsg = $curlErr ?: "HTTP $httpCode";
                 recordFeedFailure($pdo, $feedId, $errMsg);
+                $failedNames[] = ($feed['title'] ?: $feed['url']) . " ($errMsg)";
                 $failed++;
                 continue;
             }
@@ -375,6 +377,7 @@ function refreshAllFeeds($pdo) {
 
                 if ($simplepie->error()) {
                     recordFeedFailure($pdo, $feedId, 'Parse: ' . $simplepie->error());
+                    $failedNames[] = ($feed['title'] ?: $feed['url']) . " (parse error)";
                     $failed++;
                     continue;
                 }
@@ -391,6 +394,7 @@ function refreshAllFeeds($pdo) {
                 $refreshed++;
             } catch (\Exception $e) {
                 recordFeedFailure($pdo, $feedId, $e->getMessage());
+                $failedNames[] = ($feed['title'] ?: $feed['url']) . " (" . $e->getMessage() . ")";
                 $failed++;
             }
         }
@@ -401,7 +405,7 @@ function refreshAllFeeds($pdo) {
     $skippedStmt = $pdo->query("SELECT COUNT(*) FROM feeds WHERE disabled = 0 AND consecutive_failures >= 3");
     $skipped = (int)$skippedStmt->fetchColumn();
 
-    return [$refreshed, $skipped, $failed];
+    return [$refreshed, $skipped, $failed, $failedNames];
 }
 
 function handleRefreshAllFeeds($pdo) {

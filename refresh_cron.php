@@ -44,11 +44,14 @@ setMagnituConfig($pdo, 'last_refresh_at', (string)time());
 
 // --- Feeds (parallel curl_multi) ---
 try {
-    [$refreshed, $skipped, $failed] = refreshAllFeeds($pdo);
+    [$refreshed, $skipped, $failed, $failedNames] = refreshAllFeeds($pdo);
     $msg = "{$refreshed} feeds refreshed";
     if ($skipped > 0) $msg .= ", {$skipped} tripped";
     if ($failed > 0) { $msg .= ", {$failed} failed"; $hasErrors = true; }
     clog('INFO', $msg);
+    if (!empty($failedNames)) {
+        foreach ($failedNames as $fn) clog('WARN', "  Failed: $fn");
+    }
 } catch (\Exception $e) {
     clog('ERROR', 'Feeds: ' . $e->getMessage());
     $hasErrors = true;
