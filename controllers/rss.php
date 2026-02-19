@@ -313,6 +313,7 @@ function refreshAllFeeds($pdo) {
         SELECT id, url, title, description, link
         FROM feeds
         WHERE disabled = 0
+          AND (source_type IS NULL OR source_type != 'scraper')
           AND (consecutive_failures < 3 OR consecutive_failures IS NULL)
         ORDER BY id
     ");
