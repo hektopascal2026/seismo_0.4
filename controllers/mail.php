@@ -455,11 +455,12 @@ function handleRenameEmailTag($pdo) {
 // ---------------------------------------------------------------------------
 
 function refreshEmails($pdo) {
+    $isCli = (PHP_SAPI === 'cli');
     try {
         $tableName = getEmailTableName($pdo);
         
         if (!$tableName) {
-            $_SESSION['error'] = "No emails table found.";
+            if (!$isCli) $_SESSION['error'] = "No emails table found.";
             return;
         }
         
@@ -471,20 +472,24 @@ function refreshEmails($pdo) {
             $descStmt = $pdo->query("DESCRIBE `$tableName`");
             $columns = $descStmt->fetchAll(PDO::FETCH_COLUMN);
             
-            $_SESSION['email_refresh_count'] = $emailCount;
-            $_SESSION['email_table_name'] = $tableName;
-            $_SESSION['email_table_columns'] = $columns;
-            
-            if ($emailCount > 0) {
-                $_SESSION['success'] = "Emails refreshed successfully. Found $emailCount email(s) in table '$tableName'.";
-            } else {
-                $_SESSION['success'] = "Emails refreshed. Table '$tableName' exists but contains 0 emails.";
+            if (!$isCli) {
+                $_SESSION['email_refresh_count'] = $emailCount;
+                $_SESSION['email_table_name'] = $tableName;
+                $_SESSION['email_table_columns'] = $columns;
+                
+                if ($emailCount > 0) {
+                    $_SESSION['success'] = "Emails refreshed successfully. Found $emailCount email(s) in table '$tableName'.";
+                } else {
+                    $_SESSION['success'] = "Emails refreshed. Table '$tableName' exists but contains 0 emails.";
+                }
             }
         } catch (PDOException $e) {
-            $_SESSION['error'] = "Error querying table '$tableName': " . $e->getMessage();
+            if (!$isCli) $_SESSION['error'] = "Error querying table '$tableName': " . $e->getMessage();
+            else throw $e;
         }
     } catch (PDOException $e) {
-        $_SESSION['error'] = 'Error refreshing emails: ' . $e->getMessage();
+        if (!$isCli) $_SESSION['error'] = 'Error refreshing emails: ' . $e->getMessage();
+        else throw $e;
     }
 }
 

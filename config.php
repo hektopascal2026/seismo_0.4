@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 9);
+define('SCHEMA_VERSION', 10);
 
 /**
  * Initialize database tables
@@ -418,6 +418,11 @@ function initDatabase() {
         $insertConfig->execute($row);
     }
     
+    // Clear stale failure counters on scraper feeds (they should never be RSS-refreshed)
+    try {
+        $pdo->exec("UPDATE feeds SET consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE source_type = 'scraper' AND consecutive_failures > 0");
+    } catch (PDOException $e) {}
+
     // Mark schema as up to date so DDL is skipped on subsequent requests
     $pdo->prepare("INSERT INTO magnitu_config (config_key, config_value) VALUES ('schema_version', ?)
         ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)")

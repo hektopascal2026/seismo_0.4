@@ -145,7 +145,7 @@ function handleSettingsPage($pdo) {
     // Tripped feeds (circuit breaker: 3+ consecutive failures)
     $trippedFeeds = [];
     try {
-        $trippedFeeds = $pdo->query("SELECT id, title, url, consecutive_failures, last_error, last_error_at FROM feeds WHERE consecutive_failures >= 3 ORDER BY last_error_at DESC")->fetchAll();
+        $trippedFeeds = $pdo->query("SELECT id, title, url, consecutive_failures, last_error, last_error_at FROM feeds WHERE consecutive_failures >= 3 AND (source_type IS NULL OR source_type != 'scraper') ORDER BY last_error_at DESC")->fetchAll();
     } catch (PDOException $e) {}
 
     // Tripped lex/jus sources

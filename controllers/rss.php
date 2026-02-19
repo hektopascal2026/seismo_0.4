@@ -403,14 +403,19 @@ function refreshAllFeeds($pdo) {
         curl_multi_close($mh);
     }
 
-    $skippedStmt = $pdo->query("SELECT COUNT(*) FROM feeds WHERE disabled = 0 AND consecutive_failures >= 3");
+    $skippedStmt = $pdo->query("SELECT COUNT(*) FROM feeds WHERE disabled = 0 AND (source_type IS NULL OR source_type != 'scraper') AND consecutive_failures >= 3");
     $skipped = (int)$skippedStmt->fetchColumn();
 
     return [$refreshed, $skipped, $failed, $failedNames];
 }
 
 function handleRefreshAllFeeds($pdo) {
-    refreshAllFeeds($pdo);
+    [$refreshed, $skipped, $feedFailed, $failedNames] = refreshAllFeeds($pdo);
+    $msg = "{$refreshed} feeds refreshed";
+    if ($skipped > 0) $msg .= " ({$skipped} tripped)";
+    if ($feedFailed > 0) $msg .= " ({$feedFailed} failed)";
+    if (!empty($failedNames)) $msg .= ' · Failed: ' . implode(', ', $failedNames);
+
     $currentAction = $_GET['from'] ?? 'index';
     $redirectUrl = '?action=' . $currentAction;
     if ($currentAction === 'view_feed' && isset($_GET['id'])) {
@@ -418,7 +423,7 @@ function handleRefreshAllFeeds($pdo) {
     } elseif ($currentAction === 'feeds' && isset($_GET['category'])) {
         $redirectUrl .= '&category=' . urlencode($_GET['category']);
     }
-    $_SESSION['success'] = 'All feeds refreshed successfully';
+    $_SESSION['success'] = $msg;
     header('Location: ' . $redirectUrl);
     exit;
 }
