@@ -584,40 +584,8 @@ function handleMagnituEntries($pdo) {
         }
     }
 
-    // Calendar events
-    if ($type === 'all' || $type === 'calendar_event') {
-        try {
-            $sql = "SELECT id, source, title, description, content, event_date, event_type, status, council, url, metadata
-                    FROM calendar_events";
-            $params = [];
-            if ($since) {
-                $sql .= " WHERE (event_date >= ? OR created_at >= ?)";
-                $params[] = $since;
-                $params[] = $since;
-            }
-            $sql .= " ORDER BY event_date ASC LIMIT " . (int)$limit;
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            foreach ($stmt->fetchAll() as $row) {
-                $meta = $row['metadata'] ? json_decode($row['metadata'], true) : [];
-                $entries[] = [
-                    'entry_type' => 'calendar_event',
-                    'entry_id' => (int)$row['id'],
-                    'title' => $row['title'],
-                    'description' => ($row['event_type'] ?? '') . ($row['council'] ? ' | ' . $row['council'] : ''),
-                    'content' => $row['content'] ?: $row['description'],
-                    'link' => $row['url'] ?? '',
-                    'author' => $meta['author'] ?? '',
-                    'published_date' => $row['event_date'],
-                    'source_name' => getCalendarSourceLabel($row['source']),
-                    'source_category' => $row['event_type'] ?? 'Event',
-                    'source_type' => 'calendar_' . ($row['source'] ?? 'unknown'),
-                ];
-            }
-        } catch (PDOException $e) {
-            // calendar_events table might not exist yet
-        }
-    }
+    // Calendar events are excluded from the Magnitu API for now.
+    // They are scored internally via recipe but not exported for ML training.
 
     echo json_encode([
         'entries' => $entries,
@@ -670,7 +638,7 @@ function handleMagnituScores($pdo) {
         $predictedLabel = $score['predicted_label'] ?? null;
         $explanation = isset($score['explanation']) ? json_encode($score['explanation']) : null;
 
-        if (!in_array($entryType, ['feed_item', 'email', 'lex_item', 'calendar_event']) || $entryId <= 0) continue;
+        if (!in_array($entryType, ['feed_item', 'email', 'lex_item']) || $entryId <= 0) continue;
 
         $upsertStmt->execute([$entryType, $entryId, $relevanceScore, $predictedLabel, $explanation, $modelVersion]);
         if ($upsertStmt->rowCount() === 1) $inserted++;
@@ -748,12 +716,11 @@ function handleMagnituStatus($pdo) {
     } catch (PDOException $e) {}
     $totalLex = 0;
     try { $totalLex = $pdo->query("SELECT COUNT(*) FROM lex_items")->fetchColumn(); } catch (PDOException $e) {}
-    $totalCalendar = 0;
-    try { $totalCalendar = $pdo->query("SELECT COUNT(*) FROM calendar_events")->fetchColumn(); } catch (PDOException $e) {}
+    // Calendar events are excluded from Magnitu status for now (scored internally only).
 
-    $scoredCount = $pdo->query("SELECT COUNT(*) FROM entry_scores")->fetchColumn();
-    $magnituScored = $pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'magnitu'")->fetchColumn();
-    $recipeScored = $pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'recipe'")->fetchColumn();
+    $scoredCount = $pdo->query("SELECT COUNT(*) FROM entry_scores WHERE entry_type != 'calendar_event'")->fetchColumn();
+    $magnituScored = $pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'magnitu' AND entry_type != 'calendar_event'")->fetchColumn();
+    $recipeScored = $pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'recipe' AND entry_type != 'calendar_event'")->fetchColumn();
 
     echo json_encode([
         'status' => 'ok',
@@ -762,8 +729,7 @@ function handleMagnituStatus($pdo) {
             'feed_items' => (int)$totalFeedItems,
             'emails' => (int)$totalEmails,
             'lex_items' => (int)$totalLex,
-            'calendar_events' => (int)$totalCalendar,
-            'total' => (int)$totalFeedItems + (int)$totalEmails + (int)$totalLex + (int)$totalCalendar,
+            'total' => (int)$totalFeedItems + (int)$totalEmails + (int)$totalLex,
         ],
         'scores' => [
             'total' => (int)$scoredCount,
@@ -808,7 +774,7 @@ function handleMagnituLabels($pdo) {
             $label = $lbl['label'] ?? '';
             $labeledAt = $lbl['labeled_at'] ?? date('Y-m-d H:i:s');
 
-            if (!in_array($entryType, ['feed_item', 'email', 'lex_item', 'calendar_event']) || $entryId <= 0 || $label === '') continue;
+            if (!in_array($entryType, ['feed_item', 'email', 'lex_item']) || $entryId <= 0 || $label === '') continue;
 
             $upsertStmt->execute([$entryType, $entryId, $label, $labeledAt]);
             if ($upsertStmt->rowCount() === 1) $inserted++;
