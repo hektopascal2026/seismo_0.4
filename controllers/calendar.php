@@ -1,0 +1,493 @@
+<?php
+/**
+ * Calendar Events Controller
+ *
+ * Handles the calendar page, refresh actions, and fetchers for
+ * upcoming events (Swiss Parliament sessions, publications, etc.).
+ *
+ * Data sources:
+ *  - parliament_ch: Swiss Parliament OData API (ws.parlament.ch)
+ *    Fetches upcoming business items (motions, interpellations, etc.)
+ *    scheduled for debate in Nationalrat / Ständerat sessions.
+ */
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+function handleCalendarPage($pdo) {
+    $calendarCfg = getCalendarConfig();
+
+    $enabledSources = [];
+    foreach ($calendarCfg as $key => $src) {
+        if (!empty($src['enabled'])) $enabledSources[] = $key;
+    }
+
+    $sourcesSubmitted = isset($_GET['sources_submitted']);
+    if ($sourcesSubmitted) {
+        $activeSources = isset($_GET['sources']) ? (array)$_GET['sources'] : [];
+    } else {
+        $activeSources = $enabledSources;
+    }
+    $activeSources = array_values(array_intersect($activeSources, $enabledSources));
+
+    $showPast = !empty($_GET['show_past']);
+    $eventType = $_GET['event_type'] ?? '';
+
+    $calendarEvents = [];
+    try {
+        if (!empty($activeSources)) {
+            $placeholders = implode(',', array_fill(0, count($activeSources), '?'));
+            $params = $activeSources;
+
+            $sql = "SELECT * FROM calendar_events WHERE source IN ($placeholders)";
+            if (!$showPast) {
+                $sql .= " AND (event_date >= CURDATE() OR event_date IS NULL)";
+            }
+            if ($eventType !== '') {
+                $sql .= " AND event_type = ?";
+                $params[] = $eventType;
+            }
+            $sql .= " ORDER BY event_date ASC LIMIT 100";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $calendarEvents = $stmt->fetchAll();
+        }
+    } catch (PDOException $e) {
+        // Table might not exist yet
+    }
+
+    // Collect distinct event types for filter
+    $eventTypes = [];
+    try {
+        $stmt = $pdo->query("SELECT DISTINCT event_type FROM calendar_events WHERE event_type IS NOT NULL ORDER BY event_type");
+        $eventTypes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {}
+
+    // Last refresh date
+    $lastCalendarRefreshDate = null;
+    try {
+        $row = $pdo->query("SELECT MAX(fetched_at) as lr FROM calendar_events")->fetch();
+        if ($row && $row['lr']) {
+            $lastCalendarRefreshDate = date('d.m.Y H:i', strtotime($row['lr']));
+        }
+    } catch (PDOException $e) {}
+
+    // Magnitu scores for calendar events
+    $scoreMap = [];
+    try {
+        $stmt = $pdo->query("SELECT entry_id, relevance_score, predicted_label, explanation, score_source FROM entry_scores WHERE entry_type = 'calendar_event'");
+        foreach ($stmt->fetchAll() as $s) {
+            $scoreMap[$s['entry_id']] = $s;
+        }
+    } catch (PDOException $e) {}
+
+    $magnituAlertThreshold = (float)(getMagnituConfig($pdo, 'alert_threshold') ?? 0.75);
+
+    include 'views/calendar.php';
+}
+
+// ---------------------------------------------------------------------------
+// Refresh actions
+// ---------------------------------------------------------------------------
+
+function handleRefreshCalendar($pdo) {
+    set_time_limit(120);
+
+    $calendarCfg = getCalendarConfig();
+    $results = [];
+
+    if (!empty($calendarCfg['parliament_ch']['enabled'])) {
+        $failKey = 'calendar_parliament_ch_failures';
+        if (isSourceTripped($pdo, $failKey)) {
+            $results[] = 'Parliament CH: skipped (tripped)';
+        } else {
+            try {
+                $count = refreshParliamentChEvents($pdo);
+                resetSourceFailure($pdo, $failKey);
+                $results[] = "{$count} Parliament CH events";
+            } catch (\Exception $e) {
+                recordSourceFailure($pdo, $failKey);
+                $results[] = 'Parliament CH: ' . $e->getMessage();
+            }
+        }
+    }
+
+    // Score new calendar events with recipe
+    try {
+        $recipeJson = getMagnituConfig($pdo, 'recipe_json');
+        if ($recipeJson) {
+            $recipeData = json_decode($recipeJson, true);
+            if ($recipeData && !empty($recipeData['keywords'])) {
+                rescoreCalendarEvents($pdo, $recipeData);
+            }
+        }
+    } catch (\Exception $e) {
+        $results[] = 'Scoring: ' . $e->getMessage();
+    }
+
+    if (empty($results)) {
+        $results[] = 'No calendar sources enabled';
+    }
+
+    $_SESSION['success'] = implode(' · ', $results);
+    header('Location: ?action=calendar');
+    exit;
+}
+
+// ---------------------------------------------------------------------------
+// Swiss Parliament OData Fetcher
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch upcoming business items from the Swiss Parliament OData API.
+ * Returns the number of events inserted/updated.
+ *
+ * The API at ws.parlament.ch/odata.svc provides:
+ *  - /Business — all parliamentary business (motions, interpellations, etc.)
+ *  - /Session — session periods
+ *  - /BusinessRole — roles (rapporteurs, etc.)
+ *
+ * We fetch Business items that have a recent or future submission/modified date,
+ * focusing on items likely to appear in upcoming sessions.
+ */
+function refreshParliamentChEvents($pdo) {
+    $cfg = getCalendarConfig()['parliament_ch'] ?? [];
+    $apiBase = rtrim($cfg['api_base'] ?? 'https://ws.parlament.ch/odata.svc', '/');
+    $lang = $cfg['language'] ?? 'DE';
+    $lookforwardDays = (int)($cfg['lookforward_days'] ?? 90);
+    $lookbackDays = (int)($cfg['lookback_days'] ?? 7);
+    $limit = min((int)($cfg['limit'] ?? 100), 500);
+
+    $sinceDate = date('Y-m-d', strtotime("-{$lookbackDays} days"));
+    $untilDate = date('Y-m-d', strtotime("+{$lookforwardDays} days"));
+
+    // Fetch recent/upcoming business items
+    // Filter: modified recently OR submitted recently, with a language filter
+    $filter = "Language eq '{$lang}' and Modified ge datetime'{$sinceDate}T00:00:00'";
+    $url = $apiBase . '/Business'
+         . '?$filter=' . rawurlencode($filter)
+         . '&$orderby=' . rawurlencode('SubmissionDate desc')
+         . '&$top=' . $limit
+         . '&$format=json';
+
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 30,
+            'header' => "Accept: application/json\r\n",
+            'ignore_errors' => true,
+        ],
+    ]);
+
+    $response = @file_get_contents($url, false, $ctx);
+    if ($response === false) {
+        throw new \RuntimeException('Failed to connect to parlament.ch API');
+    }
+
+    $httpCode = 0;
+    if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+        $httpCode = (int)$m[1];
+    }
+    if ($httpCode >= 400) {
+        throw new \RuntimeException("parlament.ch API returned HTTP {$httpCode}");
+    }
+
+    $data = json_decode($response, true);
+    $results = $data['d']['results'] ?? $data['d'] ?? $data['value'] ?? [];
+    if (!is_array($results)) {
+        $results = [];
+    }
+
+    $upsert = $pdo->prepare("
+        INSERT INTO calendar_events (source, external_id, title, description, content, event_date, event_type, status, council, url, metadata)
+        VALUES ('parliament_ch', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            description = VALUES(description),
+            content = VALUES(content),
+            event_date = VALUES(event_date),
+            event_type = VALUES(event_type),
+            status = VALUES(status),
+            council = VALUES(council),
+            url = VALUES(url),
+            metadata = VALUES(metadata),
+            fetched_at = CURRENT_TIMESTAMP
+    ");
+
+    $businessTypes = $cfg['business_types'] ?? [];
+    $count = 0;
+
+    foreach ($results as $item) {
+        $id = $item['ID'] ?? $item['Id'] ?? null;
+        if (!$id) continue;
+
+        $externalId = (string)$id;
+        $title = trim($item['Title'] ?? $item['BusinessShortNumber'] ?? '');
+        if (empty($title)) continue;
+
+        $description = trim($item['InitialSituation'] ?? $item['Description'] ?? '');
+        $content = trim($item['Texts'] ?? $item['ReasonText'] ?? $description);
+
+        // Parse OData date format /Date(timestamp)/ or ISO string
+        $eventDate = parseODataDate($item['SubmissionDate'] ?? null);
+        $businessTypeId = $item['BusinessType'] ?? $item['BusinessTypeId'] ?? null;
+        $eventType = $businessTypes[$businessTypeId] ?? ($item['BusinessTypeName'] ?? 'Geschaeft');
+
+        // Map status
+        $statusId = $item['BusinessStatus'] ?? $item['BusinessStatusId'] ?? null;
+        $statusText = $item['BusinessStatusText'] ?? '';
+        $status = mapParliamentStatus($statusId, $statusText);
+
+        // Council: 1 = Nationalrat, 2 = Ständerat
+        $councilId = $item['SubmissionCouncil'] ?? $item['SubmissionCouncilId'] ?? null;
+        $council = match((int)$councilId) {
+            1 => 'NR',
+            2 => 'SR',
+            default => null,
+        };
+
+        $itemUrl = "https://www.parlament.ch/de/ratsbetrieb/suche-curia-vista/geschaeft?AffairId={$externalId}";
+
+        $metadata = json_encode([
+            'business_number' => $item['BusinessShortNumber'] ?? null,
+            'business_type_id' => $businessTypeId,
+            'status_id' => $statusId,
+            'status_text' => $statusText,
+            'submission_council_id' => $councilId,
+            'author' => $item['SubmittedBy'] ?? null,
+            'responsible_department' => $item['TagNames'] ?? null,
+        ]);
+
+        $upsert->execute([
+            $externalId,
+            mb_substr($title, 0, 65535),
+            mb_substr($description, 0, 65535),
+            mb_substr($content, 0, 65535),
+            $eventDate,
+            $eventType,
+            $status,
+            $council,
+            $itemUrl,
+            $metadata,
+        ]);
+        $count++;
+    }
+
+    // Also fetch upcoming session dates
+    $count += refreshParliamentChSessions($pdo, $cfg);
+
+    return $count;
+}
+
+/**
+ * Fetch upcoming session periods from the Swiss Parliament API.
+ */
+function refreshParliamentChSessions($pdo, $cfg) {
+    $apiBase = rtrim($cfg['api_base'] ?? 'https://ws.parlament.ch/odata.svc', '/');
+    $lang = $cfg['language'] ?? 'DE';
+    $lookforwardDays = (int)($cfg['lookforward_days'] ?? 90);
+
+    $today = date('Y-m-d');
+    $untilDate = date('Y-m-d', strtotime("+{$lookforwardDays} days"));
+
+    $filter = "Language eq '{$lang}' and EndDate ge datetime'{$today}T00:00:00'";
+    $url = $apiBase . '/Session'
+         . '?$filter=' . rawurlencode($filter)
+         . '&$orderby=' . rawurlencode('StartDate asc')
+         . '&$top=20'
+         . '&$format=json';
+
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 15,
+            'header' => "Accept: application/json\r\n",
+            'ignore_errors' => true,
+        ],
+    ]);
+
+    $response = @file_get_contents($url, false, $ctx);
+    if ($response === false) return 0;
+
+    $data = json_decode($response, true);
+    $results = $data['d']['results'] ?? $data['d'] ?? $data['value'] ?? [];
+    if (!is_array($results)) return 0;
+
+    $upsert = $pdo->prepare("
+        INSERT INTO calendar_events (source, external_id, title, description, content, event_date, event_end_date, event_type, status, council, url, metadata)
+        VALUES ('parliament_ch', ?, ?, ?, ?, ?, ?, 'session', 'scheduled', ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            description = VALUES(description),
+            event_date = VALUES(event_date),
+            event_end_date = VALUES(event_end_date),
+            council = VALUES(council),
+            url = VALUES(url),
+            metadata = VALUES(metadata),
+            fetched_at = CURRENT_TIMESTAMP
+    ");
+
+    $count = 0;
+    foreach ($results as $item) {
+        $id = $item['ID'] ?? $item['Id'] ?? null;
+        if (!$id) continue;
+
+        $externalId = 'session_' . $id;
+        $title = trim($item['SessionName'] ?? $item['Title'] ?? 'Session');
+        $description = trim($item['Description'] ?? '');
+
+        $startDate = parseODataDate($item['StartDate'] ?? null);
+        $endDate = parseODataDate($item['EndDate'] ?? null);
+
+        $councilId = $item['Council'] ?? $item['CouncilId'] ?? null;
+        $council = match((int)$councilId) {
+            1 => 'NR',
+            2 => 'SR',
+            default => null,
+        };
+
+        $sessionUrl = 'https://www.parlament.ch/de/ratsbetrieb/sessionen';
+
+        $metadata = json_encode([
+            'council_id' => $councilId,
+            'session_type' => $item['Type'] ?? null,
+        ]);
+
+        $upsert->execute([
+            $externalId,
+            $title,
+            $description,
+            $title,
+            $startDate,
+            $endDate,
+            $council,
+            $sessionUrl,
+            $metadata,
+        ]);
+        $count++;
+    }
+
+    return $count;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse an OData date value. Handles /Date(timestamp)/ format and ISO strings.
+ */
+function parseODataDate($value) {
+    if ($value === null || $value === '') return null;
+
+    if (is_string($value) && preg_match('#/Date\((\d+)(?:[+-]\d+)?\)/#', $value, $m)) {
+        return date('Y-m-d', (int)($m[1] / 1000));
+    }
+
+    $ts = strtotime($value);
+    return $ts ? date('Y-m-d', $ts) : null;
+}
+
+/**
+ * Map a Parliament business status ID/text to a simplified status.
+ */
+function mapParliamentStatus($statusId, $statusText = '') {
+    $lower = mb_strtolower($statusText);
+    if (str_contains($lower, 'erledigt') || str_contains($lower, 'abgeschlossen')) return 'completed';
+    if (str_contains($lower, 'zurückgezogen')) return 'cancelled';
+    if (str_contains($lower, 'hängig') || str_contains($lower, 'im rat')) return 'scheduled';
+    if (str_contains($lower, 'verschoben')) return 'postponed';
+    return 'scheduled';
+}
+
+/**
+ * Friendly label for a calendar source key.
+ */
+function getCalendarSourceLabel($source) {
+    return match($source) {
+        'parliament_ch' => 'Parlament CH',
+        default => ucfirst(str_replace('_', ' ', $source)),
+    };
+}
+
+/**
+ * Friendly label for an event type.
+ */
+function getCalendarEventTypeLabel($type) {
+    return match($type) {
+        'session' => 'Session',
+        'Motion' => 'Motion',
+        'Postulat' => 'Postulat',
+        'Interpellation' => 'Interpellation',
+        'Einfache Anfrage' => 'Anfrage',
+        'Parlamentarische Initiative' => 'Parl. Initiative',
+        'Standesinitiative' => 'Standesinitiative',
+        'Geschaeft des Bundesrates' => 'Bundesratsgeschäft',
+        default => $type ?: 'Event',
+    };
+}
+
+/**
+ * Format a council code as a readable label.
+ */
+function getCouncilLabel($code) {
+    return match($code) {
+        'NR' => 'Nationalrat',
+        'SR' => 'Ständerat',
+        'BR' => 'Bundesrat',
+        default => $code ?? '',
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Scoring
+// ---------------------------------------------------------------------------
+
+/**
+ * Score unscored calendar events with the current recipe.
+ */
+function rescoreCalendarEvents($pdo, $recipeData) {
+    if (empty($recipeData) || empty($recipeData['keywords'])) return;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT ce.id, ce.title, ce.description, ce.content, ce.source, ce.event_type
+            FROM calendar_events ce
+            WHERE NOT EXISTS (
+                SELECT 1 FROM entry_scores es
+                WHERE es.entry_type = 'calendar_event' AND es.entry_id = ce.id AND es.score_source = 'magnitu'
+            )
+            LIMIT 500
+        ");
+
+        $upsert = $pdo->prepare("
+            INSERT INTO entry_scores (entry_type, entry_id, relevance_score, predicted_label, explanation, score_source, model_version)
+            VALUES ('calendar_event', ?, ?, ?, ?, 'recipe', ?)
+            ON DUPLICATE KEY UPDATE
+                relevance_score = VALUES(relevance_score),
+                predicted_label = VALUES(predicted_label),
+                explanation = VALUES(explanation),
+                score_source = IF(score_source = 'magnitu', score_source, 'recipe'),
+                model_version = IF(score_source = 'magnitu', model_version, VALUES(model_version))
+        ");
+
+        $version = (int)($recipeData['version'] ?? 0);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $text = ($row['content'] ?: $row['description']) ?? '';
+            $sourceType = 'calendar_' . ($row['source'] ?? 'unknown');
+            $result = scoreEntryWithRecipe($recipeData, $row['title'] ?? '', $text, $sourceType);
+            if ($result) {
+                $upsert->execute([
+                    $row['id'],
+                    $result['relevance_score'],
+                    $result['predicted_label'],
+                    json_encode($result['explanation']),
+                    $version,
+                ]);
+            }
+        }
+    } catch (PDOException $e) {
+        // calendar_events table might not exist yet
+    }
+}
