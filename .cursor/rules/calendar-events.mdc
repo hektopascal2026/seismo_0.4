@@ -1,0 +1,52 @@
+---
+description: Calendar events integration — architecture, status, and gotchas
+alwaysApply: true
+---
+
+# Calendar Events
+
+Seismo has a calendar events system for upcoming events (parliament sessions, motions, publications, hearings). Events are treated like entries — scored by the recipe engine, displayed in the timeline — but with forward-looking dates.
+
+## Architecture
+
+- **Table:** `calendar_events` (source, external_id, title, description, content, event_date, event_end_date, event_type, status, council, url, metadata JSON)
+- **Entry type:** `calendar_event` in `entry_scores` and `magnitu_labels` ENUMs
+- **Controller:** `controllers/calendar.php` — page handler, fetcher, settings actions, scoring
+- **View:** `views/calendar.php` — dedicated calendar page with date-grouped display
+- **Config:** `calendar_config.json` via `getCalendarConfig()` / `saveCalendarConfig()` in `config.php`
+- **Settings:** Tab at `?action=settings&tab=calendar`
+
+## Data sources
+
+Currently implemented:
+- **parliament_ch** — Swiss Parliament OData API (`ws.parlament.ch/odata.svc`). Fetches Business items (motions, interpellations, postulates, initiatives) and Session periods.
+
+Adding a new source: write a fetcher function, insert rows into `calendar_events` with a new `source` value, add config block to `getCalendarConfig()` defaults.
+
+## IMPORTANT: Magnitu API exclusion (intentional)
+
+**Calendar events are deliberately excluded from all Magnitu API endpoints.** This was done so the calendar feature can be tested in Seismo before Magnitu/Magnitu Mini trains on the data. The exclusions are in `controllers/magnitu.php`:
+
+1. `handleMagnituEntries` — calendar block is commented out; `calendar_event` entries are NOT exported
+2. `handleMagnituScores` — validation whitelist is `['feed_item', 'email', 'lex_item']` only; Magnitu cannot push `calendar_event` scores
+3. `handleMagnituLabels` — same whitelist; Magnitu cannot push `calendar_event` labels
+4. `handleMagnituStatus` — entry counts and score counts filter out `calendar_event` rows
+
+**To re-enable** when ready:
+- In `handleMagnituEntries`: uncomment the calendar events block (search for "Calendar events are excluded from the Magnitu API")
+- In `handleMagnituScores`: add `'calendar_event'` back to the `in_array()` check
+- In `handleMagnituLabels`: add `'calendar_event'` back to the `in_array()` check
+- In `handleMagnituStatus`: remove the `AND entry_type != 'calendar_event'` filters, re-add calendar count to totals
+
+**What still works internally:**
+- Recipe scoring via `rescoreCalendarEvents()` (called from `magnituRescore()` and `handleRefreshCalendar()`)
+- Scores display in: dashboard timeline, calendar page, Magnitu investigation leads page, AI unified view
+- `handleRefreshAll` refreshes calendar events alongside all other sources
+
+## Rules when changing calendar events
+
+- Do NOT add `calendar_event` to the Magnitu API whitelist without explicit approval — training on incomplete/untested data could degrade the model
+- The `entry_type` value `calendar_event` is already in the DB ENUM — no schema change needed to re-enable
+- Parliament CH API uses OData v2 format — dates may come as `/Date(timestamp)/` strings (handled by `parseODataDate()`)
+- Calendar events sort ASC by event_date (future first), unlike all other entry types which sort DESC (newest first)
+- When adding calendar events to the dashboard timeline, they get forward-looking date labels ("today", "tomorrow", "in 5d") — see the `calendar` block in `views/index.php`
