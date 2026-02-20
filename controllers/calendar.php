@@ -491,3 +491,112 @@ function rescoreCalendarEvents($pdo, $recipeData) {
         // calendar_events table might not exist yet
     }
 }
+
+// ---------------------------------------------------------------------------
+// Settings actions
+// ---------------------------------------------------------------------------
+
+/**
+ * Save calendar config from the settings form.
+ */
+function handleSaveCalendarConfig($pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        header('Location: ?action=settings&tab=calendar');
+        exit;
+    }
+
+    $config = getCalendarConfig();
+
+    // Parliament CH
+    $config['parliament_ch']['enabled'] = ($_POST['parliament_ch_enabled'] ?? '0') === '1';
+    $config['parliament_ch']['language'] = $_POST['parliament_ch_language'] ?? 'DE';
+    $config['parliament_ch']['limit'] = max(10, min(500, (int)($_POST['parliament_ch_limit'] ?? 100)));
+    $config['parliament_ch']['lookforward_days'] = max(7, min(365, (int)($_POST['parliament_ch_lookforward_days'] ?? 90)));
+    $config['parliament_ch']['lookback_days'] = max(1, min(90, (int)($_POST['parliament_ch_lookback_days'] ?? 7)));
+    $config['parliament_ch']['notes'] = trim($_POST['parliament_ch_notes'] ?? '');
+
+    // Business types: rebuild from checked checkboxes
+    $defaultBusinessTypes = [
+        1 => 'Motion',
+        2 => 'Postulat',
+        3 => 'Interpellation',
+        4 => 'Einfache Anfrage',
+        5 => 'Parlamentarische Initiative',
+        6 => 'Standesinitiative',
+        10 => 'Geschaeft des Bundesrates',
+    ];
+    $selectedTypes = $_POST['parliament_ch_business_types'] ?? [];
+    $businessTypes = [];
+    foreach ($selectedTypes as $typeId) {
+        $typeId = (int)$typeId;
+        if (isset($defaultBusinessTypes[$typeId])) {
+            $businessTypes[$typeId] = $defaultBusinessTypes[$typeId];
+        }
+    }
+    $config['parliament_ch']['business_types'] = $businessTypes;
+
+    saveCalendarConfig($config);
+
+    $_SESSION['success'] = 'Calendar settings saved.';
+    header('Location: ?action=settings&tab=calendar');
+    exit;
+}
+
+/**
+ * Download the calendar_config.json file.
+ */
+function handleDownloadCalendarConfig($pdo) {
+    $config = getCalendarConfig();
+    $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    header('Content-Type: application/json');
+    header('Content-Disposition: attachment; filename="calendar_config.json"');
+    header('Content-Length: ' . strlen($json));
+    echo $json;
+    exit;
+}
+
+/**
+ * Upload and apply a calendar_config.json file.
+ */
+function handleUploadCalendarConfig($pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['calendar_config_file']['tmp_name'])) {
+        $_SESSION['error'] = 'No file uploaded.';
+        header('Location: ?action=settings&tab=calendar');
+        exit;
+    }
+
+    $json = file_get_contents($_FILES['calendar_config_file']['tmp_name']);
+    $config = json_decode($json, true);
+    if ($config === null) {
+        $_SESSION['error'] = 'Invalid JSON file.';
+        header('Location: ?action=settings&tab=calendar');
+        exit;
+    }
+
+    saveCalendarConfig($config);
+    $_SESSION['success'] = 'Calendar config uploaded and applied.';
+    header('Location: ?action=settings&tab=calendar');
+    exit;
+}
+
+/**
+ * Clear all calendar events from the database.
+ */
+function handleClearCalendarEvents($pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        header('Location: ?action=settings&tab=calendar');
+        exit;
+    }
+
+    try {
+        $pdo->exec("DELETE FROM entry_scores WHERE entry_type = 'calendar_event'");
+        $pdo->exec("DELETE FROM calendar_events");
+        $_SESSION['success'] = 'All calendar events cleared.';
+    } catch (PDOException $e) {
+        $_SESSION['error'] = 'Failed to clear calendar events: ' . $e->getMessage();
+    }
+
+    header('Location: ?action=settings&tab=calendar');
+    exit;
+}

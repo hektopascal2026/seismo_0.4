@@ -26,6 +26,7 @@ $pdo = getDbConnection();
 $readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'jus', 'mail', 'substack', 'magnitu', 'calendar', 'settings', 'about', 'beta', 'styleguide',
                     'api_tags', 'api_substack_tags', 'api_email_tags', 'api_all_tags', 'api_items', 'api_stats',
                     'download_rss_config', 'download_substack_config', 'download_lex_config',
+                    'download_calendar_config',
                     'magnitu_entries', 'magnitu_status'];
 if (in_array($action, $readOnlyActions)) {
     $flashSuccess = $_SESSION['success'] ?? null;
@@ -261,6 +262,22 @@ switch ($action) {
 
     case 'refresh_calendar':
         handleRefreshCalendar($pdo);
+        break;
+
+    case 'save_calendar_config':
+        handleSaveCalendarConfig($pdo);
+        break;
+
+    case 'download_calendar_config':
+        handleDownloadCalendarConfig($pdo);
+        break;
+
+    case 'upload_calendar_config':
+        handleUploadCalendarConfig($pdo);
+        break;
+
+    case 'clear_calendar_events':
+        handleClearCalendarEvents($pdo);
         break;
 
     // ── Magnitu / ML ─────────────────────────────────────────────
