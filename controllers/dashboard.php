@@ -294,7 +294,39 @@ function handleDashboard($pdo) {
             'score' => $scoreMap[$scoreKey] ?? null,
         ];
     }
-    
+
+    // Calendar events (upcoming, shown on dashboard when calendar sources are enabled)
+    $calendarCfg = getCalendarConfig();
+    $calendarEnabled = false;
+    foreach ($calendarCfg as $src) {
+        if (!empty($src['enabled'])) { $calendarEnabled = true; break; }
+    }
+    $selectedCalendar = $tagsSubmitted ? isset($_GET['calendar_enabled']) : $calendarEnabled;
+
+    $calendarEventsForIndex = [];
+    if ($selectedCalendar && $calendarEnabled) {
+        try {
+            $calStmt = $pdo->query("
+                SELECT * FROM calendar_events
+                WHERE event_date >= CURDATE() OR event_date IS NULL
+                ORDER BY event_date ASC
+                LIMIT 15
+            ");
+            $calendarEventsForIndex = $calStmt->fetchAll();
+        } catch (PDOException $e) {}
+    }
+
+    foreach ($calendarEventsForIndex as $calEvent) {
+        $dateValue = $calEvent['event_date'] ?? $calEvent['created_at'] ?? null;
+        $scoreKey = 'calendar_event:' . $calEvent['id'];
+        $allItems[] = [
+            'type' => 'calendar',
+            'date' => $dateValue ? strtotime($dateValue) : 0,
+            'data' => $calEvent,
+            'score' => $scoreMap[$scoreKey] ?? null,
+        ];
+    }
+
     if ($magnituSortByRelevance && $hasMagnituScores && empty($searchQuery)) {
         usort($allItems, function($a, $b) {
             $scoreA = $a['score']['relevance_score'] ?? -1;
@@ -408,6 +440,24 @@ function handleRefreshAll($pdo) {
         } catch (\Exception $e) {
             recordSourceFailure($pdo, $failKey);
             $results[] = $src['emoji'] . ' ' . $src['label'] . ': ' . $e->getMessage();
+        }
+    }
+
+    // Calendar events
+    $calendarCfg = getCalendarConfig();
+    if (!empty($calendarCfg['parliament_ch']['enabled'])) {
+        $failKey = 'calendar_parliament_ch_failures';
+        if (isSourceTripped($pdo, $failKey)) {
+            $results[] = 'Calendar: skipped (tripped)';
+        } else {
+            try {
+                $count = refreshParliamentChEvents($pdo);
+                resetSourceFailure($pdo, $failKey);
+                $results[] = "{$count} calendar events";
+            } catch (\Exception $e) {
+                recordSourceFailure($pdo, $failKey);
+                $results[] = 'Calendar: ' . $e->getMessage();
+            }
         }
     }
 

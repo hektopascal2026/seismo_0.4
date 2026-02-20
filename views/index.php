@@ -132,6 +132,12 @@
                             </label>
                             <?php endforeach; ?>
                             <?php endif; ?>
+                            <?php if (!empty($calendarEnabled)): ?>
+                            <label class="tag-filter-pill<?= !empty($selectedCalendar) ? ' tag-filter-pill-active' : '' ?>"<?= !empty($selectedCalendar) ? ' style="background-color: #d4edda;"' : '' ?>>
+                                <input type="checkbox" name="calendar_enabled" value="1" <?= !empty($selectedCalendar) ? 'checked' : '' ?> onchange="this.form.submit()">
+                                <span>Calendar</span>
+                            </label>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -354,6 +360,61 @@
                                 </div>
                                 <?php if ($lexDate): ?>
                                     <span class="entry-date"><?= $lexDate ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php elseif ($itemWrapper['type'] === 'calendar'): ?>
+                        <?php $calEvent = $itemWrapper['data']; ?>
+                        <?php
+                            $calTypeLabel = getCalendarEventTypeLabel($calEvent['event_type'] ?? '');
+                            $calCouncil = getCouncilLabel($calEvent['council'] ?? '');
+                            $calUrl = $calEvent['url'] ?? '#';
+                            $calEventDate = $calEvent['event_date'] ?? null;
+                            $calDaysUntil = $calEventDate ? (int)((strtotime($calEventDate) - strtotime('today')) / 86400) : null;
+                            $calDateLabel = '';
+                            if ($calEventDate) {
+                                $calDateLabel = date('d.m.Y', strtotime($calEventDate));
+                                if ($calDaysUntil === 0) $calDateLabel .= ' (today)';
+                                elseif ($calDaysUntil === 1) $calDateLabel .= ' (tomorrow)';
+                                elseif ($calDaysUntil > 1 && $calDaysUntil <= 14) $calDateLabel .= " (in {$calDaysUntil}d)";
+                            }
+                            $calDesc = strip_tags($calEvent['description'] ?? '');
+                            $calPreview = mb_substr($calDesc, 0, 200);
+                            if (mb_strlen($calDesc) > 200) $calPreview .= '...';
+                            $calHasMore = mb_strlen($calDesc) > 200;
+                            $calMeta = $calEvent['metadata'] ? json_decode($calEvent['metadata'], true) : [];
+                        ?>
+                        <div class="entry-card">
+                            <div class="entry-header">
+                                <span class="entry-tag" style="background-color: #d4edda;"><?= htmlspecialchars($calTypeLabel) ?></span>
+                                <?php if ($calCouncil): ?>
+                                    <span class="entry-tag" style="background-color: #e2e3f1;"><?= htmlspecialchars($calCouncil) ?></span>
+                                <?php endif; ?>
+                                <?php if ($relevanceScore !== null): ?>
+                                    <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <h3 class="entry-title">
+                                <a href="<?= htmlspecialchars($calUrl) ?>" target="_blank" rel="noopener">
+                                    <?= htmlspecialchars($calEvent['title']) ?>
+                                </a>
+                            </h3>
+                            <?php if ($calDesc): ?>
+                                <div class="entry-content entry-preview"><?= htmlspecialchars($calPreview) ?></div>
+                                <div class="entry-full-content" style="display:none"><?= htmlspecialchars($calDesc) ?></div>
+                            <?php endif; ?>
+                            <div class="entry-actions">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <?php if (!empty($calMeta['business_number'])): ?>
+                                        <span style="font-family: monospace;"><?= htmlspecialchars($calMeta['business_number']) ?></span>
+                                    <?php endif; ?>
+                                    <a href="<?= htmlspecialchars($calUrl) ?>" target="_blank" rel="noopener" class="entry-link">parlament.ch &rarr;</a>
+                                    <?php if ($calHasMore): ?>
+                                        <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($calDateLabel): ?>
+                                    <span class="entry-date"><?= htmlspecialchars($calDateLabel) ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>
