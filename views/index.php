@@ -77,12 +77,31 @@
                     <input type="hidden" name="q" value="<?= htmlspecialchars($searchQuery) ?>">
                 <?php endif; ?>
 
+                <?php
+                    $lexPills = [
+                        ['key' => 'eu',      'emoji' => '🇪🇺', 'label' => 'EU Lex'],
+                        ['key' => 'ch',      'emoji' => '🇨🇭', 'label' => 'CH Lex'],
+                        ['key' => 'de',      'emoji' => '🇩🇪', 'label' => 'DE Lex'],
+                        ['key' => 'ch_bger', 'emoji' => '⚖️', 'label' => 'BGer'],
+                        ['key' => 'ch_bge',  'emoji' => '⚖️', 'label' => 'BGE'],
+                        ['key' => 'ch_bvger','emoji' => '⚖️', 'label' => 'BVGer'],
+                        ['key' => 'parl_mm', 'emoji' => '🏛', 'label' => 'Parl MM'],
+                    ];
+                ?>
                 <?php if (!empty($tags) || !empty($emailTags) || !empty($substackTags) || !empty($selectedLexSources)): ?>
+                    <?php
+                        $totalPills = count($tags) + count($emailTags) + count($substackTags ?? []);
+                        foreach ($lexPills as $_lp) { if (in_array($_lp['key'], $enabledLexSources ?? [])) $totalPills++; }
+                        $totalPills += count($scraperFeedsForIndex ?? []);
+                        if (!empty($calendarEnabled)) $totalPills++;
+                        $checkedPills = count($selectedTags ?? []) + count($selectedEmailTags ?? []) + count($selectedSubstackTags ?? []) + count($selectedLexSources ?? []) + count($selectedScraperPills ?? []) + (!empty($selectedCalendar) ? 1 : 0);
+                        $allSelected = ($checkedPills >= $totalPills && $totalPills > 0);
+                    ?>
                     <div class="tag-filter-section">
                         <div class="tag-filter-list">
-                            <a href="?action=index" class="tag-filter-pill" style="text-decoration: none;">
-                                <span>Clear</span>
-                            </a>
+                            <button type="button" class="tag-filter-pill" style="cursor: pointer;" id="toggleAllPills">
+                                <span><?= $allSelected ? 'None' : 'All' ?></span>
+                            </button>
                             <?php foreach ($tags as $tag): ?>
                                 <?php $isSelected = !empty($selectedTags) && in_array($tag, $selectedTags, true); ?>
                                 <label class="tag-filter-pill<?= $isSelected ? ' tag-filter-pill-active' : '' ?>"<?= $isSelected ? ' style="background-color: #add8e6;"' : '' ?>>
@@ -105,14 +124,6 @@
                                 </label>
                             <?php endforeach; ?>
                             <?php
-                                $lexPills = [
-                                    ['key' => 'eu',      'emoji' => '🇪🇺', 'label' => 'EU Lex'],
-                                    ['key' => 'ch',      'emoji' => '🇨🇭', 'label' => 'CH Lex'],
-                                    ['key' => 'de',      'emoji' => '🇩🇪', 'label' => 'DE Lex'],
-                                    ['key' => 'ch_bger', 'emoji' => '⚖️', 'label' => 'BGer'],
-                                    ['key' => 'ch_bge',  'emoji' => '⚖️', 'label' => 'BGE'],
-                                    ['key' => 'ch_bvger','emoji' => '⚖️', 'label' => 'BVGer'],
-                                ];
                                 foreach ($lexPills as $pill):
                                     if (!in_array($pill['key'], $enabledLexSources)) continue;
                                     $isSelected = !empty($selectedLexSources) && in_array($pill['key'], $selectedLexSources, true);
@@ -566,6 +577,21 @@
                 navDrawer.classList.remove('open'); menuBtn.classList.remove('active');
                 searchDrawer.querySelector('input[type="search"]').focus();
             }
+        });
+    })();
+    </script>
+    <script>
+    // All/None toggle for filter pills
+    (function() {
+        var btn = document.getElementById('toggleAllPills');
+        if (!btn) return;
+        var form = btn.closest('form');
+        if (!form) return;
+        btn.addEventListener('click', function() {
+            var checkboxes = form.querySelectorAll('.tag-filter-list input[type="checkbox"]');
+            var allChecked = Array.prototype.every.call(checkboxes, function(cb) { return cb.checked; });
+            checkboxes.forEach(function(cb) { cb.checked = !allChecked; });
+            form.submit();
         });
     })();
     </script>
