@@ -50,5 +50,20 @@
         "limit": 100,
         "notes": "Swiss Federal Administrative Court decisions via entscheidsuche.ch index manifests."
     },
+    "de": {
+        "enabled": true,
+        "feed_url": "https://www.recht.bund.de/rss/feeds/rss_bgbl-1-2.xml?nn=211452",
+        "lookback_days": 90,
+        "limit": 100,
+        "notes": ""
+    },
+    "parl_mm": {
+        "enabled": true,
+        "api_base": "https://www.parlament.ch/press-releases/_api/web/lists/getByTitle('Pages')/items",
+        "language": "de",
+        "lookback_days": 90,
+        "limit": 50,
+        "notes": ""
+    },
     "jus_banned_words": []
 }
