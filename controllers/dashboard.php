@@ -308,8 +308,8 @@ function handleDashboard($pdo) {
         try {
             $calStmt = $pdo->query("
                 SELECT * FROM calendar_events
-                WHERE event_date >= CURDATE() OR event_date IS NULL
-                ORDER BY event_date ASC
+                WHERE event_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) OR event_date IS NULL
+                ORDER BY event_date DESC
                 LIMIT 15
             ");
             $calendarEventsForIndex = $calStmt->fetchAll();

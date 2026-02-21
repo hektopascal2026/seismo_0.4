@@ -877,13 +877,13 @@
                         <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Business types to fetch</label>
                         <?php
                             $defaultBusinessTypes = [
-                                1 => 'Motion',
-                                2 => 'Postulat',
-                                3 => 'Interpellation',
-                                4 => 'Einfache Anfrage',
-                                5 => 'Parlamentarische Initiative',
-                                6 => 'Standesinitiative',
-                                10 => 'Geschaeft des Bundesrates',
+                                1 => 'Geschaeft des Bundesrates',
+                                3 => 'Standesinitiative',
+                                4 => 'Parlamentarische Initiative',
+                                5 => 'Motion',
+                                6 => 'Postulat',
+                                8 => 'Interpellation',
+                                12 => 'Einfache Anfrage',
                             ];
                             $currentBusinessTypes = $calendarConfig['parliament_ch']['business_types'] ?? $defaultBusinessTypes;
                         ?>

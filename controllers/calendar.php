@@ -42,13 +42,13 @@ function handleCalendarPage($pdo) {
 
             $sql = "SELECT * FROM calendar_events WHERE source IN ($placeholders)";
             if (!$showPast) {
-                $sql .= " AND (event_date >= CURDATE() OR event_date IS NULL)";
+                $sql .= " AND (event_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) OR event_date IS NULL)";
             }
             if ($eventType !== '') {
                 $sql .= " AND event_type = ?";
                 $params[] = $eventType;
             }
-            $sql .= " ORDER BY event_date ASC LIMIT 100";
+            $sql .= " ORDER BY event_date DESC LIMIT 100";
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
@@ -226,8 +226,10 @@ function refreshParliamentChEvents($pdo) {
         $title = trim($item['Title'] ?? $item['BusinessShortNumber'] ?? '');
         if (empty($title)) continue;
 
-        $description = trim($item['InitialSituation'] ?? $item['Description'] ?? '');
-        $content = trim($item['Texts'] ?? $item['ReasonText'] ?? $description);
+        $rawDesc = $item['InitialSituation'] ?? $item['Description'] ?? '';
+        $description = trim(strip_tags($rawDesc));
+        $rawContent = $item['SubmittedText'] ?? $item['MotionText'] ?? $item['ReasonText'] ?? $rawDesc;
+        $content = trim(strip_tags($rawContent));
 
         // Parse OData date format /Date(timestamp)/ or ISO string
         $eventDate = parseODataDate($item['SubmissionDate'] ?? null);
@@ -239,9 +241,8 @@ function refreshParliamentChEvents($pdo) {
         $statusText = $item['BusinessStatusText'] ?? '';
         $status = mapParliamentStatus($statusId, $statusText);
 
-        // Council: 1 = Nationalrat, 2 = Ständerat
-        $councilId = $item['SubmissionCouncil'] ?? $item['SubmissionCouncilId'] ?? null;
-        $council = match((int)$councilId) {
+        $councilId = $item['SubmissionCouncil'] ?? $item['SubmissionCouncilId'] ?? $item['FirstCouncil1'] ?? null;
+        $council = match((int)($councilId ?? 0)) {
             1 => 'NR',
             2 => 'SR',
             default => null,
@@ -418,11 +419,15 @@ function getCalendarEventTypeLabel($type) {
         'session' => 'Session',
         'Motion' => 'Motion',
         'Postulat' => 'Postulat',
-        'Interpellation' => 'Interpellation',
-        'Einfache Anfrage' => 'Anfrage',
+        'Interpellation', 'Dringliche Interpellation' => 'Interpellation',
+        'Einfache Anfrage', 'Dringliche Einfache Anfrage' => 'Anfrage',
         'Parlamentarische Initiative' => 'Parl. Initiative',
         'Standesinitiative' => 'Standesinitiative',
-        'Geschaeft des Bundesrates' => 'Bundesratsgeschäft',
+        'Geschaeft des Bundesrates', 'Geschäft des Bundesrates' => 'Bundesratsgeschäft',
+        'Geschaeft des Parlaments', 'Geschäft des Parlaments' => 'Parlamentsgeschäft',
+        'Petition' => 'Petition',
+        'Empfehlung' => 'Empfehlung',
+        'Fragestunde. Frage' => 'Fragestunde',
         default => $type ?: 'Event',
     };
 }
@@ -517,13 +522,13 @@ function handleSaveCalendarConfig($pdo) {
 
     // Business types: rebuild from checked checkboxes
     $defaultBusinessTypes = [
-        1 => 'Motion',
-        2 => 'Postulat',
-        3 => 'Interpellation',
-        4 => 'Einfache Anfrage',
-        5 => 'Parlamentarische Initiative',
-        6 => 'Standesinitiative',
-        10 => 'Geschaeft des Bundesrates',
+        1 => 'Geschaeft des Bundesrates',
+        3 => 'Standesinitiative',
+        4 => 'Parlamentarische Initiative',
+        5 => 'Motion',
+        6 => 'Postulat',
+        8 => 'Interpellation',
+        12 => 'Einfache Anfrage',
     ];
     $selectedTypes = $_POST['parliament_ch_business_types'] ?? [];
     $businessTypes = [];

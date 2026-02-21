@@ -94,7 +94,7 @@
 
                     <label class="tag-filter-pill<?= $showPast ? ' tag-filter-pill-active' : '' ?>">
                         <input type="checkbox" name="show_past" value="1" <?= $showPast ? 'checked' : '' ?> onchange="this.form.submit()">
-                        <span>Show past</span>
+                        <span>Show all</span>
                     </label>
                 </div>
             </div>
