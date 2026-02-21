@@ -165,9 +165,18 @@
                         $statusLabel = ucfirst($event['status'] ?? 'scheduled');
 
                         $description = strip_tags($event['description'] ?? '');
-                        $contentPreview = mb_substr($description, 0, 300);
-                        if (mb_strlen($description) > 300) $contentPreview .= '...';
-                        $hasMore = mb_strlen($description) > 300;
+                        $submittedText = strip_tags($event['content'] ?? '');
+                        // Avoid showing identical text twice
+                        if ($submittedText === $description) $submittedText = '';
+
+                        $combinedText = $description;
+                        if (!empty($submittedText)) {
+                            $combinedText = (!empty($description) ? $description . "\n\n" : '')
+                                          . "Eingereichter Text:\n" . $submittedText;
+                        }
+                        $contentPreview = mb_substr($combinedText, 0, 300);
+                        if (mb_strlen($combinedText) > 300) $contentPreview .= '...';
+                        $hasMore = mb_strlen($combinedText) > 300;
 
                         $metadata = $event['metadata'] ? json_decode($event['metadata'], true) : [];
                         $businessNumber = $metadata['business_number'] ?? '';
@@ -205,7 +214,7 @@
                             <div class="entry-content">
                                 <div class="entry-preview"><?= nl2br(htmlspecialchars($contentPreview)) ?></div>
                                 <?php if ($hasMore): ?>
-                                    <div class="entry-full" style="display: none;"><?= nl2br(htmlspecialchars($description)) ?></div>
+                                    <div class="entry-full" style="display: none;"><?= nl2br(htmlspecialchars($combinedText)) ?></div>
                                     <button class="entry-expand-btn">more &#9660;</button>
                                 <?php endif; ?>
                             </div>
