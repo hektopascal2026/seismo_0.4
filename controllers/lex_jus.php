@@ -1043,9 +1043,8 @@ function refreshParlMmItems($pdo) {
     $sinceDate = date('Y-m-d\TH:i:s\Z', strtotime("-{$lookback} days"));
 
     $langField = 'Title_' . $lang;
-    $contentField = 'Content_' . $lang;
 
-    $select = "Title,{$langField},{$contentField},FileRef,Created,ArticleStartDate,ContentType/Name";
+    $select = "Title,{$langField},FileRef,Created,ArticleStartDate,ContentType/Name";
     $filter = "Created ge datetime'{$sinceDate}'";
     $orderBy = 'Created desc';
 
@@ -1118,21 +1117,13 @@ function refreshParlMmItems($pdo) {
         $pageUrl = 'https://www.parlament.ch' . $fileRef;
         $parlLabel = parseParlMmCommission($slug);
 
-        // Strip HTML from content field for a plain-text summary
-        $rawContent = $item[$contentField] ?? '';
-        $plainContent = '';
-        if (!empty($rawContent)) {
-            $plainContent = trim(strip_tags(html_entity_decode($rawContent, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
-        }
-
         $upsert->execute([
             'parl_mm:' . $slug,
             $title,
             $docDate,
             $parlLabel,
             $pageUrl,
-            $plainContent ?: $pageUrl,
-            // source = 'parl_mm' is hard-coded in the SQL
+            $pageUrl,
         ]);
         $count++;
     }
