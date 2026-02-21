@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 10);
+define('SCHEMA_VERSION', 12);
 
 /**
  * Initialize database tables
@@ -288,13 +288,37 @@ function initDatabase() {
         // Index might already exist, ignore
     }
     
-    // Widen celex column to support longer Fedlex ELI identifiers
+    // Widen celex column to support longer Fedlex ELI identifiers and SharePoint page slugs
     try {
-        $pdo->exec("ALTER TABLE lex_items MODIFY COLUMN celex VARCHAR(100) NOT NULL");
+        $pdo->exec("ALTER TABLE lex_items MODIFY COLUMN celex VARCHAR(255) NOT NULL");
     } catch (PDOException $e) {
         // Ignore if it fails
     }
     
+    // Create calendar_events table for upcoming events (parliament sessions, publications, etc.)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS calendar_events (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        source VARCHAR(50) NOT NULL,
+        external_id VARCHAR(255) DEFAULT NULL,
+        title TEXT,
+        description TEXT,
+        content TEXT,
+        event_date DATE DEFAULT NULL,
+        event_end_date DATE DEFAULT NULL,
+        event_type VARCHAR(50) DEFAULT NULL,
+        status VARCHAR(30) DEFAULT 'scheduled',
+        council VARCHAR(10) DEFAULT NULL,
+        url VARCHAR(500) DEFAULT NULL,
+        metadata JSON DEFAULT NULL,
+        fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_source_ext (source, external_id),
+        INDEX idx_source (source),
+        INDEX idx_event_date (event_date),
+        INDEX idx_event_type (event_type),
+        INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     // Create entry_scores table for Magnitu ML predictions
     $pdo->exec("CREATE TABLE IF NOT EXISTS entry_scores (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -333,6 +357,18 @@ function initDatabase() {
         INDEX idx_key (config_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     
+    // Widen entry_type ENUM on entry_scores and magnitu_labels to include calendar_event
+    try {
+        $pdo->exec("ALTER TABLE entry_scores MODIFY COLUMN entry_type ENUM('feed_item', 'email', 'lex_item', 'calendar_event') NOT NULL");
+    } catch (PDOException $e) {
+        // Already widened or other non-critical error
+    }
+    try {
+        $pdo->exec("ALTER TABLE magnitu_labels MODIFY COLUMN entry_type ENUM('feed_item', 'email', 'lex_item', 'calendar_event') NOT NULL");
+    } catch (PDOException $e) {
+        // Already widened or other non-critical error
+    }
+
     // Add content_hash column to feed_items for scraper deduplication
     try {
         $pdo->exec("ALTER TABLE feed_items ADD COLUMN content_hash VARCHAR(32) DEFAULT NULL");
@@ -343,6 +379,13 @@ function initDatabase() {
     // Add hidden column to feed_items for soft-delete (scraper items etc.)
     try {
         $pdo->exec("ALTER TABLE feed_items ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0");
+    } catch (PDOException $e) {
+        // Column already exists
+    }
+
+    // Add reasoning column to magnitu_labels for annotation context
+    try {
+        $pdo->exec("ALTER TABLE magnitu_labels ADD COLUMN reasoning TEXT DEFAULT NULL AFTER label");
     } catch (PDOException $e) {
         // Column already exists
     }
@@ -716,6 +759,14 @@ function getLexConfig() {
             'limit' => 100,
             'notes' => '',
         ],
+        'parl_mm' => [
+            'enabled' => false,
+            'api_base' => 'https://www.parlament.ch/press-releases/_api/web/lists/getByTitle(\'Pages\')/items',
+            'language' => 'de',
+            'lookback_days' => 90,
+            'limit' => 50,
+            'notes' => '',
+        ],
     ];
 }
 
@@ -779,6 +830,51 @@ function getJusChamberLabel($signatur) {
         'CH_BVGE_001' => 'Bundesverwaltungsgericht',
     ];
     return $map[$signatur] ?? $signatur;
+}
+
+/**
+ * Calendar config file path
+ */
+define('CALENDAR_CONFIG_PATH', __DIR__ . '/calendar_config.json');
+
+/**
+ * Get the current calendar config (parliament + other event sources).
+ * Returns the parsed JSON config, or sensible defaults if the file doesn't exist.
+ */
+function getCalendarConfig() {
+    if (file_exists(CALENDAR_CONFIG_PATH)) {
+        $json = file_get_contents(CALENDAR_CONFIG_PATH);
+        $config = json_decode($json, true);
+        if ($config !== null) return $config;
+    }
+    return [
+        'parliament_ch' => [
+            'enabled' => true,
+            'api_base' => 'https://ws.parlament.ch/odata.svc',
+            'language' => 'DE',
+            'lookforward_days' => 90,
+            'lookback_days' => 7,
+            'limit' => 100,
+            'business_types' => [
+                1 => 'Geschaeft des Bundesrates',
+                3 => 'Standesinitiative',
+                4 => 'Parlamentarische Initiative',
+                5 => 'Motion',
+                6 => 'Postulat',
+                8 => 'Interpellation',
+                12 => 'Einfache Anfrage',
+            ],
+            'notes' => '',
+        ],
+    ];
+}
+
+/**
+ * Save a calendar config array to disk as JSON.
+ */
+function saveCalendarConfig($config) {
+    $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return file_put_contents(CALENDAR_CONFIG_PATH, $json) !== false;
 }
 
 /**

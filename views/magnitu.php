@@ -33,6 +33,7 @@
             <a href="?action=index" class="nav-link">Feed</a>
             <a href="?action=magnitu" class="nav-link active">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
+            <a href="?action=calendar" class="nav-link">Calendar</a>
             <a href="?action=lex" class="nav-link">Lex</a>
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
@@ -186,6 +187,66 @@
                             </div>
                             <?php if ($lexDate): ?>
                                 <span class="entry-date"><?= $lexDate ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php elseif ($itemWrapper['type'] === 'calendar'): ?>
+                    <?php $calEvent = $itemWrapper['data']; ?>
+                    <?php
+                        $calTypeLabel = getCalendarEventTypeLabel($calEvent['event_type'] ?? '');
+                        $calCouncil = getCouncilLabel($calEvent['council'] ?? '');
+                        $calUrl = $calEvent['url'] ?? '#';
+                        $calDate = $calEvent['event_date'] ? date('d.m.Y', strtotime($calEvent['event_date'])) : '';
+                        $calDesc = strip_tags($calEvent['description'] ?? '');
+                        $calPreview = mb_substr($calDesc, 0, 200);
+                        if (mb_strlen($calDesc) > 200) $calPreview .= '...';
+                        $calHasMore = mb_strlen($calDesc) > 200;
+                        $calMeta = $calEvent['metadata'] ? json_decode($calEvent['metadata'], true) : [];
+                    ?>
+                    <div class="entry-card">
+                        <div class="entry-header">
+                            <span class="entry-tag" style="background-color: #d4edda;"><?= htmlspecialchars($calTypeLabel) ?></span>
+                            <?php if ($calCouncil): ?>
+                                <span class="entry-tag" style="background-color: #e2e3f1;"><?= htmlspecialchars($calCouncil) ?></span>
+                            <?php endif; ?>
+                            <?php if ($relevanceScore !== null): ?>
+                                <span class="magnitu-badge magnitu-badge-investigation" title="Investigation lead (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <h3 class="entry-title">
+                            <a href="<?= htmlspecialchars($calUrl) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($calEvent['title']) ?></a>
+                        </h3>
+                        <?php if ($calDesc): ?>
+                            <div class="entry-content entry-preview"><?= htmlspecialchars($calPreview) ?></div>
+                            <div class="entry-full-content" style="display:none"><?= htmlspecialchars($calDesc) ?></div>
+                        <?php endif; ?>
+                        <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
+                            <div class="magnitu-explanation" style="display:none;">
+                                <div class="magnitu-explanation-label">Magnitu: <?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>% confidence)</div>
+                                <div class="magnitu-explanation-features">
+                                    <?php foreach ($scoreExplanation['top_features'] as $feat): ?>
+                                        <span class="magnitu-feature <?= ($feat['direction'] ?? 'positive') === 'positive' ? 'magnitu-feature-positive' : 'magnitu-feature-negative' ?>">
+                                            <?= htmlspecialchars($feat['feature']) ?> <?= ($feat['direction'] ?? 'positive') === 'positive' ? '+' : '' ?><?= round($feat['weight'], 2) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        <div class="entry-actions">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <?php if (!empty($calMeta['business_number'])): ?>
+                                    <span style="font-family: monospace;"><?= htmlspecialchars($calMeta['business_number']) ?></span>
+                                <?php endif; ?>
+                                <a href="<?= htmlspecialchars($calUrl) ?>" target="_blank" rel="noopener" class="entry-link">parlament.ch &rarr;</a>
+                                <?php if ($calHasMore): ?>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                <?php endif; ?>
+                                <?php if ($scoreExplanation && !empty($scoreExplanation['top_features'])): ?>
+                                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
+                                <?php endif; ?>
+                            </div>
+                            <?php if ($calDate): ?>
+                                <span class="entry-date"><?= $calDate ?></span>
                             <?php endif; ?>
                         </div>
                     </div>

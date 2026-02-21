@@ -136,6 +136,7 @@
             <a href="?action=index" class="nav-link">Feed</a>
             <a href="?action=magnitu" class="nav-link">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
+            <a href="?action=calendar" class="nav-link">Calendar</a>
             <a href="?action=lex" class="nav-link">Lex</a>
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
@@ -160,11 +161,12 @@
         <div class="tag-filter-list" style="margin-bottom: 16px;">
             <a href="?action=settings&amp;tab=basic" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
             <a href="?action=settings&amp;tab=script" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
+            <a href="?action=settings&amp;tab=calendar" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'calendar' ? ' background-color: #d4edda;' : '' ?>">Calendar</a>
             <a href="?action=settings&amp;tab=lex" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
             <a href="?action=settings&amp;tab=magnitu" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
         </div>
 
-        <?php if (!empty($trippedFeeds) || !empty($trippedLexSources)): ?>
+        <?php if (!empty($trippedFeeds) || !empty($trippedLexSources) || !empty($trippedCalendarSources)): ?>
         <div style="background: #fff3cd; border: 2px solid #000; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;">
             <strong>Circuit Breaker</strong> — Some sources have been automatically paused after 3+ consecutive failures.
             A manual refresh of an individual feed will reset its counter.
@@ -185,6 +187,12 @@
             <?php if (!empty($trippedLexSources)): ?>
                 <div style="margin-top: 6px;">
                     Lex/Jus sources tripped: <strong><?= htmlspecialchars(implode(', ', $trippedLexSources)) ?></strong>
+                    — will auto-retry on next successful refresh cycle.
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($trippedCalendarSources)): ?>
+                <div style="margin-top: 6px;">
+                    Calendar sources tripped: <strong><?= htmlspecialchars(implode(', ', $trippedCalendarSources)) ?></strong>
                     — will auto-retry on next successful refresh cycle.
                 </div>
             <?php endif; ?>
@@ -781,6 +789,166 @@
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <a href="<?= getBasePath() ?>/index.php?action=download_refresh_config" class="btn" style="text-decoration: none;">⬇ Download config.php</a>
                 <a href="<?= getBasePath() ?>/index.php?action=download_refresh_script" class="btn" style="text-decoration: none;">⬇ Download refresh_cron.php</a>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'calendar'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">Configure calendar event sources — upcoming parliamentary business, sessions, and other scheduled events.</p>
+
+        <section class="settings-section" id="calendar-settings">
+            <h2 style="background-color: #d4edda; padding: 8px 14px; display: inline-block;">Calendar</h2>
+
+            <!-- Stats -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <div style="text-align: center; padding: 10px; border: 2px solid #000000;">
+                    <div style="font-size: 18px; font-weight: 700;"><?= $calendarStats['total'] ?></div>
+                    <div style="font-size: 12px;">Total Events</div>
+                </div>
+                <div style="text-align: center; padding: 10px; border: 2px solid #000000;">
+                    <div style="font-size: 18px; font-weight: 700;"><?= $calendarStats['upcoming'] ?></div>
+                    <div style="font-size: 12px;">Upcoming</div>
+                </div>
+                <div style="text-align: center; padding: 10px; border: 2px solid #000000;">
+                    <div style="font-size: 18px; font-weight: 700;"><?= count($calendarStats['sources']) ?></div>
+                    <div style="font-size: 12px;">Active Sources</div>
+                </div>
+            </div>
+            <?php if (!empty($calendarStats['sources'])): ?>
+            <div style="font-size: 12px; margin-bottom: 20px;">
+                <?php foreach ($calendarStats['sources'] as $src => $cnt): ?>
+                    <span style="display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; background: #f5f5f5; border: 1px solid #000; font-family: monospace; font-size: 12px;">
+                        <?= htmlspecialchars(getCalendarSourceLabel($src)) ?>: <?= $cnt ?>
+                    </span>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
+            <form method="POST" action="<?= getBasePath() ?>/index.php?action=save_calendar_config" id="calendar-config-form">
+                <input type="hidden" name="autosave" value="1">
+
+                <!-- Parliament CH -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">🇨🇭 Parlament CH</label>
+                        <?php $parlChEnabled = (bool)($calendarConfig['parliament_ch']['enabled'] ?? true); ?>
+                        <input type="hidden" name="parliament_ch_enabled" value="<?= $parlChEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $parlChEnabled ? 'btn-warning' : 'btn-success' ?>" data-cal-toggle="parliament_ch_enabled">
+                            <?= $parlChEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Language</label>
+                            <select name="parliament_ch_language" style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px;">
+                                <?php
+                                $parlLangs = ['DE' => 'Deutsch', 'FR' => 'Fran&ccedil;ais', 'IT' => 'Italiano', 'EN' => 'English'];
+                                $currentParlLang = $calendarConfig['parliament_ch']['language'] ?? 'DE';
+                                foreach ($parlLangs as $code => $label): ?>
+                                    <option value="<?= $code ?>" <?= $currentParlLang === $code ? 'selected' : '' ?>><?= $label ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results per refresh</label>
+                            <input type="number" name="parliament_ch_limit" value="<?= (int)($calendarConfig['parliament_ch']['limit'] ?? 100) ?>" min="10" max="500"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Look forward (days)</label>
+                            <input type="number" name="parliament_ch_lookforward_days" value="<?= (int)($calendarConfig['parliament_ch']['lookforward_days'] ?? 90) ?>" min="7" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                            <div style="font-size: 11px; margin-top: 3px; color: #666;">How far into the future to fetch events.</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Look back (days)</label>
+                            <input type="number" name="parliament_ch_lookback_days" value="<?= (int)($calendarConfig['parliament_ch']['lookback_days'] ?? 7) ?>" min="1" max="90"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                            <div style="font-size: 11px; margin-top: 3px; color: #666;">Also capture recently modified items (catches updates).</div>
+                        </div>
+                    </div>
+
+                    <!-- Business types -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Business types to fetch</label>
+                        <?php
+                            $defaultBusinessTypes = [
+                                1 => 'Geschaeft des Bundesrates',
+                                3 => 'Standesinitiative',
+                                4 => 'Parlamentarische Initiative',
+                                5 => 'Motion',
+                                6 => 'Postulat',
+                                8 => 'Interpellation',
+                                12 => 'Einfache Anfrage',
+                            ];
+                            $currentBusinessTypes = $calendarConfig['parliament_ch']['business_types'] ?? $defaultBusinessTypes;
+                        ?>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+                            <?php foreach ($defaultBusinessTypes as $btId => $btLabel): ?>
+                                <?php $btActive = array_key_exists($btId, $currentBusinessTypes); ?>
+                                <label style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 2px solid #000; background: <?= $btActive ? '#d4edda' : '#fff' ?>; font-size: 12px; cursor: pointer;">
+                                    <input type="checkbox" name="parliament_ch_business_types[]" value="<?= $btId ?>" <?= $btActive ? 'checked' : '' ?>>
+                                    <span style="font-family: monospace; font-size: 11px; color: #666;"><?= $btId ?></span>
+                                    <?= htmlspecialchars($btLabel) ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <div style="font-size: 11px; color: #666;">
+                            Type IDs from the parlament.ch OData API. Uncheck types you're not interested in.
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="parliament_ch_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($calendarConfig['parliament_ch']['notes'] ?? '') ?></textarea>
+                    </div>
+
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        API: <code style="font-size: 12px;"><?= htmlspecialchars($calendarConfig['parliament_ch']['api_base'] ?? 'https://ws.parlament.ch/odata.svc') ?></code>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 12px; line-height: 1.6;">
+                        <a href="https://ws.parlament.ch/odata.svc/$metadata" target="_blank" rel="noopener" style="text-decoration: underline;">OData metadata</a>
+                        &middot;
+                        <a href="https://www.parlament.ch/de/services/open-data-webservices" target="_blank" rel="noopener" style="text-decoration: underline;">Open Data docs</a>
+                        &middot;
+                        <a href="https://www.parlament.ch/de/ratsbetrieb/curia-vista" target="_blank" rel="noopener" style="text-decoration: underline;">Curia Vista</a>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Config file management -->
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 2px solid #000000;">
+                <h3 style="margin-top: 0; margin-bottom: 10px;">Config File</h3>
+                <p style="font-size: 12px; margin-bottom: 12px;">
+                    Download the current calendar configuration as JSON, or upload a config file to apply.
+                </p>
+                <div style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
+                    <a href="?action=download_calendar_config" class="btn" style="text-decoration: none;">
+                        Download calendar_config.json
+                    </a>
+                    <form method="POST" action="<?= getBasePath() ?>/index.php?action=upload_calendar_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
+                        <input type="file" name="calendar_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
+                        <button type="submit" class="btn">Upload</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div style="margin-top: 20px; padding: 16px; border: 2px solid #FF2C2C; background: #fff5f5;">
+                <h3 style="margin-top: 0; margin-bottom: 8px; color: #FF2C2C;">Danger Zone</h3>
+                <p style="font-size: 12px; margin-bottom: 12px;">
+                    Delete all calendar events from the database. Source configuration is kept.
+                </p>
+                <form method="POST" action="<?= getBasePath() ?>/index.php?action=clear_calendar_events">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete all calendar events? This cannot be undone.');">
+                        Clear All Events
+                    </button>
+                </form>
             </div>
         </section>
         <?php endif; ?>
@@ -1504,6 +1672,33 @@
                     if (!hiddenInput) return;
                     hiddenInput.value = hiddenInput.value === '1' ? '0' : '1';
                     submitLexForm();
+                });
+            });
+        })();
+
+        // Calendar settings: auto-save on change and button-based enable/disable toggles.
+        (function() {
+            const calForm = document.getElementById('calendar-config-form');
+            if (!calForm) return;
+
+            let isSubmitting = false;
+            const submitCalForm = () => {
+                if (isSubmitting) return;
+                isSubmitting = true;
+                calForm.submit();
+            };
+
+            calForm.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach((field) => {
+                field.addEventListener('change', submitCalForm);
+            });
+
+            calForm.querySelectorAll('[data-cal-toggle]').forEach((button) => {
+                button.addEventListener('click', function() {
+                    const inputName = this.dataset.calToggle;
+                    const hiddenInput = calForm.querySelector('input[name="' + inputName + '"]');
+                    if (!hiddenInput) return;
+                    hiddenInput.value = hiddenInput.value === '1' ? '0' : '1';
+                    submitCalForm();
                 });
             });
         })();

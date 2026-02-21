@@ -117,7 +117,20 @@ function handleSettingsPage($pdo) {
     } catch (PDOException $e) {}
     
     $lexConfig = getLexConfig();
-    
+
+    $calendarConfig = getCalendarConfig();
+
+    // Calendar event stats
+    $calendarStats = ['total' => 0, 'upcoming' => 0, 'sources' => []];
+    try {
+        $calendarStats['total'] = (int)$pdo->query("SELECT COUNT(*) FROM calendar_events")->fetchColumn();
+        $calendarStats['upcoming'] = (int)$pdo->query("SELECT COUNT(*) FROM calendar_events WHERE event_date >= CURDATE()")->fetchColumn();
+        $srcStmt = $pdo->query("SELECT source, COUNT(*) as cnt FROM calendar_events GROUP BY source");
+        foreach ($srcStmt->fetchAll() as $r) {
+            $calendarStats['sources'][$r['source']] = (int)$r['cnt'];
+        }
+    } catch (PDOException $e) {}
+
     $magnituConfig = getAllMagnituConfig($pdo);
     $magnituScoreStats = ['total' => 0, 'magnitu' => 0, 'recipe' => 0];
     try {
@@ -155,6 +168,16 @@ function handleSettingsPage($pdo) {
         $val = getMagnituConfig($pdo, $failKey);
         if ($val !== null && (int)$val >= 3) {
             $trippedLexSources[] = $src;
+        }
+    }
+
+    // Tripped calendar sources
+    $trippedCalendarSources = [];
+    foreach (array_keys($calendarConfig) as $src) {
+        $failKey = 'calendar_' . $src . '_failures';
+        $val = getMagnituConfig($pdo, $failKey);
+        if ($val !== null && (int)$val >= 3) {
+            $trippedCalendarSources[] = $src;
         }
     }
 

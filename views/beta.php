@@ -55,6 +55,7 @@
             <a href="?action=index" class="nav-link">Feed</a>
             <a href="?action=magnitu" class="nav-link">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
+            <a href="?action=calendar" class="nav-link">Calendar</a>
             <a href="?action=lex" class="nav-link">Lex</a>
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link">Mail</a>
