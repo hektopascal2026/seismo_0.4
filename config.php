@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 12);
+define('SCHEMA_VERSION', 13);
 
 /**
  * Initialize database tables
@@ -464,6 +464,11 @@ function initDatabase() {
     // Clear stale failure counters on scraper feeds (they should never be RSS-refreshed)
     try {
         $pdo->exec("UPDATE feeds SET consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE source_type = 'scraper' AND consecutive_failures > 0");
+    } catch (PDOException $e) {}
+
+    // Reset tripped circuit breakers for lex/jus sources (one-time cleanup)
+    try {
+        $pdo->exec("UPDATE magnitu_config SET config_value = '0' WHERE config_key LIKE 'lex_%_failures' AND CAST(config_value AS UNSIGNED) > 0");
     } catch (PDOException $e) {}
 
     // Mark schema as up to date so DDL is skipped on subsequent requests
