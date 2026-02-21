@@ -63,6 +63,7 @@
                             ['key' => 'eu', 'label' => '🇪🇺 EU'],
                             ['key' => 'ch', 'label' => '🇨🇭 Switzerland'],
                             ['key' => 'de', 'label' => '🇩🇪 Germany'],
+                            ['key' => 'parl_mm', 'label' => '🏛 Parl MM'],
                         ];
                         foreach ($lexPagePills as $pill):
                             if (!in_array($pill['key'], $enabledLexSources)) continue;
@@ -85,6 +86,7 @@
                         if (!empty($lastLexRefreshDateEu)) $refreshParts[] = '🇪🇺 ' . $lastLexRefreshDateEu;
                         if (!empty($lastLexRefreshDateCh)) $refreshParts[] = '🇨🇭 ' . $lastLexRefreshDateCh;
                         if (!empty($lastLexRefreshDateDe)) $refreshParts[] = '🇩🇪 ' . $lastLexRefreshDateDe;
+                        if (!empty($lastLexRefreshDateParl)) $refreshParts[] = '🏛 ' . $lastLexRefreshDateParl;
                         if (!empty($refreshParts)):
                     ?>
                         Refreshed: <?= implode(' · ', $refreshParts) ?>
@@ -100,14 +102,17 @@
                 </div>
             <?php else: ?>
                 <?php
-                    // Check if multiple sources are active (merged view)
-                    $activeCount = (int)in_array('eu', $activeSources) + (int)in_array('ch', $activeSources) + (int)in_array('de', $activeSources);
+                    $activeCount = count($activeSources);
                     $showSourceTag = ($activeCount > 1);
                 ?>
                 <?php foreach ($lexItems as $item): ?>
                     <?php
                         $source = $item['source'] ?? 'eu';
-                        if ($source === 'de') {
+                        if ($source === 'parl_mm') {
+                            $sourceEmoji = '🏛';
+                            $sourceLabel = 'Parl MM';
+                            $linkLabel = 'parlament.ch →';
+                        } elseif ($source === 'de') {
                             $sourceEmoji = '🇩🇪';
                             $sourceLabel = 'DE';
                             $linkLabel = 'recht.bund.de →';

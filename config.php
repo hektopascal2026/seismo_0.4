@@ -761,7 +761,7 @@ function getLexConfig() {
         ],
         'parl_mm' => [
             'enabled' => false,
-            'api_base' => 'https://www.parlament.ch/press-releases/_api/web/lists/getByTitle(\'Pages\')/items',
+            'api_base' => "https://www.parlament.ch/press-releases/_api/web/lists/getByTitle('Pages')/items",
             'language' => 'de',
             'lookback_days' => 90,
             'limit' => 50,
