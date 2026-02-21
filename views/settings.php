@@ -1141,6 +1141,60 @@
                     </div>
                 </div>
 
+                <!-- Parl MM Configuration -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">🏛 Parl MM (parlament.ch)</label>
+                        <?php $parlMmEnabled = (bool)($lexConfig['parl_mm']['enabled'] ?? false); ?>
+                        <input type="hidden" name="parl_mm_enabled" value="<?= $parlMmEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $parlMmEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="parl_mm_enabled">
+                            <?= $parlMmEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Language</label>
+                            <select name="parl_mm_language" style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px;">
+                                <?php
+                                $parlLangs = ['de' => 'Deutsch', 'fr' => 'Français', 'it' => 'Italiano', 'en' => 'English', 'rm' => 'Rumantsch'];
+                                $currentParlLang = $lexConfig['parl_mm']['language'] ?? 'de';
+                                foreach ($parlLangs as $code => $label): ?>
+                                    <option value="<?= $code ?>" <?= $currentParlLang === $code ? 'selected' : '' ?>><?= $label ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Lookback (days)</label>
+                            <input type="number" name="parl_mm_lookback_days" value="<?= (int)($lexConfig['parl_mm']['lookback_days'] ?? 90) ?>" min="1" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results</label>
+                            <input type="number" name="parl_mm_limit" value="<?= (int)($lexConfig['parl_mm']['limit'] ?? 50) ?>" min="1" max="200"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div></div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="parl_mm_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($lexConfig['parl_mm']['notes'] ?? '') ?></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        Source: Swiss Parliament press releases via SharePoint REST API.
+                        <a href="https://www.parlament.ch/press-releases/" target="_blank" rel="noopener" style="text-decoration: underline;">parlament.ch/press-releases</a>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 12px; line-height: 1.6;">
+                        Fetches multilingual titles and content from the Pages list. Commission tags (e.g. FK-N, SGK-S) are parsed from the slug.
+                    </div>
+                </div>
+
                 <!-- JUS: CH_BGer Configuration -->
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">

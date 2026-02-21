@@ -15,7 +15,7 @@ function handleLexPage($pdo) {
     $lastLexRefreshDate = null;
     $lexCfg = getLexConfig();
     $enabledLexSources = array_values(array_filter(
-        ['eu', 'ch', 'de'],
+        ['eu', 'ch', 'de', 'parl_mm'],
         function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
     ));
     
@@ -52,6 +52,11 @@ function handleLexPage($pdo) {
         $lastRefreshDeRow = $lastRefreshDeStmt->fetch();
         $lastLexRefreshDateDe = ($lastRefreshDeRow && $lastRefreshDeRow['last_refresh']) 
             ? date('d.m.Y H:i', strtotime($lastRefreshDeRow['last_refresh'])) : null;
+        
+        $lastRefreshParlStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'parl_mm'");
+        $lastRefreshParlRow = $lastRefreshParlStmt->fetch();
+        $lastLexRefreshDateParl = ($lastRefreshParlRow && $lastRefreshParlRow['last_refresh']) 
+            ? date('d.m.Y H:i', strtotime($lastRefreshParlRow['last_refresh'])) : null;
         
         // Combined last refresh
         $lastRefreshStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items");
@@ -155,6 +160,17 @@ function handleRefreshAllLex($pdo) {
         }
     } else {
         $messages[] = '🇩🇪 DE skipped (disabled)';
+    }
+    
+    if ($lexCfg['parl_mm']['enabled'] ?? false) {
+        try {
+            $countParl = refreshParlMmItems($pdo);
+            $messages[] = "🏛 $countParl items from parlament.ch";
+        } catch (Exception $e) {
+            $errors[] = '🏛 Parl MM: ' . $e->getMessage();
+        }
+    } else {
+        $messages[] = '🏛 Parl MM skipped (disabled)';
     }
     
     if (!empty($messages)) {
@@ -287,6 +303,13 @@ function handleSaveLexConfig($pdo) {
         $config['ch_bvger']['limit']         = max(1, (int)($_POST['ch_bvger_limit'] ?? 100));
         $config['ch_bvger']['notes']         = trim($_POST['ch_bvger_notes'] ?? '');
         
+        // Parl MM settings
+        $config['parl_mm']['enabled']       = $isEnabled('parl_mm_enabled', $config['parl_mm']['enabled'] ?? false);
+        $config['parl_mm']['language']      = trim($_POST['parl_mm_language'] ?? 'de');
+        $config['parl_mm']['lookback_days'] = max(1, (int)($_POST['parl_mm_lookback_days'] ?? 90));
+        $config['parl_mm']['limit']         = max(1, (int)($_POST['parl_mm_limit'] ?? 50));
+        $config['parl_mm']['notes']         = trim($_POST['parl_mm_notes'] ?? '');
+        
         // JUS: Banned words
         $rawBanned = trim($_POST['jus_banned_words'] ?? '');
         $config['jus_banned_words'] = array_values(array_filter(
@@ -312,7 +335,7 @@ function handleUploadLexConfig($pdo) {
         if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
             $content = file_get_contents($file['tmp_name']);
             $parsed = json_decode($content, true);
-            if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']) || isset($parsed['ch_bvger']))) {
+            if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['parl_mm']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']) || isset($parsed['ch_bvger']))) {
                 if (saveLexConfig($parsed)) {
                     $_SESSION['success'] = 'Lex config file uploaded and applied.';
                 } else {
@@ -996,4 +1019,141 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
     
     curl_multi_close($mh);
     return $count;
+}
+
+// ---------------------------------------------------------------------------
+// Data fetchers — Parl MM (parlament.ch press releases via SharePoint API)
+// ---------------------------------------------------------------------------
+
+/**
+ * Refresh parliamentary press releases from parlament.ch.
+ * Uses the SharePoint REST API to query the Pages list for recent press releases.
+ */
+function refreshParlMmItems($pdo) {
+    $config = getLexConfig();
+    $cfg = $config['parl_mm'] ?? [];
+    if (!($cfg['enabled'] ?? false)) return 0;
+
+    $lookback = (int)($cfg['lookback_days'] ?? 90);
+    $limit    = (int)($cfg['limit'] ?? 50);
+    $lang     = $cfg['language'] ?? 'de';
+    $apiBase  = $cfg['api_base']
+        ?? "https://www.parlament.ch/press-releases/_api/web/lists/getByTitle('Pages')/items";
+
+    $sinceDate = date('Y-m-d\TH:i:s\Z', strtotime("-{$lookback} days"));
+
+    $langField = 'Title_' . $lang;
+    $contentField = 'Content_' . $lang;
+
+    $select = "Title,{$langField},{$contentField},FileRef,Created,ArticleStartDate,ContentType/Name";
+    $filter = "Created ge datetime'{$sinceDate}'";
+    $orderBy = 'Created desc';
+
+    $url = $apiBase
+        . '?$top=' . $limit
+        . '&$orderby=' . rawurlencode($orderBy)
+        . '&$filter=' . rawurlencode($filter)
+        . '&$select=' . rawurlencode($select)
+        . '&$expand=ContentType';
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTPHEADER     => ['Accept: application/json;odata=verbose'],
+        CURLOPT_USERAGENT      => 'Seismo/0.4 (parliament-monitor)',
+    ]);
+    $body = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($body === false || empty($body)) {
+        throw new Exception("Failed to fetch parlament.ch press releases: " . ($curlError ?: "empty response, HTTP {$httpCode}"));
+    }
+    if ($httpCode !== 200) {
+        throw new Exception("parlament.ch API returned HTTP {$httpCode}");
+    }
+
+    $data = json_decode($body, true);
+    if (!$data) {
+        throw new Exception("Failed to parse parlament.ch JSON response");
+    }
+
+    // Handle both OData v3 (d.results) and v4 (value) response formats
+    $items = $data['value'] ?? $data['d']['results'] ?? [];
+    if (empty($items)) return 0;
+
+    $upsert = $pdo->prepare("
+        INSERT INTO lex_items (celex, title, document_date, document_type, eurlex_url, work_uri, source)
+        VALUES (?, ?, ?, ?, ?, ?, 'parl_mm')
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            document_date = VALUES(document_date),
+            document_type = VALUES(document_type),
+            eurlex_url = VALUES(eurlex_url),
+            work_uri = VALUES(work_uri),
+            source = 'parl_mm',
+            fetched_at = CURRENT_TIMESTAMP
+    ");
+
+    $count = 0;
+    foreach ($items as $item) {
+        $slug = $item['Title'] ?? '';
+        if (empty($slug)) continue;
+
+        $title = $item[$langField] ?? $slug;
+        $fileRef = $item['FileRef'] ?? '';
+
+        // Parse date: prefer ArticleStartDate, fall back to Created
+        $rawDate = $item['ArticleStartDate'] ?? $item['Created'] ?? null;
+        $docDate = null;
+        if ($rawDate) {
+            $ts = strtotime($rawDate);
+            if ($ts !== false) $docDate = date('Y-m-d', $ts);
+        }
+
+        $contentType = $item['ContentType']['Name'] ?? 'Press Release';
+        $pageUrl = 'https://www.parlament.ch' . $fileRef;
+        $parlLabel = parseParlMmCommission($slug);
+
+        // Strip HTML from content field for a plain-text summary
+        $rawContent = $item[$contentField] ?? '';
+        $plainContent = '';
+        if (!empty($rawContent)) {
+            $plainContent = trim(strip_tags(html_entity_decode($rawContent, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        }
+
+        $upsert->execute([
+            'parl_mm:' . $slug,
+            $title,
+            $docDate,
+            $parlLabel,
+            $pageUrl,
+            $plainContent ?: $pageUrl,
+            // source = 'parl_mm' is hard-coded in the SQL
+        ]);
+        $count++;
+    }
+
+    return $count;
+}
+
+/**
+ * Extract the commission abbreviation from a press-release slug.
+ * Slugs follow the pattern: mm-{commission}-{council}-{date}
+ * e.g. "mm-fk-n-2026-02-20" → "FK-N", "mm-sgk-s-2026-02-20" → "SGK-S"
+ */
+function parseParlMmCommission($slug) {
+    if (preg_match('/^mm-([a-z]+)-([nsr])-\d{4}/i', $slug, $m)) {
+        return strtoupper($m[1]) . '-' . strtoupper($m[2]);
+    }
+    if (preg_match('/^mm-([a-z]+)-\d{4}/i', $slug, $m)) {
+        return strtoupper($m[1]);
+    }
+    if (str_starts_with($slug, 'info-')) {
+        return 'Info';
+    }
+    return 'Medienmitteilung';
 }

@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 11);
+define('SCHEMA_VERSION', 12);
 
 /**
  * Initialize database tables
@@ -288,9 +288,9 @@ function initDatabase() {
         // Index might already exist, ignore
     }
     
-    // Widen celex column to support longer Fedlex ELI identifiers
+    // Widen celex column to support longer Fedlex ELI identifiers and SharePoint page slugs
     try {
-        $pdo->exec("ALTER TABLE lex_items MODIFY COLUMN celex VARCHAR(100) NOT NULL");
+        $pdo->exec("ALTER TABLE lex_items MODIFY COLUMN celex VARCHAR(255) NOT NULL");
     } catch (PDOException $e) {
         // Ignore if it fails
     }
@@ -750,6 +750,14 @@ function getLexConfig() {
             'base_url' => 'https://entscheidsuche.ch',
             'lookback_days' => 90,
             'limit' => 100,
+            'notes' => '',
+        ],
+        'parl_mm' => [
+            'enabled' => false,
+            'api_base' => "https://www.parlament.ch/press-releases/_api/web/lists/getByTitle('Pages')/items",
+            'language' => 'de',
+            'lookback_days' => 90,
+            'limit' => 50,
             'notes' => '',
         ],
     ];

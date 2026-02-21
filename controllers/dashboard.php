@@ -424,6 +424,7 @@ function handleRefreshAll($pdo) {
         ['key' => 'ch_bger', 'enabled' => $lexCfg['ch_bger']['enabled'] ?? false, 'emoji' => '⚖️', 'label' => 'BGer',  'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BGer'); }],
         ['key' => 'ch_bge',  'enabled' => $lexCfg['ch_bge']['enabled'] ?? false,  'emoji' => '⚖️', 'label' => 'BGE',   'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BGE'); }],
         ['key' => 'ch_bvger','enabled' => $lexCfg['ch_bvger']['enabled'] ?? false, 'emoji' => '⚖️', 'label' => 'BVGer', 'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BVGer'); }],
+        ['key' => 'parl_mm', 'enabled' => $lexCfg['parl_mm']['enabled'] ?? false, 'emoji' => '🏛', 'label' => 'Parl MM', 'fn' => function($pdo) { return refreshParlMmItems($pdo); }],
     ];
 
     foreach ($lexSources as $src) {
