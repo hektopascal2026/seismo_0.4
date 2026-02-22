@@ -44,14 +44,14 @@ function handleDashboard($pdo) {
         $selectedSubstackTags = $substackTags;
         $lexCfg = getLexConfig();
         $selectedLexSources = array_values(array_filter(
-            ['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger', 'parl_mm'],
+            ['eu', 'ch', 'de', 'fr', 'ch_bger', 'ch_bge', 'ch_bvger', 'parl_mm'],
             function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
         ));
     }
     
     $lexCfg = $lexCfg ?? getLexConfig();
     $enabledLexSources = [];
-    foreach (['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger', 'parl_mm'] as $s) {
+    foreach (['eu', 'ch', 'de', 'fr', 'ch_bger', 'ch_bge', 'ch_bvger', 'parl_mm'] as $s) {
         if (!empty($lexCfg[$s]['enabled'])) $enabledLexSources[] = $s;
     }
     $selectedLexSources = array_values(array_intersect($selectedLexSources, $enabledLexSources));
@@ -425,6 +425,7 @@ function handleRefreshAll($pdo) {
         ['key' => 'ch_bge',  'enabled' => $lexCfg['ch_bge']['enabled'] ?? false,  'emoji' => '⚖️', 'label' => 'BGE',   'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BGE'); }],
         ['key' => 'ch_bvger','enabled' => $lexCfg['ch_bvger']['enabled'] ?? false, 'emoji' => '⚖️', 'label' => 'BVGer', 'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BVGer'); }],
         ['key' => 'parl_mm', 'enabled' => $lexCfg['parl_mm']['enabled'] ?? false, 'emoji' => '🏛', 'label' => 'Parl MM', 'fn' => function($pdo) { return refreshParlMmItems($pdo); }],
+        ['key' => 'fr',      'enabled' => $lexCfg['fr']['enabled'] ?? false,      'emoji' => '🇫🇷', 'label' => 'FR',      'fn' => function($pdo) { return refreshLegifranceItems($pdo); }],
     ];
 
     foreach ($lexSources as $src) {

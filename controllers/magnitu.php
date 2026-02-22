@@ -112,7 +112,7 @@ function handleMagnituPage($pdo) {
 }
 
 function handleAiView($pdo) {
-    $aiSources = isset($_GET['sources']) ? (array)$_GET['sources'] : ['rss', 'substack', 'email', 'lex', 'parl_mm', 'jus', 'scraper', 'calendar'];
+    $aiSources = isset($_GET['sources']) ? (array)$_GET['sources'] : ['rss', 'substack', 'email', 'lex', 'fr', 'parl_mm', 'jus', 'scraper', 'calendar'];
     $aiSince = $_GET['since'] ?? '7d';
     $aiLabels = isset($_GET['labels']) ? (array)$_GET['labels'] : ['investigation_lead', 'important', 'background', 'noise', 'unscored'];
     $aiMinScore = isset($_GET['min_score']) && $_GET['min_score'] !== '' ? (int)$_GET['min_score'] : null;
@@ -268,6 +268,32 @@ function handleAiView($pdo) {
                     'date' => $date ? strtotime($date) : 0,
                     'title' => $lexItem['title'] ?: '(No Title)',
                     'content' => $desc,
+                    'link' => $lexItem['eurlex_url'] ?: '#',
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
+    }
+
+    if (in_array('fr', $aiSources)) {
+        try {
+            $sql = "SELECT * FROM lex_items WHERE source = 'fr'";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND (document_date >= ? OR created_at >= ?)"; $params[] = $sinceDate; $params[] = $sinceDate; }
+            $sql .= " ORDER BY document_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $lexItem) {
+                $date = $lexItem['document_date'] ?? $lexItem['created_at'] ?? 0;
+                $nature = trim((string)($lexItem['document_type'] ?? ''));
+                $scoreKey = 'lex_item:' . $lexItem['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'FR LEX' . ($nature ? ': ' . $nature : ''),
+                    'source_type' => 'fr',
+                    'date' => $date ? strtotime($date) : 0,
+                    'title' => $lexItem['title'] ?: '(No Title)',
+                    'content' => trim((string)($lexItem['description'] ?? '')),
                     'link' => $lexItem['eurlex_url'] ?: '#',
                     'score' => $score ? (float)$score['relevance_score'] : null,
                     'label' => $score['predicted_label'] ?? null,
@@ -579,6 +605,7 @@ function handleMagnituEntries($pdo) {
                     'source_name' => match($row['source'] ?? 'eu') {
                         'ch' => 'Fedlex',
                         'de' => 'recht.bund.de',
+                        'fr' => 'Légifrance',
                         'ch_bger' => 'Bundesgericht',
                         'ch_bge' => 'BGE Leitentscheide',
                         'ch_bvger' => 'Bundesverwaltungsgericht',

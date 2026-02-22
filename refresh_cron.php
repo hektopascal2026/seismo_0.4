@@ -99,6 +99,7 @@ $lexSources = [
     ['key' => 'ch_bge',  'enabled' => $lexCfg['ch_bge']['enabled'] ?? false,   'label' => 'BGE',   'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BGE'); }],
     ['key' => 'ch_bvger','enabled' => $lexCfg['ch_bvger']['enabled'] ?? false,  'label' => 'BVGer', 'fn' => function($pdo) { return refreshJusItems($pdo, 'CH_BVGer'); }],
     ['key' => 'parl_mm', 'enabled' => $lexCfg['parl_mm']['enabled'] ?? false,  'label' => 'Parl MM', 'fn' => function($pdo) { return refreshParlMmItems($pdo); }],
+    ['key' => 'fr',      'enabled' => $lexCfg['fr']['enabled'] ?? false,      'label' => 'FR',      'fn' => function($pdo) { return refreshLegifranceItems($pdo); }],
 ];
 
 foreach ($lexSources as $src) {

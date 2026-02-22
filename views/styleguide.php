@@ -544,6 +544,417 @@
                 </div>
             </div>
         </section>
+
+        <!-- Magnitu: Score Badges -->
+        <section class="styleguide-section">
+            <h2>Magnitu: Score Badges</h2>
+            <p>Small inline badge in <code>.entry-header</code>, pushed right via <code>margin-left: auto</code>. Shows relevance score (0–100). Color encodes the predicted label. Uses <code>.magnitu-badge</code> + variant class.</p>
+
+            <h3>Badge Variants</h3>
+            <div class="component-demo">
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                    <span class="magnitu-badge magnitu-badge-investigation" title="investigation_lead (92%)">92</span>
+                    <span style="font-size: 12px;">investigation_lead</span>
+                </div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
+                    <span class="magnitu-badge magnitu-badge-important" title="important (74%)">74</span>
+                    <span style="font-size: 12px;">important</span>
+                </div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
+                    <span class="magnitu-badge magnitu-badge-background" title="background (45%)">45</span>
+                    <span style="font-size: 12px;">background</span>
+                </div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
+                    <span class="magnitu-badge magnitu-badge-noise" title="noise (12%)">12</span>
+                    <span style="font-size: 12px;">noise</span>
+                </div>
+            </div>
+
+            <h3>Badge in Card Header</h3>
+            <div class="component-demo">
+                <div class="entry-card" style="max-width: 500px;">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #add8e6;">politics</span>
+                        <span class="magnitu-badge magnitu-badge-investigation" title="investigation_lead (92%)">92</span>
+                    </div>
+                    <h3 class="entry-title"><a href="#">High-score entry with badge</a></h3>
+                    <div class="entry-content entry-preview">Tag on the left, score badge pushed right via margin-left: auto.</div>
+                    <div class="entry-actions">
+                        <span></span>
+                        <span class="entry-date">22.02.2026 10:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Badge Colors</h3>
+            <div class="component-demo">
+                <div>
+                    <div class="color-swatch" style="background-color: #FF6B6B;">
+                        <div class="color-swatch-info">#FF6B6B<br>Investigation</div>
+                    </div>
+                    <div class="color-swatch" style="background-color: #FFA94D;">
+                        <div class="color-swatch-info">#FFA94D<br>Important</div>
+                    </div>
+                    <div class="color-swatch" style="background-color: #74C0FC;">
+                        <div class="color-swatch-info">#74C0FC<br>Background</div>
+                    </div>
+                    <div class="color-swatch" style="background-color: #e0e0e0;">
+                        <div class="color-swatch-info">#e0e0e0<br>Noise</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Magnitu: Alert Card -->
+        <section class="styleguide-section">
+            <h2>Magnitu: Alert Card</h2>
+            <p>High-score entries can be highlighted with coral border and shadow via <code>.entry-card.magnitu-alert</code>. Used for investigation leads that exceed the alert threshold.</p>
+
+            <div class="component-demo">
+                <div class="entry-card magnitu-alert" style="max-width: 500px;">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #add8e6;">investigation</span>
+                        <span class="magnitu-badge magnitu-badge-investigation">95</span>
+                    </div>
+                    <h3 class="entry-title"><a href="#">Alert-highlighted entry</a></h3>
+                    <div class="entry-content entry-preview">Coral (#FF6B6B) border + 3px shadow. On hover, shadow grows to 4px.</div>
+                    <div class="entry-actions">
+                        <span></span>
+                        <span class="entry-date">22.02.2026 10:00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Magnitu: Explanation Panel -->
+        <section class="styleguide-section">
+            <h2>Magnitu: Explanation Panel</h2>
+            <p>"Why?" button toggles a feature explanation panel inside the card. Button uses <code>.btn.magnitu-why-btn</code> (compact, same as expand). Panel uses <code>.magnitu-explanation</code>. Feature chips show positive (green) and negative (red) weights.</p>
+
+            <h3>Why? Button</h3>
+            <div class="component-demo">
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary magnitu-why-btn">Why?</button>
+                    <button class="btn btn-secondary magnitu-why-btn">Hide</button>
+                </div>
+            </div>
+
+            <h3>Explanation Panel (expanded)</h3>
+            <div class="component-demo">
+                <div class="entry-card" style="max-width: 500px;">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #add8e6;">politics</span>
+                        <span class="magnitu-badge magnitu-badge-investigation">88</span>
+                    </div>
+                    <h3 class="entry-title"><a href="#">Entry with visible explanation</a></h3>
+                    <div class="entry-content entry-preview">Preview text shown here...</div>
+                    <div class="magnitu-explanation" style="display: block;">
+                        <div class="magnitu-explanation-label">Magnitu: investigation_lead (88% confidence)</div>
+                        <div class="magnitu-explanation-features">
+                            <span class="magnitu-feature magnitu-feature-positive">parliament +0.42</span>
+                            <span class="magnitu-feature magnitu-feature-positive">legislation +0.31</span>
+                            <span class="magnitu-feature magnitu-feature-positive">regulation +0.18</span>
+                            <span class="magnitu-feature magnitu-feature-negative">sport -0.22</span>
+                            <span class="magnitu-feature magnitu-feature-negative">entertainment -0.15</span>
+                        </div>
+                    </div>
+                    <div class="entry-actions">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                            <button class="btn btn-secondary magnitu-why-btn">Hide</button>
+                        </div>
+                        <span class="entry-date">22.02.2026 10:00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Score Coverage & Sort Toggle -->
+        <section class="styleguide-section">
+            <h2>Score Coverage &amp; Sort Toggle</h2>
+            <p>Section title row shows score coverage (<code>.magnitu-coverage</code>) and a sort toggle button. Sort buttons reuse the <code>.btn.btn-secondary.entry-expand-all-btn</code> compact style.</p>
+
+            <h3>Score Coverage in Title</h3>
+            <div class="component-demo">
+                <div class="section-title-row">
+                    <h2 class="section-title" style="margin-bottom: 0;">
+                        Refreshed: 22.02.2026 10:00
+                        <span class="magnitu-coverage">&middot; 142 of 200 scored</span>
+                    </h2>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="btn btn-secondary entry-expand-all-btn">Sort by Date</button>
+                        <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Day Grouping (Magnitu page)</h3>
+            <div class="component-demo">
+                <div class="section-title-row">
+                    <h2 class="section-title" style="margin-bottom: 0;">Today <span style="font-weight: 400; font-size: 13px;">(5)</span></h2>
+                    <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
+                </div>
+                <div class="section-title-row" style="margin-top: 16px;">
+                    <h2 class="section-title" style="margin-bottom: 0;">Yesterday <span style="font-weight: 400; font-size: 13px;">(12)</span></h2>
+                    <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Drawer -->
+        <section class="styleguide-section">
+            <h2>Search Drawer</h2>
+            <p>Opens below top bar via search icon button. Uses <code>.search-drawer</code> (hidden by default, <code>.open</code> shows it). Contains a <code>.search-form</code> with search input and buttons.</p>
+
+            <div class="component-demo">
+                <div class="search-drawer" style="display: block; margin-top: 0; margin-bottom: 0;">
+                    <form class="search-form" onsubmit="return false;">
+                        <input type="search" placeholder="Search entries..." class="search-input" style="min-width: 0;">
+                        <button type="button" class="btn btn-primary">Search</button>
+                        <a href="#" class="btn btn-secondary">Clear</a>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Active States -->
+        <section class="styleguide-section">
+            <h2>Active States</h2>
+            <p>Three patterns for showing selected/active state: tag filter pills (multi-select), category buttons (single-select), and nav links (page-specific color).</p>
+
+            <h3>Tag Filter Pill: Active</h3>
+            <p>Active pills get <code>.tag-filter-pill-active</code> + inline <code>background-color</code> matching source type. Inactive pills stay white. An "All/None" toggle pill selects or deselects all checkboxes.</p>
+            <div class="component-demo">
+                <div class="tag-filter-list">
+                    <button type="button" class="tag-filter-pill" style="cursor: pointer;"><span>All</span></button>
+                    <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #add8e6;">
+                        <input type="checkbox" checked>
+                        <span>RSS Active</span>
+                    </label>
+                    <label class="tag-filter-pill">
+                        <input type="checkbox">
+                        <span>RSS Inactive</span>
+                    </label>
+                    <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #FFDBBB;">
+                        <input type="checkbox" checked>
+                        <span>Email Active</span>
+                    </label>
+                    <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #C5B4D1;">
+                        <input type="checkbox" checked>
+                        <span>Substack Active</span>
+                    </label>
+                    <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #f5f562;">
+                        <input type="checkbox" checked>
+                        <span>🇪🇺 EU Lex</span>
+                    </label>
+                    <label class="tag-filter-pill">
+                        <input type="checkbox">
+                        <span>🇨🇭 CH Lex</span>
+                    </label>
+                    <label class="tag-filter-pill tag-filter-pill-active" style="background-color: #FFDBBB;">
+                        <input type="checkbox" checked>
+                        <span>🌐 Scraper</span>
+                    </label>
+                </div>
+            </div>
+
+            <h3>Category Button: Active</h3>
+            <p>Single-select. Active button gets inline <code>background-color</code> matching source. Default active state is not in CSS — applied via inline style per page.</p>
+            <div class="component-demo">
+                <div class="category-filter">
+                    <a href="#" class="category-btn" style="background-color: #add8e6;">All</a>
+                    <a href="#" class="category-btn">Category 1</a>
+                    <a href="#" class="category-btn">Category 2</a>
+                </div>
+            </div>
+
+            <h3>Nav Link: Colored Active</h3>
+            <p>Default <code>.nav-link.active</code> is black bg / white text. Source pages override with inline color. Feed page uses default black.</p>
+            <div class="component-demo">
+                <nav class="nav-drawer" style="display: flex;">
+                    <a href="#" class="nav-link active">Feed (default)</a>
+                    <a href="#" class="nav-link active" style="background-color: #add8e6; color: #000000;">RSS</a>
+                    <a href="#" class="nav-link active" style="background-color: #f5f562; color: #000000;">Lex / Jus</a>
+                    <a href="#" class="nav-link active" style="background-color: #FFDBBB; color: #000000;">Mail / Scraper</a>
+                    <a href="#" class="nav-link active" style="background-color: #C5B4D1; color: #000000;">Substack</a>
+                </nav>
+            </div>
+        </section>
+
+        <!-- Empty State -->
+        <section class="styleguide-section">
+            <h2>Empty State</h2>
+            <p>Centered placeholder when no entries are available. Uses <code>.empty-state</code>, 12px small text, 30px padding.</p>
+
+            <div class="component-demo">
+                <div class="empty-state">
+                    <p>No entries available yet. Add feeds to see entries here.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Jus Card -->
+        <section class="styleguide-section">
+            <h2>Jus Card (Case Law)</h2>
+            <p>Swiss case law entries use the standard <code>.entry-card</code> with source tag (⚖️), document type tag, monospace case number, and a source-specific link label. No expand/collapse — titles are usually short.</p>
+
+            <div class="component-demo">
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #f5f562; border-color: #000000;">⚖️ BGer</span>
+                        <span class="entry-tag" style="background-color: #f5f5f5;">Entscheid</span>
+                    </div>
+                    <h3 class="entry-title">
+                        <a href="#">Beschwerde betreffend Steuerrecht</a>
+                    </h3>
+                    <div class="entry-actions">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-family: monospace; font-size: 12px; font-weight: 600;">7B 835/2025</span>
+                            <a href="#" class="entry-link">Entscheid &rarr;</a>
+                        </div>
+                        <span class="entry-date">15.01.2026</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-demo">
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #f5f562; border-color: #000000;">⚖️ BVGer</span>
+                        <span class="entry-tag" style="background-color: #f5f5f5;">Urteil</span>
+                    </div>
+                    <h3 class="entry-title">
+                        <a href="#">Verfügung betreffend Asylverfahren</a>
+                    </h3>
+                    <div class="entry-actions">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-family: monospace; font-size: 12px; font-weight: 600;">A-6740/2023</span>
+                            <a href="#" class="entry-link">Urteil &rarr;</a>
+                        </div>
+                        <span class="entry-date">03.01.2024</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scraper Card -->
+        <section class="styleguide-section">
+            <h2>Scraper Card</h2>
+            <p>Web scraper entries use <code>.entry-card</code> with 🌐 emoji source tag (#FFDBBB). Content preview shows "Open page →". A compact "delete" button (inline padding 2px 8px, 11px font) hides entries.</p>
+
+            <div class="component-demo">
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <span class="entry-tag" style="background-color: #FFDBBB; border-color: #000000;">🌐 Example Site</span>
+                        <span class="magnitu-badge magnitu-badge-important" title="important (74%)">74</span>
+                    </div>
+                    <h3 class="entry-title">
+                        <a href="#">Scraped page title example</a>
+                    </h3>
+                    <p style="font-size: 12px; color: #000000; line-height: 1.5; margin-bottom: 8px;">
+                        Content preview from the scraped page, truncated to 300 characters...
+                        <a href="#" class="entry-link">Open page &rarr;</a>
+                    </p>
+                    <div class="entry-actions">
+                        <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;">delete</button>
+                        <span class="entry-date">20.02.2026 14:30</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings: Tab Bar -->
+        <section class="styleguide-section">
+            <h2>Settings: Tab Bar</h2>
+            <p>Settings pages use <code>.tag-filter-pill</code> as link tabs inside <code>.tag-filter-list</code>. Active tab gets inline <code>background-color</code> matching the section's brand color. Uses <code>&lt;a&gt;</code> instead of <code>&lt;label&gt;</code>.</p>
+
+            <div class="component-demo">
+                <div class="tag-filter-list">
+                    <a href="#" class="tag-filter-pill" style="text-decoration: none; background-color: #add8e6;">Basic</a>
+                    <a href="#" class="tag-filter-pill" style="text-decoration: none;">Script</a>
+                    <a href="#" class="tag-filter-pill" style="text-decoration: none;">Lex</a>
+                    <a href="#" class="tag-filter-pill" style="text-decoration: none;">Magnitu</a>
+                    <a href="#" class="tag-filter-pill" style="text-decoration: none;">Styleguide</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings: Section & List -->
+        <section class="styleguide-section">
+            <h2>Settings: Section &amp; List</h2>
+            <p>Settings sections use <code>.settings-section</code> (border-bottom, margin-bottom). Each item in <code>.settings-list</code> uses <code>.settings-item</code> with <code>.settings-item-info</code> (title + meta) on the left and <code>.settings-item-actions</code> (buttons) on the right. Items have 1px border (lighter than cards).</p>
+
+            <div class="component-demo">
+                <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000000;">
+                    <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">RSS Feeds</h2>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="border: 1px solid #000000; padding: 12px 16px; background-color: #ffffff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Example Feed</div>
+                                <div style="font-size: 12px; color: #000000; margin-bottom: 4px;">https://example.com/feed.xml</div>
+                                <div style="display: inline-block; padding: 4px 12px; background-color: #f5f5f5; border: 1px solid #000000; font-size: 12px; font-weight: 600; margin-top: 8px;">politics</div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                <a href="#" class="btn btn-secondary">Refresh</a>
+                                <a href="#" class="btn btn-danger">Delete</a>
+                            </div>
+                        </div>
+                        <div style="border: 1px solid #000000; padding: 12px 16px; background-color: #ffffff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Another Feed</div>
+                                <div style="font-size: 12px; color: #000000; margin-bottom: 4px;">https://another.com/rss</div>
+                                <div style="display: inline-block; padding: 4px 12px; background-color: #f5f5f5; border: 1px solid #000000; font-size: 12px; font-weight: 600; margin-top: 8px;">economy</div>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                <a href="#" class="btn btn-secondary">Refresh</a>
+                                <a href="#" class="btn btn-danger">Delete</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings: Colored Section Heading -->
+        <section class="styleguide-section">
+            <h2>Settings: Colored Section Heading</h2>
+            <p>Some settings sections (like Magnitu) use an inline <code>background-color</code> on the heading for emphasis. The heading gets padding and <code>display: inline-block</code>.</p>
+
+            <div class="component-demo">
+                <h2 style="background-color: #FF6B6B; padding: 8px 14px; display: inline-block; font-size: 18px; font-weight: 700; margin-bottom: 0;">Magnitu</h2>
+            </div>
+        </section>
+
+        <!-- Circuit Breaker Alert -->
+        <section class="styleguide-section">
+            <h2>Circuit Breaker Alert</h2>
+            <p>Warning banner shown when sources have been auto-paused after repeated failures. Yellow background (#fff3cd), 2px black border. Inline pattern — no reusable class.</p>
+
+            <div class="component-demo">
+                <div style="background: #fff3cd; border: 2px solid #000; padding: 10px 14px; font-size: 13px;">
+                    <strong>Circuit Breaker</strong> — Some sources have been automatically paused after 3+ consecutive failures.
+                    <div style="margin-top: 6px;">
+                        <strong>Example Feed</strong>
+                        <span style="color: #666;">(5 failures)</span>
+                        — <code style="font-size: 11px;">HTTP 503 Service Unavailable</code>
+                        <a href="#" style="margin-left: 4px; font-size: 11px;">retry</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Model Version Badge -->
+        <section class="styleguide-section">
+            <h2>Model Version Badge</h2>
+            <p>Shown on the Magnitu page below the top bar. Model name in bold, version in a small coral badge with 2px border.</p>
+
+            <div class="component-demo">
+                <div style="font-size: 12px; color: #000000;">
+                    <strong>seismo_distiller_v3</strong>
+                    <span style="font-size: 11px; font-weight: 600; padding: 1px 6px; border: 2px solid #000000; background: #FF6B6B;">v2.1</span>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
@@ -594,6 +1005,22 @@
             });
             btn.dataset.expanded = !isExpanded;
             btn.textContent = !isExpanded ? 'collapse all \u25B2' : 'expand all \u25BC';
+        });
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.magnitu-why-btn');
+            if (!btn) return;
+            var card = btn.closest('.entry-card');
+            if (!card) return;
+            var explanation = card.querySelector('.magnitu-explanation');
+            if (!explanation) return;
+            if (explanation.style.display === 'block') {
+                explanation.style.display = 'none';
+                btn.textContent = 'Why?';
+            } else {
+                explanation.style.display = 'block';
+                btn.textContent = 'Hide';
+            }
         });
     })();
     </script>

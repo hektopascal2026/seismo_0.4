@@ -83,6 +83,7 @@
                             'substack' => 'Substack',
                             'email' => 'Email',
                             'lex' => 'Lex',
+                            'fr' => 'FR Lex',
                             'parl_mm' => 'Parl MM',
                             'jus' => 'Jus',
                             'scraper' => 'Scraper',

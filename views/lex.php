@@ -63,6 +63,7 @@
                             ['key' => 'eu', 'label' => '🇪🇺 EU'],
                             ['key' => 'ch', 'label' => '🇨🇭 Switzerland'],
                             ['key' => 'de', 'label' => '🇩🇪 Germany'],
+                            ['key' => 'fr', 'label' => '🇫🇷 France'],
                             ['key' => 'parl_mm', 'label' => '🏛 Parl MM'],
                         ];
                         foreach ($lexPagePills as $pill):
@@ -86,6 +87,7 @@
                         if (!empty($lastLexRefreshDateEu)) $refreshParts[] = '🇪🇺 ' . $lastLexRefreshDateEu;
                         if (!empty($lastLexRefreshDateCh)) $refreshParts[] = '🇨🇭 ' . $lastLexRefreshDateCh;
                         if (!empty($lastLexRefreshDateDe)) $refreshParts[] = '🇩🇪 ' . $lastLexRefreshDateDe;
+                        if (!empty($lastLexRefreshDateFr)) $refreshParts[] = '🇫🇷 ' . $lastLexRefreshDateFr;
                         if (!empty($lastLexRefreshDateParl)) $refreshParts[] = '🏛 ' . $lastLexRefreshDateParl;
                         if (!empty($refreshParts)):
                     ?>
@@ -112,6 +114,10 @@
                             $sourceEmoji = '🏛';
                             $sourceLabel = 'Parl MM';
                             $linkLabel = 'parlament.ch →';
+                        } elseif ($source === 'fr') {
+                            $sourceEmoji = '🇫🇷';
+                            $sourceLabel = 'FR';
+                            $linkLabel = 'Légifrance →';
                         } elseif ($source === 'de') {
                             $sourceEmoji = '🇩🇪';
                             $sourceLabel = 'DE';

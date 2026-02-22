@@ -15,7 +15,7 @@ function handleLexPage($pdo) {
     $lastLexRefreshDate = null;
     $lexCfg = getLexConfig();
     $enabledLexSources = array_values(array_filter(
-        ['eu', 'ch', 'de', 'parl_mm'],
+        ['eu', 'ch', 'de', 'fr', 'parl_mm'],
         function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
     ));
     
@@ -52,6 +52,11 @@ function handleLexPage($pdo) {
         $lastRefreshDeRow = $lastRefreshDeStmt->fetch();
         $lastLexRefreshDateDe = ($lastRefreshDeRow && $lastRefreshDeRow['last_refresh']) 
             ? date('d.m.Y H:i', strtotime($lastRefreshDeRow['last_refresh'])) : null;
+        
+        $lastRefreshFrStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'fr'");
+        $lastRefreshFrRow = $lastRefreshFrStmt->fetch();
+        $lastLexRefreshDateFr = ($lastRefreshFrRow && $lastRefreshFrRow['last_refresh']) 
+            ? date('d.m.Y H:i', strtotime($lastRefreshFrRow['last_refresh'])) : null;
         
         $lastRefreshParlStmt = $pdo->query("SELECT MAX(fetched_at) as last_refresh FROM lex_items WHERE source = 'parl_mm'");
         $lastRefreshParlRow = $lastRefreshParlStmt->fetch();
@@ -171,6 +176,17 @@ function handleRefreshAllLex($pdo) {
         }
     } else {
         $messages[] = '🏛 Parl MM skipped (disabled)';
+    }
+    
+    if ($lexCfg['fr']['enabled'] ?? false) {
+        try {
+            $countFr = refreshLegifranceItems($pdo);
+            $messages[] = "🇫🇷 $countFr items from Légifrance";
+        } catch (Exception $e) {
+            $errors[] = '🇫🇷 FR: ' . $e->getMessage();
+        }
+    } else {
+        $messages[] = '🇫🇷 FR skipped (disabled)';
     }
     
     if (!empty($messages)) {
@@ -310,6 +326,28 @@ function handleSaveLexConfig($pdo) {
         $config['parl_mm']['limit']         = max(1, (int)($_POST['parl_mm_limit'] ?? 50));
         $config['parl_mm']['notes']         = trim($_POST['parl_mm_notes'] ?? '');
         
+        // FR Légifrance settings
+        $config['fr']['enabled']       = $isEnabled('fr_enabled', $config['fr']['enabled'] ?? false);
+        $frClientId = trim($_POST['fr_client_id'] ?? '');
+        if (!empty($frClientId) && $frClientId !== '••••••••') {
+            $config['fr']['client_id'] = $frClientId;
+        }
+        $frClientSecret = trim($_POST['fr_client_secret'] ?? '');
+        if (!empty($frClientSecret) && $frClientSecret !== '••••••••') {
+            $config['fr']['client_secret'] = $frClientSecret;
+        }
+        $config['fr']['fond']          = trim($_POST['fr_fond'] ?? 'JORF');
+        $config['fr']['lookback_days'] = max(1, (int)($_POST['fr_lookback_days'] ?? 90));
+        $config['fr']['limit']         = max(1, (int)($_POST['fr_limit'] ?? 100));
+        $config['fr']['notes']         = trim($_POST['fr_notes'] ?? '');
+        $rawNatures = trim($_POST['fr_natures'] ?? '');
+        if (!empty($rawNatures)) {
+            $config['fr']['natures'] = array_values(array_filter(
+                array_map('trim', preg_split('/[\s,]+/', strtoupper($rawNatures))),
+                'strlen'
+            ));
+        }
+        
         // JUS: Banned words
         $rawBanned = trim($_POST['jus_banned_words'] ?? '');
         $config['jus_banned_words'] = array_values(array_filter(
@@ -335,7 +373,7 @@ function handleUploadLexConfig($pdo) {
         if ($file['error'] === UPLOAD_ERR_OK && $file['size'] > 0) {
             $content = file_get_contents($file['tmp_name']);
             $parsed = json_decode($content, true);
-            if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['parl_mm']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']) || isset($parsed['ch_bvger']))) {
+            if ($parsed !== null && (isset($parsed['eu']) || isset($parsed['ch']) || isset($parsed['de']) || isset($parsed['fr']) || isset($parsed['parl_mm']) || isset($parsed['ch_bger']) || isset($parsed['ch_bge']) || isset($parsed['ch_bvger']))) {
                 if (saveLexConfig($parsed)) {
                     $_SESSION['success'] = 'Lex config file uploaded and applied.';
                 } else {
@@ -1130,6 +1168,157 @@ function refreshParlMmItems($pdo) {
             $parlLabel,
             $pageUrl,
             $pageUrl,
+        ]);
+        $count++;
+    }
+
+    return $count;
+}
+
+/**
+ * Refresh French legislation from Légifrance via the PISTE API.
+ * Authenticates with OAuth2 client credentials, then searches the JORF
+ * (or LODA_DATE) fond for recent texts filtered by nature and date.
+ */
+function refreshLegifranceItems($pdo) {
+    $config = getLexConfig();
+    $cfg = $config['fr'] ?? [];
+    if (!($cfg['enabled'] ?? false)) return 0;
+
+    $lookback     = (int)($cfg['lookback_days'] ?? 90);
+    $limit        = (int)($cfg['limit'] ?? 100);
+    $clientId     = trim($cfg['client_id'] ?? '');
+    $clientSecret = trim($cfg['client_secret'] ?? '');
+    $fond         = trim($cfg['fond'] ?? 'JORF');
+    $natures      = $cfg['natures'] ?? ['LOI', 'ORDONNANCE', 'DECRET'];
+
+    if (empty($clientId) || empty($clientSecret)) {
+        throw new Exception("Légifrance API credentials not configured (client_id / client_secret)");
+    }
+
+    // --- OAuth2 token ---
+    $ch = curl_init('https://oauth.piste.gouv.fr/api/oauth/token');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query([
+            'grant_type'    => 'client_credentials',
+            'scope'         => 'openid',
+            'client_id'     => $clientId,
+            'client_secret' => $clientSecret,
+        ]),
+    ]);
+    $tokenBody = curl_exec($ch);
+    $tokenHttp = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $tokenErr  = curl_error($ch);
+    curl_close($ch);
+
+    if (!$tokenBody || $tokenHttp < 200 || $tokenHttp >= 300) {
+        throw new Exception("Légifrance OAuth failed (HTTP $tokenHttp" . ($tokenErr ? ": $tokenErr" : '') . ")");
+    }
+    $tokenData = json_decode($tokenBody, true);
+    $accessToken = $tokenData['access_token'] ?? '';
+    if (empty($accessToken)) {
+        throw new Exception("Légifrance OAuth: no access_token in response");
+    }
+
+    // --- Search for recent texts ---
+    $apiBase   = 'https://api.piste.gouv.fr/dila/legifrance/lf-engine-app';
+    $sinceDate = date('Y-m-d\T00:00:00.000\Z', strtotime("-{$lookback} days"));
+    $endDate   = date('Y-m-d\T23:59:59.000\Z');
+
+    $searchBody = [
+        'fond' => $fond,
+        'recherche' => [
+            'filtres' => [
+                ['facette' => 'DATE_SIGNATURE', 'dates' => ['start' => $sinceDate, 'end' => $endDate]],
+                ['facette' => 'NATURE', 'valeurs' => $natures],
+            ],
+            'pageNumber'     => 1,
+            'pageSize'       => min($limit, 100),
+            'sort'           => 'SIGNATURE_DATE_DESC',
+            'typePagination' => 'DEFAUT',
+        ],
+    ];
+
+    $ch = curl_init("$apiBase/search");
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode($searchBody),
+        CURLOPT_HTTPHEADER     => [
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ],
+        CURLOPT_USERAGENT => 'Seismo/0.4 (legislation-monitor)',
+    ]);
+    $body     = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr  = curl_error($ch);
+    curl_close($ch);
+
+    if ($body === false || empty($body)) {
+        throw new Exception("Légifrance search failed: " . ($curlErr ?: "empty response, HTTP $httpCode"));
+    }
+    if ($httpCode < 200 || $httpCode >= 300) {
+        $snippet = substr($body, 0, 200);
+        throw new Exception("Légifrance search HTTP $httpCode: $snippet");
+    }
+
+    $data = json_decode($body, true);
+    if (!$data) {
+        throw new Exception("Failed to parse Légifrance JSON response");
+    }
+
+    $results = $data['results'] ?? [];
+    if (empty($results)) return 0;
+
+    $upsert = $pdo->prepare("
+        INSERT INTO lex_items (celex, title, description, document_date, document_type, eurlex_url, work_uri, source, fetched_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'fr', NOW())
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            description = VALUES(description),
+            document_date = VALUES(document_date),
+            document_type = VALUES(document_type),
+            eurlex_url = VALUES(eurlex_url),
+            work_uri = VALUES(work_uri),
+            source = 'fr',
+            fetched_at = NOW()
+    ");
+
+    $count = 0;
+    foreach ($results as $item) {
+        if ($count >= $limit) break;
+
+        $textId = $item['id'] ?? $item['cid'] ?? '';
+        $titre  = trim($item['titre'] ?? $item['title'] ?? '');
+        $nature = $item['nature'] ?? '';
+        $nor    = $item['nor'] ?? $item['num'] ?? '';
+
+        if (empty($textId) && empty($titre)) continue;
+
+        $rawDate = $item['dateSignature'] ?? $item['datePublication'] ?? $item['date'] ?? null;
+        $docDate = null;
+        if ($rawDate) {
+            $ts = strtotime($rawDate);
+            if ($ts !== false) $docDate = date('Y-m-d', $ts);
+        }
+
+        $legiUrl = "https://www.legifrance.gouv.fr/jorf/id/$textId";
+        $celex   = $nor ?: $textId;
+
+        $upsert->execute([
+            'fr:' . $celex,
+            $titre,
+            null,
+            $docDate,
+            $nature,
+            $legiUrl,
+            $legiUrl,
         ]);
         $count++;
     }

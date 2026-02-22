@@ -82,6 +82,7 @@
                         ['key' => 'eu',      'emoji' => '🇪🇺', 'label' => 'EU Lex'],
                         ['key' => 'ch',      'emoji' => '🇨🇭', 'label' => 'CH Lex'],
                         ['key' => 'de',      'emoji' => '🇩🇪', 'label' => 'DE Lex'],
+                        ['key' => 'fr',      'emoji' => '🇫🇷', 'label' => 'FR Lex'],
                         ['key' => 'ch_bger', 'emoji' => '⚖️', 'label' => 'BGer'],
                         ['key' => 'ch_bge',  'emoji' => '⚖️', 'label' => 'BGE'],
                         ['key' => 'ch_bvger','emoji' => '⚖️', 'label' => 'BVGer'],
@@ -316,6 +317,9 @@
                             } elseif ($lexSource === 'parl_mm') {
                                 $lexSourceEmoji = '🏛';
                                 $lexSourceLabel = 'Parl MM';
+                            } elseif ($lexSource === 'fr') {
+                                $lexSourceEmoji = '🇫🇷';
+                                $lexSourceLabel = 'FR';
                             } else {
                                 $lexSourceEmoji = '🇪🇺';
                                 $lexSourceLabel = 'EU';
@@ -349,6 +353,7 @@
                             elseif ($lexSource === 'de') $lexLinkLabel = 'recht.bund.de →';
                             elseif ($lexSource === 'ch') $lexLinkLabel = 'Fedlex →';
                             elseif ($lexSource === 'parl_mm') $lexLinkLabel = 'parlament.ch →';
+                            elseif ($lexSource === 'fr') $lexLinkLabel = 'Légifrance →';
                             else $lexLinkLabel = 'EUR-Lex →';
 
                             $lexDesc = trim($lexItem['description'] ?? '');

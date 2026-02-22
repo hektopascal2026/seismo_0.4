@@ -781,6 +781,16 @@ function getLexConfig() {
             'limit' => 50,
             'notes' => '',
         ],
+        'fr' => [
+            'enabled' => false,
+            'client_id' => '',
+            'client_secret' => '',
+            'fond' => 'JORF',
+            'natures' => ['LOI', 'ORDONNANCE', 'DECRET'],
+            'lookback_days' => 90,
+            'limit' => 100,
+            'notes' => '',
+        ],
     ];
 }
 

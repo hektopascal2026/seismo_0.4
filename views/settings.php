@@ -1196,6 +1196,86 @@
                     </div>
                 </div>
 
+                <!-- FR Légifrance Configuration -->
+                <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <label style="font-weight: 700; font-size: 18px;">🇫🇷 FR Légifrance (JORF)</label>
+                        <?php $frEnabled = (bool)($lexConfig['fr']['enabled'] ?? false); ?>
+                        <input type="hidden" name="fr_enabled" value="<?= $frEnabled ? '1' : '0' ?>">
+                        <button type="button" class="btn <?= $frEnabled ? 'btn-warning' : 'btn-success' ?>" data-lex-toggle="fr_enabled">
+                            <?= $frEnabled ? 'Disable' : 'Enable' ?>
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">PISTE Client ID</label>
+                            <?php $frHasId = !empty(trim($lexConfig['fr']['client_id'] ?? '')); ?>
+                            <input type="text" name="fr_client_id" value="<?= $frHasId ? '••••••••' : '' ?>"
+                                   placeholder="UUID from PISTE portal"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;"
+                                   onfocus="if(this.value==='••••••••')this.value=''">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">PISTE Client Secret</label>
+                            <?php $frHasSecret = !empty(trim($lexConfig['fr']['client_secret'] ?? '')); ?>
+                            <input type="text" name="fr_client_secret" value="<?= $frHasSecret ? '••••••••' : '' ?>"
+                                   placeholder="UUID from PISTE portal"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;"
+                                   onfocus="if(this.value==='••••••••')this.value=''">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Fond (database)</label>
+                            <select name="fr_fond" style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px;">
+                                <?php
+                                $frFonds = ['JORF' => 'JORF (Journal Officiel)', 'LODA_DATE' => 'LODA (Lois / Ordonnances par date)'];
+                                $currentFond = $lexConfig['fr']['fond'] ?? 'JORF';
+                                foreach ($frFonds as $code => $label): ?>
+                                    <option value="<?= $code ?>" <?= $currentFond === $code ? 'selected' : '' ?>><?= $label ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Natures (comma-separated)</label>
+                            <input type="text" name="fr_natures" value="<?= htmlspecialchars(implode(', ', $lexConfig['fr']['natures'] ?? ['LOI', 'ORDONNANCE', 'DECRET'])) ?>"
+                                   placeholder="LOI, ORDONNANCE, DECRET"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Lookback (days)</label>
+                            <input type="number" name="fr_lookback_days" value="<?= (int)($lexConfig['fr']['lookback_days'] ?? 90) ?>" min="1" max="365"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Max results</label>
+                            <input type="number" name="fr_limit" value="<?= (int)($lexConfig['fr']['limit'] ?? 100) ?>" min="1" max="200"
+                                   style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Notes</label>
+                        <textarea name="fr_notes" rows="2" placeholder="Optional notes about this source..."
+                                  style="width: 100%; padding: 6px 10px; border: 2px solid #000000; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"><?= htmlspecialchars($lexConfig['fr']['notes'] ?? '') ?></textarea>
+                    </div>
+
+                    <div style="margin-top: 8px; font-size: 12px;">
+                        Source: French legislation via
+                        <a href="https://www.legifrance.gouv.fr/" target="_blank" rel="noopener" style="text-decoration: underline;">Légifrance</a>
+                        PISTE API.
+                        <a href="https://piste.gouv.fr/" target="_blank" rel="noopener" style="text-decoration: underline;">Register at piste.gouv.fr</a>
+                    </div>
+                    <div style="margin-top: 6px; font-size: 12px; line-height: 1.6;">
+                        Requires OAuth2 client credentials from the PISTE portal. Searches the JORF (Official Journal) for recent laws, ordinances, and decrees.
+                    </div>
+                </div>
+
                 <!-- JUS: CH_BGer Configuration -->
                 <div style="margin-bottom: 24px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
