@@ -339,8 +339,8 @@ switch ($action) {
         break;
 
     case 'styleguide':
-        handleStyleguidePage();
-        break;
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=styleguide');
+        exit;
 
     // ── Global Refresh (cross-cutting) ───────────────────────────
     case 'refresh_all':
