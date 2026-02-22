@@ -1294,14 +1294,15 @@ function refreshLegifranceItems($pdo) {
     foreach ($results as $item) {
         if ($count >= $limit) break;
 
-        $textId = $item['id'] ?? $item['cid'] ?? '';
-        $titre  = trim($item['titre'] ?? $item['title'] ?? '');
+        $t0     = $item['titles'][0] ?? [];
+        $textId = $t0['cid'] ?? $t0['id'] ?? $item['id'] ?? $item['cid'] ?? '';
+        $titre  = trim($t0['title'] ?? $item['titre'] ?? $item['title'] ?? '');
         $nature = $item['nature'] ?? '';
         $nor    = $item['nor'] ?? $item['num'] ?? '';
 
         if (empty($textId) && empty($titre)) continue;
 
-        $rawDate = $item['dateSignature'] ?? $item['datePublication'] ?? $item['date'] ?? null;
+        $rawDate = $item['datePublication'] ?? $item['dateSignature'] ?? $item['date'] ?? null;
         $docDate = null;
         if ($rawDate) {
             $ts = strtotime($rawDate);
