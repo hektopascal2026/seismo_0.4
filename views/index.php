@@ -313,6 +313,9 @@
                             } elseif ($lexSource === 'ch') {
                                 $lexSourceEmoji = '🇨🇭';
                                 $lexSourceLabel = 'CH';
+                            } elseif ($lexSource === 'parl_mm') {
+                                $lexSourceEmoji = '🏛';
+                                $lexSourceLabel = 'Parl MM';
                             } else {
                                 $lexSourceEmoji = '🇪🇺';
                                 $lexSourceLabel = 'EU';
@@ -345,7 +348,13 @@
                             elseif ($lexSource === 'ch_bvger') $lexLinkLabel = 'Urteil →';
                             elseif ($lexSource === 'de') $lexLinkLabel = 'recht.bund.de →';
                             elseif ($lexSource === 'ch') $lexLinkLabel = 'Fedlex →';
+                            elseif ($lexSource === 'parl_mm') $lexLinkLabel = 'parlament.ch →';
                             else $lexLinkLabel = 'EUR-Lex →';
+
+                            $lexDesc = trim($lexItem['description'] ?? '');
+                            $lexPreview = mb_substr($lexDesc, 0, 300);
+                            if (mb_strlen($lexDesc) > 300) $lexPreview .= '...';
+                            $lexHasMore = mb_strlen($lexDesc) > 300;
                         ?>
                         <div class="entry-card">
                             <div class="entry-header">
@@ -364,10 +373,21 @@
                                     <?php endif; ?>
                                 </a>
                             </h3>
+                            <?php if (!empty($lexDesc)): ?>
+                                <div class="entry-content entry-preview"><?= nl2br(htmlspecialchars($lexPreview)) ?></div>
+                                <?php if ($lexHasMore): ?>
+                                    <div class="entry-full-content" style="display: none;"><?= nl2br(htmlspecialchars($lexDesc)) ?></div>
+                                <?php endif; ?>
+                            <?php endif; ?>
                             <div class="entry-actions">
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span style="font-family: monospace;<?= $isJus ? ' font-size: 12px; font-weight: 600;' : '' ?>"><?= htmlspecialchars($lexCelexDisplay) ?></span>
-                                    <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexLinkLabel ?></a>
+                                    <?php if (!empty($lexDesc) && $lexHasMore): ?>
+                                        <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                    <?php endif; ?>
+                                    <?php if ($lexSource !== 'parl_mm'): ?>
+                                        <span style="font-family: monospace;<?= $isJus ? ' font-size: 12px; font-weight: 600;' : '' ?>"><?= htmlspecialchars($lexCelexDisplay) ?></span>
+                                        <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexLinkLabel ?></a>
+                                    <?php endif; ?>
                                 </div>
                                 <?php if ($lexDate): ?>
                                     <span class="entry-date"><?= $lexDate ?></span>

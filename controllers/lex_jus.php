@@ -1043,8 +1043,9 @@ function refreshParlMmItems($pdo) {
     $sinceDate = date('Y-m-d\TH:i:s\Z', strtotime("-{$lookback} days"));
 
     $langField = 'Title_' . $lang;
+    $contentField = 'Content_' . $lang;
 
-    $select = "Title,{$langField},FileRef,Created,ArticleStartDate,ContentType/Name";
+    $select = "Title,{$langField},{$contentField},FileRef,Created,ArticleStartDate,ContentType/Name";
     $filter = "Created ge datetime'{$sinceDate}'";
     $orderBy = 'Created desc';
 
@@ -1085,10 +1086,11 @@ function refreshParlMmItems($pdo) {
     if (empty($items)) return 0;
 
     $upsert = $pdo->prepare("
-        INSERT INTO lex_items (celex, title, document_date, document_type, eurlex_url, work_uri, source)
-        VALUES (?, ?, ?, ?, ?, ?, 'parl_mm')
+        INSERT INTO lex_items (celex, title, description, document_date, document_type, eurlex_url, work_uri, source)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'parl_mm')
         ON DUPLICATE KEY UPDATE
             title = VALUES(title),
+            description = VALUES(description),
             document_date = VALUES(document_date),
             document_type = VALUES(document_type),
             eurlex_url = VALUES(eurlex_url),
@@ -1117,9 +1119,13 @@ function refreshParlMmItems($pdo) {
         $pageUrl = 'https://www.parlament.ch' . $fileRef;
         $parlLabel = parseParlMmCommission($slug);
 
+        $rawContent = $item[$contentField] ?? '';
+        $plainContent = trim(strip_tags($rawContent));
+
         $upsert->execute([
             'parl_mm:' . $slug,
             $title,
+            $plainContent ?: null,
             $docDate,
             $parlLabel,
             $pageUrl,

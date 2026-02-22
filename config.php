@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 13);
+define('SCHEMA_VERSION', 14);
 
 /**
  * Initialize database tables
@@ -293,6 +293,15 @@ function initDatabase() {
         $pdo->exec("ALTER TABLE lex_items MODIFY COLUMN celex VARCHAR(255) NOT NULL");
     } catch (PDOException $e) {
         // Ignore if it fails
+    }
+
+    // Add description column for body text (used by Parl MM press releases)
+    try {
+        $pdo->exec("ALTER TABLE lex_items ADD COLUMN description TEXT DEFAULT NULL AFTER title");
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'Duplicate column name') === false) {
+            throw $e;
+        }
     }
     
     // Create calendar_events table for upcoming events (parliament sessions, publications, etc.)

@@ -44,14 +44,14 @@ function handleDashboard($pdo) {
         $selectedSubstackTags = $substackTags;
         $lexCfg = getLexConfig();
         $selectedLexSources = array_values(array_filter(
-            ['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger'],
+            ['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger', 'parl_mm'],
             function($s) use ($lexCfg) { return !empty($lexCfg[$s]['enabled']); }
         ));
     }
     
     $lexCfg = $lexCfg ?? getLexConfig();
     $enabledLexSources = [];
-    foreach (['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger'] as $s) {
+    foreach (['eu', 'ch', 'de', 'ch_bger', 'ch_bge', 'ch_bvger', 'parl_mm'] as $s) {
         if (!empty($lexCfg[$s]['enabled'])) $enabledLexSources[] = $s;
     }
     $selectedLexSources = array_values(array_intersect($selectedLexSources, $enabledLexSources));

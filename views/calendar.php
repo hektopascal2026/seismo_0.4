@@ -172,7 +172,7 @@
                         $combinedText = $description;
                         if (!empty($submittedText)) {
                             $combinedText = (!empty($description) ? $description . "\n\n" : '')
-                                          . "Eingereichter Text:\n" . $submittedText;
+                                          . $submittedText;
                         }
                         $contentPreview = mb_substr($combinedText, 0, 300);
                         if (mb_strlen($combinedText) > 300) $contentPreview .= '...';
@@ -211,16 +211,16 @@
                             <?php endif; ?>
                         </h3>
                         <?php if (!empty($contentPreview)): ?>
-                            <div class="entry-content">
-                                <div class="entry-preview"><?= nl2br(htmlspecialchars($contentPreview)) ?></div>
-                                <?php if ($hasMore): ?>
-                                    <div class="entry-full" style="display: none;"><?= nl2br(htmlspecialchars($combinedText)) ?></div>
-                                    <button class="entry-expand-btn">more &#9660;</button>
-                                <?php endif; ?>
-                            </div>
+                            <div class="entry-content entry-preview"><?= nl2br(htmlspecialchars($contentPreview)) ?></div>
+                            <?php if ($hasMore): ?>
+                                <div class="entry-full-content" style="display: none;"><?= nl2br(htmlspecialchars($combinedText)) ?></div>
+                            <?php endif; ?>
                         <?php endif; ?>
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <?php if ($hasMore): ?>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                <?php endif; ?>
                                 <?php if ($businessNumber): ?>
                                     <span style="font-family: monospace; font-size: 0.85em;"><?= htmlspecialchars($businessNumber) ?></span>
                                 <?php endif; ?>
@@ -258,48 +258,53 @@
             menuBtn.classList.toggle('active');
         });
 
-        // Expand/collapse individual entries
-        document.querySelectorAll('.entry-expand-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var card = btn.closest('.entry-content');
-                var preview = card.querySelector('.entry-preview');
-                var full = card.querySelector('.entry-full');
-                if (full.style.display === 'none') {
-                    preview.style.display = 'none';
-                    full.style.display = 'block';
-                    btn.innerHTML = 'less &#9650;';
-                } else {
-                    preview.style.display = 'block';
-                    full.style.display = 'none';
-                    btn.innerHTML = 'more &#9660;';
-                }
-            });
+        function collapseEntry(card, btn) {
+            var preview = card.querySelector('.entry-preview');
+            var full = card.querySelector('.entry-full-content');
+            if (!preview || !full) return;
+            full.style.display = 'none';
+            preview.style.display = '';
+            if (btn) btn.innerHTML = 'expand \u25BC';
+        }
+
+        function expandEntry(card, btn) {
+            var preview = card.querySelector('.entry-preview');
+            var full = card.querySelector('.entry-full-content');
+            if (!preview || !full) return;
+            preview.style.display = 'none';
+            full.style.display = 'block';
+            if (btn) btn.innerHTML = 'collapse \u25B2';
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.entry-expand-btn');
+            if (!btn) return;
+            var card = btn.closest('.entry-card');
+            if (!card) return;
+            var full = card.querySelector('.entry-full-content');
+            if (!full) return;
+            if (full.style.display === 'block') {
+                collapseEntry(card, btn);
+            } else {
+                expandEntry(card, btn);
+            }
         });
 
-        // Expand all
-        var expandAllBtn = document.querySelector('.entry-expand-all-btn');
-        if (expandAllBtn) {
-            var allExpanded = false;
-            expandAllBtn.addEventListener('click', function() {
-                allExpanded = !allExpanded;
-                document.querySelectorAll('.entry-content').forEach(function(card) {
-                    var preview = card.querySelector('.entry-preview');
-                    var full = card.querySelector('.entry-full');
-                    var btn = card.querySelector('.entry-expand-btn');
-                    if (!full) return;
-                    if (allExpanded) {
-                        preview.style.display = 'none';
-                        full.style.display = 'block';
-                        if (btn) btn.innerHTML = 'less &#9650;';
-                    } else {
-                        preview.style.display = 'block';
-                        full.style.display = 'none';
-                        if (btn) btn.innerHTML = 'more &#9660;';
-                    }
-                });
-                expandAllBtn.innerHTML = allExpanded ? 'collapse all &#9650;' : 'expand all &#9660;';
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.entry-expand-all-btn');
+            if (!btn) return;
+            var isExpanded = btn.dataset.expanded === 'true';
+            document.querySelectorAll('.entry-card').forEach(function(card) {
+                var entryBtn = card.querySelector('.entry-expand-btn');
+                if (isExpanded) {
+                    collapseEntry(card, entryBtn);
+                } else {
+                    expandEntry(card, entryBtn);
+                }
             });
-        }
+            btn.dataset.expanded = !isExpanded;
+            btn.innerHTML = !isExpanded ? 'collapse all \u25B2' : 'expand all \u25BC';
+        });
     })();
     </script>
 </body>

@@ -144,10 +144,27 @@
                                 <?= htmlspecialchars($item['title']) ?>
                             </a>
                         </h3>
+                        <?php
+                            $lexDesc = trim($item['description'] ?? '');
+                            $lexPreview = mb_substr($lexDesc, 0, 300);
+                            if (mb_strlen($lexDesc) > 300) $lexPreview .= '...';
+                            $lexHasMore = mb_strlen($lexDesc) > 300;
+                        ?>
+                        <?php if (!empty($lexDesc)): ?>
+                            <div class="entry-content entry-preview"><?= nl2br(htmlspecialchars($lexPreview)) ?></div>
+                            <?php if ($lexHasMore): ?>
+                                <div class="entry-full-content" style="display: none;"><?= nl2br(htmlspecialchars($lexDesc)) ?></div>
+                            <?php endif; ?>
+                        <?php endif; ?>
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-family: monospace;"><?= htmlspecialchars($item['celex']) ?></span>
-                                <a href="<?= $itemUrl ?>" target="_blank" rel="noopener" class="entry-link"><?= $linkLabel ?></a>
+                                <?php if ($lexHasMore): ?>
+                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                <?php endif; ?>
+                                <?php if ($source !== 'parl_mm'): ?>
+                                    <span style="font-family: monospace;"><?= htmlspecialchars($item['celex']) ?></span>
+                                    <a href="<?= $itemUrl ?>" target="_blank" rel="noopener" class="entry-link"><?= $linkLabel ?></a>
+                                <?php endif; ?>
                             </div>
                             <?php if ($item['document_date']): ?>
                                 <span class="entry-date"><?= date('d.m.Y', strtotime($item['document_date'])) ?></span>
@@ -166,6 +183,38 @@
         menuBtn.addEventListener('click', function() {
             navDrawer.classList.toggle('open');
             menuBtn.classList.toggle('active');
+        });
+
+        function collapseEntry(card, btn) {
+            var preview = card.querySelector('.entry-preview');
+            var full = card.querySelector('.entry-full-content');
+            if (!preview || !full) return;
+            full.style.display = 'none';
+            preview.style.display = '';
+            if (btn) btn.innerHTML = 'expand \u25BC';
+        }
+
+        function expandEntry(card, btn) {
+            var preview = card.querySelector('.entry-preview');
+            var full = card.querySelector('.entry-full-content');
+            if (!preview || !full) return;
+            preview.style.display = 'none';
+            full.style.display = 'block';
+            if (btn) btn.innerHTML = 'collapse \u25B2';
+        }
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.entry-expand-btn');
+            if (!btn) return;
+            var card = btn.closest('.entry-card');
+            if (!card) return;
+            var full = card.querySelector('.entry-full-content');
+            if (!full) return;
+            if (full.style.display === 'block') {
+                collapseEntry(card, btn);
+            } else {
+                expandEntry(card, btn);
+            }
         });
     })();
     </script>

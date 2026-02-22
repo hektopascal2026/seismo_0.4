@@ -547,7 +547,7 @@ function handleMagnituEntries($pdo) {
     // Lex items
     if ($type === 'all' || $type === 'lex_item') {
         try {
-            $sql = "SELECT id, celex, title, document_date, document_type, eurlex_url, source
+            $sql = "SELECT id, celex, title, description, document_date, document_type, eurlex_url, source
                     FROM lex_items";
             $params = [];
             if ($since) {
@@ -562,8 +562,8 @@ function handleMagnituEntries($pdo) {
                     'entry_type' => 'lex_item',
                     'entry_id' => (int)$row['id'],
                     'title' => $row['title'],
-                    'description' => ($row['document_type'] ?? '') . ' | ' . ($row['celex'] ?? ''),
-                    'content' => $row['title'],
+                    'description' => !empty($row['description']) ? $row['description'] : (($row['document_type'] ?? '') . ' | ' . ($row['celex'] ?? '')),
+                    'content' => !empty($row['description']) ? $row['description'] : $row['title'],
                     'link' => $row['eurlex_url'] ?? '',
                     'author' => '',
                     'published_date' => $row['document_date'],
@@ -573,6 +573,7 @@ function handleMagnituEntries($pdo) {
                         'ch_bger' => 'Bundesgericht',
                         'ch_bge' => 'BGE Leitentscheide',
                         'ch_bvger' => 'Bundesverwaltungsgericht',
+                        'parl_mm' => 'Parlament CH',
                         default => 'EUR-Lex',
                     },
                     'source_category' => $row['document_type'] ?? 'Legislation',
