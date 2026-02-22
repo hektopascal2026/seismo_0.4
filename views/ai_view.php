@@ -1,69 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI View - Seismo</title>
-    <link rel="stylesheet" href="<?= getBasePath() ?>/assets/css/style.css">
+    <title>Seismo AI Readable Feed</title>
     <style>
-        .ai-card { background: #fff; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 40px; padding: 20px; }
-        .ai-header { border-bottom: 2px solid #eee; margin-bottom: 15px; padding-bottom: 10px; }
-        .ai-meta { font-family: monospace; font-size: 12px; color: #000000; }
-        .ai-subject { font-size: 18px; font-weight: bold; color: #000; margin-top: 5px; }
-        .ai-body { 
-            white-space: pre-wrap; 
-            font-family: "Courier New", Courier, monospace; 
-            font-size: 14px; 
-            line-height: 1.5; 
-            background: #fdfdfd; 
-            padding: 15px; 
-            border: 1px solid #f0f0f0;
+        body { font-family: monospace; line-height: 1.5; padding: 20px; background: #fff; color: #000; }
+        .filter-summary { background: #f0f0f0; border: 2px solid #000; padding: 10px 14px; margin-bottom: 30px; font-size: 12px; }
+        .filter-summary strong { text-transform: uppercase; }
+        .entry { margin-bottom: 40px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .entry.priority { border-left: 4px solid #000; padding-left: 12px; }
+        .meta { background: #eee; padding: 2px 5px; font-weight: bold; }
+        .score-tag { display: inline-block; padding: 1px 6px; font-size: 11px; font-weight: bold; margin-left: 8px; }
+        .score-investigation { background: #ff6b6b; color: #fff; }
+        .score-important { background: #ffa726; color: #fff; }
+        .score-background { background: #aaa; color: #fff; }
+        .score-noise { background: #ddd; color: #666; }
+        .priority-tag { display: inline-block; background: #000; color: #fff; padding: 1px 6px; font-size: 11px; font-weight: bold; margin-left: 8px; }
+        .content-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 3px solid #ccc;
+            white-space: pre-wrap;
         }
-        .ai-divider { border: 0; height: 1px; background: #333; margin: 60px 0; }
+        .label { font-weight: bold; text-transform: uppercase; color: #444; }
+        .back-link { display: inline-block; margin-bottom: 16px; font-size: 12px; color: #000; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <nav class="main-nav">
-            <a href="?action=index" class="nav-link">Seismo</a>
-            <a href="?action=mail" class="nav-link">Back to Mail</a>
-        </nav>
+    <a href="?action=beta" class="back-link">&larr; Back to generator</a>
 
-        <header>
-            <h1>AI Extraction Feed</h1>
-            <p class="subtitle">Readable by humans, optimized for AI processing.</p>
-        </header>
-
-        <?php if (!empty($emails)): ?>
-            <?php foreach ($emails as $email): ?>
-                <?php
-                    // Map your DB columns to standard display variables
-                    $sender = $email['from_addr'] ?? $email['from_email'] ?? 'Unknown';
-                    $date = $email['date_utc'] ?? $email['created_at'] ?? 'N/A';
-                    $subject = $email['subject'] ?? '(No Subject)';
-                    
-                    // Extract body
-                    $body = !empty($email['body_text']) ? $email['body_text'] : ($email['text_body'] ?? '');
-                    if (empty(trim($body))) {
-                        $html = $email['body_html'] ?? $email['html_body'] ?? '';
-                        $body = strip_tags($html);
-                    }
-                ?>
-                <article class="ai-card">
-                    <div class="ai-header">
-                        <div class="ai-meta">
-                            FROM: <?= htmlspecialchars($sender) ?><br>
-                            DATE: <?= htmlspecialchars($date) ?>
-                        </div>
-                        <div class="ai-subject">SUBJECT: <?= htmlspecialchars($subject) ?></div>
-                    </div>
-                    <div class="ai-body"><?= htmlspecialchars(trim($body)) ?></div>
-                </article>
-                <hr class="ai-divider">
-            <?php endforeach; ?>
-        <?php else: ?>
-            <p>No emails found in the current database table.</p>
-        <?php endif; ?>
+    <?php if (isset($aiFilterSummary)): ?>
+    <div class="filter-summary">
+        <strong>Filters applied:</strong>
+        Sources: <?= htmlspecialchars(implode(', ', $aiFilterSummary['sources'])) ?> |
+        Date: <?= htmlspecialchars($aiFilterSummary['since']) ?> |
+        Labels: <?= htmlspecialchars(implode(', ', $aiFilterSummary['labels'])) ?>
+        <?php if ($aiFilterSummary['min_score'] !== null): ?> | Min score: <?= $aiFilterSummary['min_score'] ?>%<?php endif; ?>
+        <?php if (!empty($aiFilterSummary['keywords'])): ?> | Keywords: <?= htmlspecialchars($aiFilterSummary['keywords']) ?><?php endif; ?>
+        | Limit: <?= $aiFilterSummary['limit'] ?>
+        | <strong>Showing <?= $aiFilterSummary['total'] ?> entries</strong>
     </div>
+    <?php endif; ?>
+
+    <?php foreach ($allItems as $item): ?>
+        <div class="entry<?= !empty($item['priority']) ? ' priority' : '' ?>">
+            <div class="meta">
+                <?= $item['date'] ? date('Y-m-d H:i', $item['date']) : 'n/a' ?> | SOURCE: <?= htmlspecialchars($item['source']) ?>
+                <?php if ($item['score'] !== null): ?>
+                    <?php
+                        $scoreClass = '';
+                        if ($item['label'] === 'investigation_lead') $scoreClass = 'score-investigation';
+                        elseif ($item['label'] === 'important') $scoreClass = 'score-important';
+                        elseif ($item['label'] === 'background') $scoreClass = 'score-background';
+                        elseif ($item['label'] === 'noise') $scoreClass = 'score-noise';
+                    ?>
+                    <span class="score-tag <?= $scoreClass ?>">SCORE: <?= round($item['score'] * 100) ?>% <?= strtoupper(str_replace('_', ' ', $item['label'] ?? '')) ?></span>
+                <?php endif; ?>
+                <?php if (!empty($item['priority'])): ?>
+                    <span class="priority-tag">PRIORITY</span>
+                <?php endif; ?>
+            </div>
+
+            <div style="margin-top:10px;">
+                <span class="label">Subject/Title:</span> <?= htmlspecialchars($item['title']) ?>
+            </div>
+
+            <?php if (($item['link'] ?? '#') !== '#'): ?>
+            <div>
+                <span class="label">Link:</span> <?= htmlspecialchars($item['link']) ?>
+            </div>
+            <?php endif; ?>
+
+            <div class="content-box">
+                <span class="label">--- Full Text ---</span><br>
+                <?= htmlspecialchars($item['content']) ?>
+            </div>
+        </div>
+    <?php endforeach; ?>
 </body>
 </html>

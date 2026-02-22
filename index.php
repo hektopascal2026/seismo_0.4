@@ -286,8 +286,8 @@ switch ($action) {
         break;
 
     case 'ai_view_unified':
-        handleAiViewUnified($pdo);
-        break;
+        header('Location: ' . getBasePath() . '/index.php?action=ai_view&' . http_build_query(array_diff_key($_GET, ['action' => 1])));
+        exit;
 
     case 'ai_view':
         handleAiView($pdo);

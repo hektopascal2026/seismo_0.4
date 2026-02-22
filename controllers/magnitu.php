@@ -111,8 +111,8 @@ function handleMagnituPage($pdo) {
     include 'views/magnitu.php';
 }
 
-function handleAiViewUnified($pdo) {
-    $aiSources = isset($_GET['sources']) ? (array)$_GET['sources'] : ['rss', 'substack', 'email', 'lex', 'jus', 'scraper', 'calendar'];
+function handleAiView($pdo) {
+    $aiSources = isset($_GET['sources']) ? (array)$_GET['sources'] : ['rss', 'substack', 'email', 'lex', 'parl_mm', 'jus', 'scraper', 'calendar'];
     $aiSince = $_GET['since'] ?? '7d';
     $aiLabels = isset($_GET['labels']) ? (array)$_GET['labels'] : ['investigation_lead', 'important', 'background', 'noise', 'unscored'];
     $aiMinScore = isset($_GET['min_score']) && $_GET['min_score'] !== '' ? (int)$_GET['min_score'] : null;
@@ -138,7 +138,6 @@ function handleAiViewUnified($pdo) {
     $perSourceLimit = (int)ceil($aiLimit / max(count($aiSources), 1));
     $allItems = [];
 
-    // 1. RSS items
     if (in_array('rss', $aiSources)) {
         try {
             $sql = "SELECT fi.*, f.title as feed_title, f.category as feed_category
@@ -167,7 +166,6 @@ function handleAiViewUnified($pdo) {
         } catch (PDOException $e) {}
     }
 
-    // 2. Substack items
     if (in_array('substack', $aiSources)) {
         try {
             $sql = "SELECT fi.*, f.title as feed_title
@@ -196,7 +194,6 @@ function handleAiViewUnified($pdo) {
         } catch (PDOException $e) {}
     }
 
-    // 3. Emails
     if (in_array('email', $aiSources)) {
         $emails = getEmailsForIndex($pdo, $perSourceLimit, []);
         foreach ($emails as $email) {
@@ -219,7 +216,6 @@ function handleAiViewUnified($pdo) {
         }
     }
 
-    // 4. Lex items
     if (in_array('lex', $aiSources)) {
         try {
             $sql = "SELECT * FROM lex_items WHERE source IN ('eu','ch','de')";
@@ -232,11 +228,11 @@ function handleAiViewUnified($pdo) {
                 $src = strtoupper((string)($lexItem['source'] ?? 'eu'));
                 $docType = trim((string)($lexItem['document_type'] ?? 'Legislation'));
                 $celex = trim((string)($lexItem['celex'] ?? ''));
-                $workUri = trim((string)($lexItem['work_uri'] ?? ''));
+                $desc = trim((string)($lexItem['description'] ?? ''));
                 $contentParts = [];
                 if ($docType !== '') $contentParts[] = 'Type: ' . $docType;
                 if ($celex !== '') $contentParts[] = 'ID: ' . $celex;
-                if ($workUri !== '') $contentParts[] = 'URI: ' . $workUri;
+                if ($desc !== '') $contentParts[] = $desc;
                 $scoreKey = 'lex_item:' . $lexItem['id'];
                 $score = $aiScoreMap[$scoreKey] ?? null;
                 $allItems[] = [
@@ -253,7 +249,33 @@ function handleAiViewUnified($pdo) {
         } catch (PDOException $e) {}
     }
 
-    // 5. Jus items (Swiss case law)
+    if (in_array('parl_mm', $aiSources)) {
+        try {
+            $sql = "SELECT * FROM lex_items WHERE source = 'parl_mm'";
+            $params = [];
+            if ($sinceDate) { $sql .= " AND (document_date >= ? OR created_at >= ?)"; $params[] = $sinceDate; $params[] = $sinceDate; }
+            $sql .= " ORDER BY document_date DESC LIMIT " . $perSourceLimit;
+            $stmt = $pdo->prepare($sql); $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $lexItem) {
+                $date = $lexItem['document_date'] ?? $lexItem['created_at'] ?? 0;
+                $commission = trim((string)($lexItem['document_type'] ?? ''));
+                $desc = trim((string)($lexItem['description'] ?? ''));
+                $scoreKey = 'lex_item:' . $lexItem['id'];
+                $score = $aiScoreMap[$scoreKey] ?? null;
+                $allItems[] = [
+                    'source' => 'PARL MM' . ($commission ? ': ' . $commission : ''),
+                    'source_type' => 'parl_mm',
+                    'date' => $date ? strtotime($date) : 0,
+                    'title' => $lexItem['title'] ?: '(No Title)',
+                    'content' => $desc,
+                    'link' => $lexItem['eurlex_url'] ?: '#',
+                    'score' => $score ? (float)$score['relevance_score'] : null,
+                    'label' => $score['predicted_label'] ?? null,
+                ];
+            }
+        } catch (PDOException $e) {}
+    }
+
     if (in_array('jus', $aiSources)) {
         try {
             $sql = "SELECT * FROM lex_items WHERE source IN ('ch_bger','ch_bge','ch_bvger')";
@@ -280,7 +302,6 @@ function handleAiViewUnified($pdo) {
         } catch (PDOException $e) {}
     }
 
-    // 6. Scraper items
     if (in_array('scraper', $aiSources)) {
         try {
             $sql = "SELECT fi.*, f.title as feed_title
@@ -309,7 +330,6 @@ function handleAiViewUnified($pdo) {
         } catch (PDOException $e) {}
     }
 
-    // 7. Calendar events
     if (in_array('calendar', $aiSources)) {
         try {
             $sql = "SELECT * FROM calendar_events WHERE 1=1";
@@ -326,7 +346,6 @@ function handleAiViewUnified($pdo) {
                 $date = $event['event_date'] ?? $event['created_at'] ?? 0;
                 $scoreKey = 'calendar_event:' . $event['id'];
                 $score = $aiScoreMap[$scoreKey] ?? null;
-                $meta = $event['metadata'] ? json_decode($event['metadata'], true) : [];
                 $allItems[] = [
                     'source' => 'CALENDAR: ' . getCalendarSourceLabel($event['source']),
                     'source_type' => 'calendar',
@@ -341,7 +360,6 @@ function handleAiViewUnified($pdo) {
         } catch (PDOException $e) {}
     }
 
-    // 8. Apply Magnitu label filter
     $includeUnscored = in_array('unscored', $aiLabels);
     $allowedLabels = array_diff($aiLabels, ['unscored']);
     $allItems = array_filter($allItems, function($item) use ($allowedLabels, $includeUnscored) {
@@ -349,7 +367,6 @@ function handleAiViewUnified($pdo) {
         return in_array($item['label'], $allowedLabels);
     });
 
-    // 9. Apply minimum score filter
     if ($aiMinScore !== null) {
         $minScoreFloat = $aiMinScore / 100.0;
         $allItems = array_filter($allItems, function($item) use ($minScoreFloat) {
@@ -358,7 +375,6 @@ function handleAiViewUnified($pdo) {
         });
     }
 
-    // 10. Sort: keyword-boosted first, then by date
     $keywordList = [];
     if (!empty($aiKeywords)) {
         $keywordList = array_map('trim', explode(',', mb_strtolower($aiKeywords)));
@@ -397,13 +413,6 @@ function handleAiViewUnified($pdo) {
         'total' => count($allItems),
     ];
 
-    include 'views/ai_view_unified.php';
-}
-
-function handleAiView($pdo) {
-    $tableName = getEmailTableName($pdo);
-    $stmt = $pdo->query("SELECT * FROM `$tableName` ORDER BY id DESC LIMIT 100");
-    $emails = $stmt->fetchAll();
     include 'views/ai_view.php';
 }
 

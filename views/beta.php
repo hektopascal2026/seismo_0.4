@@ -71,7 +71,7 @@
             <p style="margin-bottom: 12px;">Configure what data goes into the AI-readable unified feed, then generate it.</p>
 
             <form method="GET" action="" id="ai-generator-form">
-                <input type="hidden" name="action" value="ai_view_unified">
+                <input type="hidden" name="action" value="ai_view">
 
                 <!-- Sources -->
                 <div style="margin-bottom: 14px;">
@@ -83,8 +83,10 @@
                             'substack' => 'Substack',
                             'email' => 'Email',
                             'lex' => 'Lex',
+                            'parl_mm' => 'Parl MM',
                             'jus' => 'Jus',
                             'scraper' => 'Scraper',
+                            'calendar' => 'Calendar',
                         ];
                         foreach ($sourceOptions as $key => $label): ?>
                         <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">

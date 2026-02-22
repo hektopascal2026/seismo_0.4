@@ -367,12 +367,12 @@ if (!empty($feeds)) {
 // ─── 8. AI views ────────────────────────────────────────────────────────────
 echo "\n8. AI / Beta views\n";
 
-$r = req("$BASE?action=ai_view_unified");
-assert_status("ai_view_unified returns 200", $r, 200);
-assert_not_contains("ai_view_unified no Fatal errors", $r, 'Fatal error');
-
 $r = req("$BASE?action=ai_view");
 assert_status("ai_view returns 200", $r, 200);
+assert_not_contains("ai_view no Fatal errors", $r, 'Fatal error');
+
+$r = req("$BASE?action=ai_view_unified");
+assert_redirect("ai_view_unified redirects to ai_view", $r);
 
 // ─── 9. Edge cases ──────────────────────────────────────────────────────────
 echo "\n9. Edge cases\n";
