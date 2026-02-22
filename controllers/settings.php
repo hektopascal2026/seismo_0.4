@@ -200,11 +200,14 @@ function handleAboutPage($pdo) {
         $stats['lex_eu'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'eu'")->fetchColumn();
         $stats['lex_ch'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch'")->fetchColumn();
         $stats['lex_de'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'de'")->fetchColumn();
+        $stats['lex_fr'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'fr'")->fetchColumn();
+        $stats['lex_parl_mm'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'parl_mm'")->fetchColumn();
         $stats['jus_bger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bger'")->fetchColumn();
         $stats['jus_bge'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bge'")->fetchColumn();
         $stats['jus_bvger'] = $pdo->query("SELECT COUNT(*) FROM lex_items WHERE source = 'ch_bvger'")->fetchColumn();
         $stats['scraper_configs'] = $pdo->query("SELECT COUNT(*) FROM scraper_configs")->fetchColumn();
         $stats['scraper_items'] = $pdo->query("SELECT COUNT(*) FROM feed_items fi JOIN feeds f ON fi.feed_id = f.id WHERE f.source_type = 'scraper'")->fetchColumn();
+        $stats['calendar'] = $pdo->query("SELECT COUNT(*) FROM calendar_events")->fetchColumn();
     } catch (PDOException $e) {}
     $lastChangeDate = date('d.m.Y', filemtime(__DIR__ . '/../index.php'));
     include 'views/about.php';

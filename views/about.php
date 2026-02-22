@@ -111,7 +111,7 @@
             <h2>What is Seismo?</h2>
             <p>
                 Seismo is a self-hosted monitoring dashboard that aggregates information from multiple sources into a single feed.
-                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the European Union, Switzerland, and Germany, Swiss case law, and scraped web pages — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
+                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the EU, Switzerland, Germany, and France, Swiss parliamentary press releases, Swiss case law, parliamentary calendars, and scraped web pages — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
             </p>
         </section>
 
@@ -144,6 +144,14 @@
                     German federal legislation via RSS from <a href="https://www.recht.bund.de/" class="about-link" target="_blank" rel="noopener">recht.bund.de</a> — Bundesgesetzblatt Teil I + II (Gesetze, Verordnungen, Bekanntmachungen)
                 </li>
                 <li>
+                    <span class="about-source-label" style="background-color: #f5f562;">🇫🇷 FR Lex</span>
+                    French legislation via the <a href="https://www.legifrance.gouv.fr/" class="about-link" target="_blank" rel="noopener">Légifrance</a> PISTE API — lois, ordonnances, décrets from the Journal Officiel (JORF). Requires OAuth2 credentials from <a href="https://piste.gouv.fr/" class="about-link" target="_blank" rel="noopener">piste.gouv.fr</a>
+                </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #f5f562;">🏛 Parl MM</span>
+                    Swiss parliamentary press releases via the <a href="https://www.parlament.ch/press-releases/" class="about-link" target="_blank" rel="noopener">parlament.ch</a> SharePoint REST API — multilingual titles, body text, and commission tags (e.g. FK-N, SGK-S)
+                </li>
+                <li>
                     <span class="about-source-label" style="background-color: #f5f562;">⚖️ BGer Jus</span>
                     Swiss Federal Supreme Court decisions via <a href="https://entscheidsuche.ch" class="about-link" target="_blank" rel="noopener">entscheidsuche.ch</a> — incremental sync via index manifests
                 </li>
@@ -160,6 +168,10 @@
                     Web pages scraped periodically via a cronjob script — content extracted automatically with readability heuristics.
                     Supports link-following mode (scrape articles from a listing page) and configurable date selectors to extract publication dates from the page HTML.
                     Entries can be soft-deleted (hidden) individually.
+                </li>
+                <li>
+                    <span class="about-source-label" style="background-color: #C5E8C5;">📅 Calendar</span>
+                    Parliamentary calendar events fetched from the Swiss Parliament data API — session schedules, committee meetings, and submitted texts with expand/collapse previews
                 </li>
             </ul>
         </section>
@@ -217,6 +229,9 @@
                 <li><strong>Email fetching:</strong> PHP native IMAP extension (no external libraries)</li>
                 <li><strong>SPARQL / RDF:</strong> <a href="https://github.com/easyrdf/easyrdf" class="about-link" target="_blank" rel="noopener">EasyRdf</a></li>
                 <li><strong>German Lex feed:</strong> PHP cURL with cookie-jar (recht.bund.de requires a session cookie)</li>
+                <li><strong>French Lex API:</strong> OAuth2 client-credentials flow against <a href="https://piste.gouv.fr/" class="about-link" target="_blank" rel="noopener">PISTE</a>, then Légifrance search endpoint</li>
+                <li><strong>Parl MM:</strong> SharePoint REST API (OData) with JSON response parsing</li>
+                <li><strong>Calendar:</strong> Swiss Parliament data API (ws-old.parlament.ch)</li>
                 <li><strong>Web scraping:</strong> PHP DOMDocument + cURL with polite delays, User-Agent rotation, CSS-to-XPath date extraction</li>
                 <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS — no framework, no build step</li>
             </ul>
@@ -228,8 +243,9 @@
             <ul>
                 <li><strong>RSS feeds:</strong> <?= number_format($stats['feeds'] ?? 0) ?> feeds, <?= number_format($stats['feed_items'] ?? 0) ?> items</li>
                 <li><strong>Emails:</strong> <?= number_format($stats['emails'] ?? 0) ?> messages</li>
-                <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE</li>
+                <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE, <?= number_format($stats['lex_fr'] ?? 0) ?> FR, <?= number_format($stats['lex_parl_mm'] ?? 0) ?> Parl MM</li>
                 <li><strong>Jus items:</strong> <?= number_format($stats['jus_bger'] ?? 0) ?> BGer, <?= number_format($stats['jus_bge'] ?? 0) ?> BGE, <?= number_format($stats['jus_bvger'] ?? 0) ?> BVGer</li>
+                <li><strong>Calendar:</strong> <?= number_format($stats['calendar'] ?? 0) ?> events</li>
                 <li><strong>Scraper:</strong> <?= number_format($stats['scraper_configs'] ?? 0) ?> configured, <?= number_format($stats['scraper_items'] ?? 0) ?> items</li>
             </ul>
         </section>
