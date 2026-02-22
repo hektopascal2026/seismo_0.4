@@ -250,6 +250,158 @@
             </ul>
         </section>
 
+        <!-- Development Timeline -->
+        <section class="about-section">
+            <h2>Development Timeline</h2>
+            <p style="margin-bottom: 16px;">
+                Seismo evolved through five major versions, each expanding the scope of sources and capabilities.
+                The companion ML app <strong>Magnitu</strong> was developed in parallel starting with version 0.4.
+            </p>
+
+            <div style="border-left: 3px solid #000000; padding-left: 16px; margin-left: 4px;">
+
+                <!-- 0.1 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.1</span>
+                        RSS Reader
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Jan 2026</span>
+                    </div>
+                    <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+                        <li>RSS/Atom feed aggregation with <a href="https://github.com/simplepie/simplepie" class="about-link" target="_blank">SimplePie</a></li>
+                        <li>Tag-based filtering and feed management</li>
+                        <li>Unified main feed with full-text search</li>
+                        <li>Initial design system: monochrome + yellow accent, SVG seismograph logo</li>
+                    </ul>
+                </div>
+
+                <!-- 0.2 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.2</span>
+                        Email &amp; Substack
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Jan 23 – Feb 7, 2026</span>
+                    </div>
+                    <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+                        <li>IMAP email fetching — standalone PHP CLI cronjob with native <code>imap_*</code> functions, no external libraries</li>
+                        <li>Emails integrated into the main feed timeline alongside RSS entries</li>
+                        <li>Sender tag management: assign, rename, toggle, soft-delete senders</li>
+                        <li>Settings page separated from feed views</li>
+                        <li>Substack newsletter support via RSS feeds with category filtering</li>
+                        <li>AI-readable data export (<code>ai_view</code>) for external LLM consumption</li>
+                        <li>Expand/collapse content previews on all entry cards</li>
+                        <li>Styleguide page documenting the design system</li>
+                        <li>UI overhaul: consistent card layout, tag pills, dense typography</li>
+                    </ul>
+                </div>
+
+                <!-- 0.3 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.3</span>
+                        Legislation &amp; Magnitu Foundation
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Feb 7 – 13, 2026</span>
+                    </div>
+                    <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+                        <li>🇪🇺 EU legislation via SPARQL queries to <a href="https://publications.europa.eu/webapi/rdf/sparql" class="about-link" target="_blank">EU CELLAR</a> (CDM ontology)</li>
+                        <li>🇨🇭 Swiss legislation via SPARQL queries to <a href="https://fedlex.data.admin.ch/sparqlendpoint" class="about-link" target="_blank">Fedlex</a> (JOLux ontology)</li>
+                        <li>Lex page with source filtering pills (🇪🇺 / 🇨🇭) and configurable SPARQL parameters</li>
+                        <li>Lex items integrated into the main feed with source tags</li>
+                        <li>Consolidated single-button refresh for all sources</li>
+                        <li>Lex configuration section in Settings (endpoints, resource types, lookback)</li>
+                        <li>About page with live data statistics</li>
+                        <li>Beta page for AI view generation controls</li>
+                        <li>First Magnitu API integration: <code>magnitu_entries</code>, <code>magnitu_scores</code>, <code>magnitu_recipe</code></li>
+                        <li>Magnitu page for viewing ML-scored entries</li>
+                        <li>Label syncing API (<code>magnitu_labels</code>) for multi-instance collaboration</li>
+                        <li>API auth hardened for CGI/FastCGI shared hosting (<code>.htaccess</code> rewrite)</li>
+                    </ul>
+                </div>
+
+                <!-- 0.4 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.4</span>
+                        Full Stack
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Feb 13 – 21, 2026</span>
+                    </div>
+
+                    <p style="margin: 4px 0 6px 0; font-weight: 600; font-size: 12px;">New data sources:</p>
+                    <ul style="margin: 0 0 8px 0; padding-left: 16px;">
+                        <li>🇩🇪 German federal legislation via RSS from <a href="https://www.recht.bund.de/" class="about-link" target="_blank">recht.bund.de</a> (cURL with cookie jar for session handling)</li>
+                        <li>🇫🇷 French legislation via <a href="https://www.legifrance.gouv.fr/" class="about-link" target="_blank">Légifrance</a> PISTE API (OAuth2 client credentials)</li>
+                        <li>⚖️ Swiss case law: BGer, BGE (Leitentscheide), BVGer via <a href="https://entscheidsuche.ch" class="about-link" target="_blank">entscheidsuche.ch</a> with incremental sync</li>
+                        <li>🏛 Swiss Parliament press releases via <a href="https://www.parlament.ch/press-releases/" class="about-link" target="_blank">parlament.ch</a> SharePoint REST API</li>
+                        <li>📅 Parliamentary calendar events from the Swiss Parliament data API</li>
+                        <li>🌐 Web scraper with link-following mode, CSS-based date extraction, readability heuristics, and soft-delete</li>
+                    </ul>
+
+                    <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">Architecture &amp; hardening:</p>
+                    <ul style="margin: 0 0 8px 0; padding-left: 16px;">
+                        <li>Full refactoring: extracted 6 controllers from monolithic <code>index.php</code> — router is now ~320 lines</li>
+                        <li>Credentials externalized to <code>config.local.php</code> (gitignored)</li>
+                        <li>Parallel refresh with per-source circuit breaker (auto-pause after 3 failures)</li>
+                        <li>CLI cronjob (<code>refresh_cron.php</code>) for background refresh of all sources</li>
+                        <li>WAF and rate-limit resilience: eliminated client-side fetches that triggered shared hosting blocks</li>
+                        <li>Integration test suite (112 checks against staging server)</li>
+                    </ul>
+
+                    <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">UI &amp; configuration:</p>
+                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                        <li>Tabbed settings page: Basic, Script, Lex, Magnitu, Styleguide</li>
+                        <li>Mail fetcher config UI with downloadable IMAP scripts</li>
+                        <li>Scraper config UI with downloadable cronjob scripts</li>
+                        <li>Magnitu model info display (name, version, score coverage)</li>
+                        <li>Banned words filter for case law entries</li>
+                        <li>All/None pill toggle on the main feed</li>
+                        <li>JUS card titles show case topic (Abstract) instead of raw header</li>
+                    </ul>
+                </div>
+
+                <!-- Magnitu -->
+                <div style="margin-bottom: 4px; margin-top: 28px; padding-top: 16px; border-top: 2px solid #eeeeee;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #FFD4C4; padding: 2px 6px; margin-right: 6px;">Magnitu</span>
+                        Companion ML Scoring App
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Feb 13 – 20, 2026</span>
+                    </div>
+                    <p style="margin: 4px 0 8px 0;">
+                        Local Python application that learns which entries matter to you and pushes relevance scores back to Seismo via API. Developed in its own <a href="https://github.com/hektopascal2026/magnitu" class="about-link" target="_blank">repository</a>.
+                    </p>
+
+                    <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">v1 — TF-IDF + Logistic Regression:</p>
+                    <ul style="margin: 0 0 8px 0; padding-left: 16px;">
+                        <li>Initial training pipeline: fetch entries from Seismo, label locally, train, push scores</li>
+                        <li>Top 30 validation page for model accuracy review</li>
+                        <li>Active learning: smart sampling of uncertain entries for labeling</li>
+                        <li>One-click macOS installer (<code>curl</code> one-liner → venv → dependencies → launch)</li>
+                        <li>Label syncing between Magnitu instances via Seismo</li>
+                        <li>Portable model profiles: export/import <code>.magnitu</code> files (model + labels + recipe + manifest)</li>
+                    </ul>
+
+                    <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">v2 — Transformer pipeline:</p>
+                    <ul style="margin: 0 0 8px 0; padding-left: 16px;">
+                        <li>Switched to <strong>XLM-RoBERTa</strong> transformer embeddings for multilingual support (DE/FR/IT/EN)</li>
+                        <li>Knowledge distillation: teacher (transformer) trains student (fast linear) for production scoring</li>
+                        <li>Title-weighted embeddings to reduce content asymmetry between short lex items and long articles</li>
+                        <li>Stale embedding invalidation — re-embed when model changes</li>
+                        <li>Apple Silicon GPU acceleration (MPS) for embedding computation</li>
+                        <li>OOM fixes for constrained hardware (float16, smaller batches, memory release)</li>
+                    </ul>
+
+                    <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">v3 — Reliability &amp; collaboration:</p>
+                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                        <li>Multi-user sync: label conflict resolution, incremental push, quality gating</li>
+                        <li>Magnitu Mini: standalone mobile labeling web app for quick triage</li>
+                        <li>Retry queue for silent label loss prevention</li>
+                        <li>Guard against silent failures: structured error logging, contract tests, startup verification</li>
+                        <li>Auto-update on startup (<code>git pull</code> + <code>pip install</code>)</li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
         <!-- Credits -->
         <section class="about-section">
             <h2>Credits</h2>
