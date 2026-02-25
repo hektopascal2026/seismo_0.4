@@ -587,28 +587,41 @@ h3 {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .favourite-form {
     margin: 0;
+    display: inline-flex;
+    align-items: center;
 }
 
 .favourite-btn {
     border: 0;
     background: transparent;
     padding: 0;
-    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
     line-height: 1;
-    color: #666666;
+    color: #000000;
+    opacity: 0.5;
     cursor: pointer;
 }
 
 .favourite-btn:hover {
-    color: #000000;
+    opacity: 1;
 }
 
 .favourite-btn.is-favourite {
-    color: #000000;
+    opacity: 1;
+}
+
+.entry-actions .entry-date {
+    white-space: nowrap;
 }
 
 /* ═══ Search Highlight ═══ */
