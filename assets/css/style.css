@@ -560,6 +560,10 @@ h3 {
     color: #000000;
 }
 
+.section-title-row .btn.active {
+    background-color: #FFFFC5;
+}
+
 /* ═══ Entry Expand/Collapse ═══ */
 .entry-full-content {
     display: none;
@@ -577,6 +581,34 @@ h3 {
     gap: 10px;
     align-items: center;
     margin-top: 4px;
+}
+
+.entry-meta-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.favourite-form {
+    margin: 0;
+}
+
+.favourite-btn {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+    color: #666666;
+    cursor: pointer;
+}
+
+.favourite-btn:hover {
+    color: #000000;
+}
+
+.favourite-btn.is-favourite {
+    color: #000000;
 }
 
 /* ═══ Search Highlight ═══ */

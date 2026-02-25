@@ -7,8 +7,38 @@
  * handles search, merges Magnitu scores, and sorts the timeline.
  */
 
+function handleToggleFavourite($pdo) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        header('Location: ?action=index');
+        exit;
+    }
+
+    $entryType = trim((string)($_POST['entry_type'] ?? ''));
+    $entryId = (int)($_POST['entry_id'] ?? 0);
+    $allowedEntryTypes = ['feed_item', 'email', 'lex_item', 'calendar_event'];
+
+    if (!in_array($entryType, $allowedEntryTypes, true) || $entryId <= 0) {
+        $_SESSION['error'] = 'Invalid favourite request.';
+    } else {
+        toggleEntryFavourite($pdo, $entryType, $entryId);
+    }
+
+    $returnQuery = trim((string)($_POST['return_query'] ?? ''));
+    $queryParams = [];
+    if ($returnQuery !== '') {
+        parse_str(ltrim($returnQuery, '?'), $queryParams);
+    }
+    $queryParams['action'] = 'index';
+    unset($queryParams['entry_type'], $queryParams['entry_id']);
+
+    $redirectUrl = '?' . http_build_query($queryParams);
+    header('Location: ' . $redirectUrl);
+    exit;
+}
+
 function handleDashboard($pdo) {
     $searchQuery = trim($_GET['q'] ?? '');
+    $currentView = (isset($_GET['view']) && $_GET['view'] === 'favourites') ? 'favourites' : 'newest';
 
     $tagsStmt = $pdo->query("
         SELECT DISTINCT f.category
@@ -229,12 +259,13 @@ function handleDashboard($pdo) {
             $scoreMap[$s['entry_type'] . ':' . $s['entry_id']] = $s;
         }
     } catch (PDOException $e) {}
+
+    // Favourites map
+    $favouritesMap = [];
+    try {
+        $favouritesMap = getEntryFavouritesMap($pdo);
+    } catch (PDOException $e) {}
     
-    $magnituSortByRelevance = (bool)(getMagnituConfig($pdo, 'sort_by_relevance') ?? 0);
-    $magnituAlertThreshold = (float)(getMagnituConfig($pdo, 'alert_threshold') ?? 0.75);
-    if (isset($_GET['sort'])) {
-        $magnituSortByRelevance = ($_GET['sort'] === 'relevance');
-    }
     $hasMagnituScores = !empty($scoreMap);
     
     // Merge all items into unified timeline
@@ -242,56 +273,71 @@ function handleDashboard($pdo) {
     
     foreach ($latestItems as $item) {
         $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
-        $scoreKey = 'feed_item:' . $item['id'];
+        $entryKey = 'feed_item:' . $item['id'];
         $allItems[] = [
             'type' => 'feed',
             'date' => $dateValue ? strtotime($dateValue) : 0,
             'data' => $item,
-            'score' => $scoreMap[$scoreKey] ?? null,
+            'score' => $scoreMap[$entryKey] ?? null,
+            'entry_type' => 'feed_item',
+            'entry_id' => (int)$item['id'],
+            'is_favourite' => !empty($favouritesMap[$entryKey]),
         ];
     }
     
     foreach ($substackItems as $item) {
         $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
-        $scoreKey = 'feed_item:' . $item['id'];
+        $entryKey = 'feed_item:' . $item['id'];
         $allItems[] = [
             'type' => 'substack',
             'date' => $dateValue ? strtotime($dateValue) : 0,
             'data' => $item,
-            'score' => $scoreMap[$scoreKey] ?? null,
+            'score' => $scoreMap[$entryKey] ?? null,
+            'entry_type' => 'feed_item',
+            'entry_id' => (int)$item['id'],
+            'is_favourite' => !empty($favouritesMap[$entryKey]),
         ];
     }
     
     foreach ($emails as $email) {
         $dateValue = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? $email['date_sent'] ?? null;
-        $scoreKey = 'email:' . $email['id'];
+        $entryKey = 'email:' . $email['id'];
         $allItems[] = [
             'type' => 'email',
             'date' => $dateValue ? strtotime($dateValue) : 0,
             'data' => $email,
-            'score' => $scoreMap[$scoreKey] ?? null,
+            'score' => $scoreMap[$entryKey] ?? null,
+            'entry_type' => 'email',
+            'entry_id' => (int)$email['id'],
+            'is_favourite' => !empty($favouritesMap[$entryKey]),
         ];
     }
     
     foreach ($lexItems as $lexItem) {
         $dateValue = $lexItem['document_date'] ?? $lexItem['created_at'] ?? null;
-        $scoreKey = 'lex_item:' . $lexItem['id'];
+        $entryKey = 'lex_item:' . $lexItem['id'];
         $allItems[] = [
             'type' => 'lex',
             'date' => $dateValue ? strtotime($dateValue) : 0,
             'data' => $lexItem,
-            'score' => $scoreMap[$scoreKey] ?? null,
+            'score' => $scoreMap[$entryKey] ?? null,
+            'entry_type' => 'lex_item',
+            'entry_id' => (int)$lexItem['id'],
+            'is_favourite' => !empty($favouritesMap[$entryKey]),
         ];
     }
     
     foreach ($scraperItemsForFeed as $item) {
         $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
-        $scoreKey = 'feed_item:' . $item['id'];
+        $entryKey = 'feed_item:' . $item['id'];
         $allItems[] = [
             'type' => 'scraper',
             'date' => $dateValue ? strtotime($dateValue) : 0,
             'data' => $item,
-            'score' => $scoreMap[$scoreKey] ?? null,
+            'score' => $scoreMap[$entryKey] ?? null,
+            'entry_type' => 'feed_item',
+            'entry_id' => (int)$item['id'],
+            'is_favourite' => !empty($favouritesMap[$entryKey]),
         ];
     }
 
@@ -318,27 +364,27 @@ function handleDashboard($pdo) {
 
     foreach ($calendarEventsForIndex as $calEvent) {
         $dateValue = $calEvent['event_date'] ?? $calEvent['created_at'] ?? null;
-        $scoreKey = 'calendar_event:' . $calEvent['id'];
+        $entryKey = 'calendar_event:' . $calEvent['id'];
         $allItems[] = [
             'type' => 'calendar',
             'date' => $dateValue ? strtotime($dateValue) : 0,
             'data' => $calEvent,
-            'score' => $scoreMap[$scoreKey] ?? null,
+            'score' => $scoreMap[$entryKey] ?? null,
+            'entry_type' => 'calendar_event',
+            'entry_id' => (int)$calEvent['id'],
+            'is_favourite' => !empty($favouritesMap[$entryKey]),
         ];
     }
 
-    if ($magnituSortByRelevance && $hasMagnituScores && empty($searchQuery)) {
-        usort($allItems, function($a, $b) {
-            $scoreA = $a['score']['relevance_score'] ?? -1;
-            $scoreB = $b['score']['relevance_score'] ?? -1;
-            if ($scoreA == $scoreB) return $b['date'] - $a['date'];
-            return $scoreB <=> $scoreA;
-        });
-    } else {
-        usort($allItems, function($a, $b) {
-            return $b['date'] - $a['date'];
-        });
+    if ($currentView === 'favourites') {
+        $allItems = array_values(array_filter($allItems, function($item) {
+            return !empty($item['is_favourite']);
+        }));
     }
+
+    usort($allItems, function($a, $b) {
+        return $b['date'] - $a['date'];
+    });
     
     $limit = !empty($searchQuery) ? 200 : 30;
     $allItems = array_slice($allItems, 0, $limit);

@@ -43,6 +43,10 @@ switch ($action) {
         handleDashboard($pdo);
         break;
 
+    case 'toggle_favourite':
+        handleToggleFavourite($pdo);
+        break;
+
     // ── RSS & Substack ───────────────────────────────────────────
     case 'feeds':
         handleFeedsPage($pdo);

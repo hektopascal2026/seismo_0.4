@@ -179,13 +179,8 @@
                         <?php endif; ?>
                     </h2>
                     <div style="display: flex; gap: 6px; align-items: center;">
-                        <?php if (!empty($hasMagnituScores)): ?>
-                            <?php if ($magnituSortByRelevance): ?>
-                                <button onclick="toggleSort('date')" class="btn btn-secondary entry-expand-all-btn" title="Currently sorted by relevance. Click for chronological.">Sort by Date</button>
-                            <?php else: ?>
-                                <button onclick="toggleSort('relevance')" class="btn btn-secondary entry-expand-all-btn" title="Currently chronological. Click to sort by Magnitu relevance.">Magnitu</button>
-                            <?php endif; ?>
-                        <?php endif; ?>
+                        <button onclick="toggleView('newest')" class="btn btn-secondary<?= $currentView === 'newest' ? ' active' : '' ?>" title="Show newest entries">Newest</button>
+                        <button onclick="toggleView('favourites')" class="btn btn-secondary<?= $currentView === 'favourites' ? ' active' : '' ?>" title="Show favourite entries only">Favourites</button>
                         <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
                     </div>
                 </div>
@@ -203,6 +198,10 @@
                         elseif ($predictedLabel === 'important') $scoreBadgeClass = 'magnitu-badge-important';
                         elseif ($predictedLabel === 'background') $scoreBadgeClass = 'magnitu-badge-background';
                         elseif ($predictedLabel === 'noise') $scoreBadgeClass = 'magnitu-badge-noise';
+                        $favouriteEntryType = $itemWrapper['entry_type'] ?? '';
+                        $favouriteEntryId = (int)($itemWrapper['entry_id'] ?? 0);
+                        $isFavourite = !empty($itemWrapper['is_favourite']);
+                        $returnQuery = $_SERVER['QUERY_STRING'] ?? 'action=index';
                     ?>
                     <?php if ($itemWrapper['type'] === 'feed' || $itemWrapper['type'] === 'substack'): ?>
                         <?php $item = $itemWrapper['data']; ?>
@@ -252,9 +251,17 @@
                                         <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>
-                                <?php if ($item['published_date']): ?>
-                                    <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
-                                <?php endif; ?>
+                                <div class="entry-meta-right">
+                                    <?php if ($item['published_date']): ?>
+                                        <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
+                                    <?php endif; ?>
+                                    <form method="POST" action="?action=toggle_favourite" class="favourite-form">
+                                        <input type="hidden" name="entry_type" value="<?= htmlspecialchars($favouriteEntryType) ?>">
+                                        <input type="hidden" name="entry_id" value="<?= $favouriteEntryId ?>">
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                        <button type="submit" class="favourite-btn<?= $isFavourite ? ' is-favourite' : '' ?>" title="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>" aria-label="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>"><?= $isFavourite ? '★' : '☆' ?></button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     <?php elseif ($itemWrapper['type'] === 'scraper'): ?>
@@ -290,9 +297,17 @@
                                         <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>
-                                <?php if ($item['published_date']): ?>
-                                    <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
-                                <?php endif; ?>
+                                <div class="entry-meta-right">
+                                    <?php if ($item['published_date']): ?>
+                                        <span class="entry-date"><?= date('d.m.Y H:i', strtotime($item['published_date'])) ?></span>
+                                    <?php endif; ?>
+                                    <form method="POST" action="?action=toggle_favourite" class="favourite-form">
+                                        <input type="hidden" name="entry_type" value="<?= htmlspecialchars($favouriteEntryType) ?>">
+                                        <input type="hidden" name="entry_id" value="<?= $favouriteEntryId ?>">
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                        <button type="submit" class="favourite-btn<?= $isFavourite ? ' is-favourite' : '' ?>" title="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>" aria-label="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>"><?= $isFavourite ? '★' : '☆' ?></button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     <?php elseif ($itemWrapper['type'] === 'lex'): ?>
@@ -394,9 +409,17 @@
                                         <a href="<?= htmlspecialchars($lexUrl) ?>" target="_blank" rel="noopener" class="entry-link"><?= $lexLinkLabel ?></a>
                                     <?php endif; ?>
                                 </div>
-                                <?php if ($lexDate): ?>
-                                    <span class="entry-date"><?= $lexDate ?></span>
-                                <?php endif; ?>
+                                <div class="entry-meta-right">
+                                    <?php if ($lexDate): ?>
+                                        <span class="entry-date"><?= $lexDate ?></span>
+                                    <?php endif; ?>
+                                    <form method="POST" action="?action=toggle_favourite" class="favourite-form">
+                                        <input type="hidden" name="entry_type" value="<?= htmlspecialchars($favouriteEntryType) ?>">
+                                        <input type="hidden" name="entry_id" value="<?= $favouriteEntryId ?>">
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                        <button type="submit" class="favourite-btn<?= $isFavourite ? ' is-favourite' : '' ?>" title="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>" aria-label="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>"><?= $isFavourite ? '★' : '☆' ?></button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     <?php elseif ($itemWrapper['type'] === 'calendar'): ?>
@@ -449,9 +472,17 @@
                                         <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>
-                                <?php if ($calDateLabel): ?>
-                                    <span class="entry-date"><?= htmlspecialchars($calDateLabel) ?></span>
-                                <?php endif; ?>
+                                <div class="entry-meta-right">
+                                    <?php if ($calDateLabel): ?>
+                                        <span class="entry-date"><?= htmlspecialchars($calDateLabel) ?></span>
+                                    <?php endif; ?>
+                                    <form method="POST" action="?action=toggle_favourite" class="favourite-form">
+                                        <input type="hidden" name="entry_type" value="<?= htmlspecialchars($favouriteEntryType) ?>">
+                                        <input type="hidden" name="entry_id" value="<?= $favouriteEntryId ?>">
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                        <button type="submit" class="favourite-btn<?= $isFavourite ? ' is-favourite' : '' ?>" title="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>" aria-label="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>"><?= $isFavourite ? '★' : '☆' ?></button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     <?php else: ?>
@@ -508,9 +539,17 @@
                                         <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
                                     <?php endif; ?>
                                 </div>
-                                <?php if ($createdAt): ?>
-                                    <span class="entry-date"><?= htmlspecialchars($createdAt) ?></span>
-                                <?php endif; ?>
+                                <div class="entry-meta-right">
+                                    <?php if ($createdAt): ?>
+                                        <span class="entry-date"><?= htmlspecialchars($createdAt) ?></span>
+                                    <?php endif; ?>
+                                    <form method="POST" action="?action=toggle_favourite" class="favourite-form">
+                                        <input type="hidden" name="entry_type" value="<?= htmlspecialchars($favouriteEntryType) ?>">
+                                        <input type="hidden" name="entry_id" value="<?= $favouriteEntryId ?>">
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                        <button type="submit" class="favourite-btn<?= $isFavourite ? ' is-favourite' : '' ?>" title="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>" aria-label="<?= $isFavourite ? 'Remove from favourites' : 'Add to favourites' ?>"><?= $isFavourite ? '★' : '☆' ?></button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -621,11 +660,10 @@
     })();
     </script>
     <script>
-    // Sort toggle: swap sort param on current URL, preserving all filter state
-    function toggleSort(sortValue) {
+    function toggleView(viewValue) {
         var url = new URL(window.location);
         url.searchParams.set('action', 'index');
-        url.searchParams.set('sort', sortValue);
+        url.searchParams.set('view', viewValue);
         window.location = url.toString();
     }
     </script>

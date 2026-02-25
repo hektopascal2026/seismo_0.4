@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 14);
+define('SCHEMA_VERSION', 15);
 
 /**
  * Initialize database tables
@@ -356,6 +356,16 @@ function initDatabase() {
         INDEX idx_entry (entry_type, entry_id),
         INDEX idx_label (label)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Create entry_favourites table for star/bookmark state on timeline entries
+    $pdo->exec("CREATE TABLE IF NOT EXISTS entry_favourites (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        entry_type ENUM('feed_item', 'email', 'lex_item', 'calendar_event') NOT NULL,
+        entry_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_favourite (entry_type, entry_id),
+        INDEX idx_entry (entry_type, entry_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     
     // Create magnitu_config table for scoring recipe and connection settings
     $pdo->exec("CREATE TABLE IF NOT EXISTS magnitu_config (
@@ -531,6 +541,36 @@ function getAllMagnituConfig($pdo) {
         $config[$row['config_key']] = $row['config_value'];
     }
     return $config;
+}
+
+/**
+ * Favourites helpers
+ */
+function getEntryFavouritesMap($pdo) {
+    $stmt = $pdo->query("SELECT entry_type, entry_id FROM entry_favourites");
+    $map = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $map[$row['entry_type'] . ':' . $row['entry_id']] = true;
+    }
+    return $map;
+}
+
+function setEntryFavourite($pdo, $entryType, $entryId, $isFavourite) {
+    if ($isFavourite) {
+        $stmt = $pdo->prepare("INSERT IGNORE INTO entry_favourites (entry_type, entry_id) VALUES (?, ?)");
+        $stmt->execute([$entryType, (int)$entryId]);
+        return true;
+    }
+    $stmt = $pdo->prepare("DELETE FROM entry_favourites WHERE entry_type = ? AND entry_id = ?");
+    $stmt->execute([$entryType, (int)$entryId]);
+    return false;
+}
+
+function toggleEntryFavourite($pdo, $entryType, $entryId) {
+    $stmt = $pdo->prepare("SELECT 1 FROM entry_favourites WHERE entry_type = ? AND entry_id = ? LIMIT 1");
+    $stmt->execute([$entryType, (int)$entryId]);
+    $exists = (bool)$stmt->fetchColumn();
+    return setEntryFavourite($pdo, $entryType, (int)$entryId, !$exists);
 }
 
 /**
