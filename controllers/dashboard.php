@@ -268,79 +268,6 @@ function handleDashboard($pdo) {
     
     $hasMagnituScores = !empty($scoreMap);
     
-    // Merge all items into unified timeline
-    $allItems = [];
-    
-    foreach ($latestItems as $item) {
-        $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
-        $entryKey = 'feed_item:' . $item['id'];
-        $allItems[] = [
-            'type' => 'feed',
-            'date' => $dateValue ? strtotime($dateValue) : 0,
-            'data' => $item,
-            'score' => $scoreMap[$entryKey] ?? null,
-            'entry_type' => 'feed_item',
-            'entry_id' => (int)$item['id'],
-            'is_favourite' => !empty($favouritesMap[$entryKey]),
-        ];
-    }
-    
-    foreach ($substackItems as $item) {
-        $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
-        $entryKey = 'feed_item:' . $item['id'];
-        $allItems[] = [
-            'type' => 'substack',
-            'date' => $dateValue ? strtotime($dateValue) : 0,
-            'data' => $item,
-            'score' => $scoreMap[$entryKey] ?? null,
-            'entry_type' => 'feed_item',
-            'entry_id' => (int)$item['id'],
-            'is_favourite' => !empty($favouritesMap[$entryKey]),
-        ];
-    }
-    
-    foreach ($emails as $email) {
-        $dateValue = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? $email['date_sent'] ?? null;
-        $entryKey = 'email:' . $email['id'];
-        $allItems[] = [
-            'type' => 'email',
-            'date' => $dateValue ? strtotime($dateValue) : 0,
-            'data' => $email,
-            'score' => $scoreMap[$entryKey] ?? null,
-            'entry_type' => 'email',
-            'entry_id' => (int)$email['id'],
-            'is_favourite' => !empty($favouritesMap[$entryKey]),
-        ];
-    }
-    
-    foreach ($lexItems as $lexItem) {
-        $dateValue = $lexItem['document_date'] ?? $lexItem['created_at'] ?? null;
-        $entryKey = 'lex_item:' . $lexItem['id'];
-        $allItems[] = [
-            'type' => 'lex',
-            'date' => $dateValue ? strtotime($dateValue) : 0,
-            'data' => $lexItem,
-            'score' => $scoreMap[$entryKey] ?? null,
-            'entry_type' => 'lex_item',
-            'entry_id' => (int)$lexItem['id'],
-            'is_favourite' => !empty($favouritesMap[$entryKey]),
-        ];
-    }
-    
-    foreach ($scraperItemsForFeed as $item) {
-        $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
-        $entryKey = 'feed_item:' . $item['id'];
-        $allItems[] = [
-            'type' => 'scraper',
-            'date' => $dateValue ? strtotime($dateValue) : 0,
-            'data' => $item,
-            'score' => $scoreMap[$entryKey] ?? null,
-            'entry_type' => 'feed_item',
-            'entry_id' => (int)$item['id'],
-            'is_favourite' => !empty($favouritesMap[$entryKey]),
-        ];
-    }
-
     // Calendar events (upcoming, shown on dashboard when calendar sources are enabled)
     $calendarCfg = getCalendarConfig();
     $calendarEnabled = false;
@@ -349,37 +276,217 @@ function handleDashboard($pdo) {
     }
     $selectedCalendar = $tagsSubmitted ? isset($_GET['calendar_enabled']) : $calendarEnabled;
 
-    $calendarEventsForIndex = [];
-    if ($selectedCalendar && $calendarEnabled) {
-        try {
-            $calStmt = $pdo->query("
-                SELECT * FROM calendar_events
-                WHERE event_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) OR event_date IS NULL
-                ORDER BY event_date DESC
-                LIMIT 15
-            ");
-            $calendarEventsForIndex = $calStmt->fetchAll();
-        } catch (PDOException $e) {}
-    }
-
-    foreach ($calendarEventsForIndex as $calEvent) {
-        $dateValue = $calEvent['event_date'] ?? $calEvent['created_at'] ?? null;
-        $entryKey = 'calendar_event:' . $calEvent['id'];
-        $allItems[] = [
-            'type' => 'calendar',
-            'date' => $dateValue ? strtotime($dateValue) : 0,
-            'data' => $calEvent,
-            'score' => $scoreMap[$entryKey] ?? null,
-            'entry_type' => 'calendar_event',
-            'entry_id' => (int)$calEvent['id'],
-            'is_favourite' => !empty($favouritesMap[$entryKey]),
-        ];
-    }
+    // Merge all items into unified timeline
+    $allItems = [];
 
     if ($currentView === 'favourites') {
-        $allItems = array_values(array_filter($allItems, function($item) {
-            return !empty($item['is_favourite']);
-        }));
+        $favouriteRows = [];
+        try {
+            $favouriteRows = $pdo->query("SELECT entry_type, entry_id FROM entry_favourites")->fetchAll();
+        } catch (PDOException $e) {}
+
+        $favouriteIdsByType = [
+            'feed_item' => [],
+            'email' => [],
+            'lex_item' => [],
+            'calendar_event' => [],
+        ];
+        foreach ($favouriteRows as $row) {
+            $type = $row['entry_type'] ?? '';
+            $id = (int)($row['entry_id'] ?? 0);
+            if ($id > 0 && isset($favouriteIdsByType[$type])) {
+                $favouriteIdsByType[$type][] = $id;
+            }
+        }
+        foreach ($favouriteIdsByType as $type => $ids) {
+            $favouriteIdsByType[$type] = array_values(array_unique($ids));
+        }
+
+        if (!empty($favouriteIdsByType['feed_item'])) {
+            $ph = implode(',', array_fill(0, count($favouriteIdsByType['feed_item']), '?'));
+            $feedStmt = $pdo->prepare("
+                SELECT fi.*, f.title AS feed_title, f.category AS feed_category, f.source_type, f.url AS source_url
+                FROM feed_items fi
+                JOIN feeds f ON fi.feed_id = f.id
+                WHERE fi.id IN ($ph) AND fi.hidden = 0
+            ");
+            $feedStmt->execute($favouriteIdsByType['feed_item']);
+            foreach ($feedStmt->fetchAll() as $item) {
+                $entryKey = 'feed_item:' . $item['id'];
+                $sourceType = $item['source_type'] ?? '';
+                $wrapperType = 'feed';
+                if ($sourceType === 'substack') {
+                    $wrapperType = 'substack';
+                } elseif ($sourceType === 'scraper' || ($item['feed_category'] ?? '') === 'scraper') {
+                    $wrapperType = 'scraper';
+                }
+                $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
+                $allItems[] = [
+                    'type' => $wrapperType,
+                    'date' => $dateValue ? strtotime($dateValue) : 0,
+                    'data' => $item,
+                    'score' => $scoreMap[$entryKey] ?? null,
+                    'entry_type' => 'feed_item',
+                    'entry_id' => (int)$item['id'],
+                    'is_favourite' => true,
+                ];
+            }
+        }
+
+        if (!empty($favouriteIdsByType['email'])) {
+            $emailTable = getEmailTableName($pdo);
+            $ph = implode(',', array_fill(0, count($favouriteIdsByType['email']), '?'));
+            $emailStmt = $pdo->prepare("SELECT * FROM `{$emailTable}` WHERE id IN ($ph)");
+            $emailStmt->execute($favouriteIdsByType['email']);
+            foreach ($emailStmt->fetchAll() as $email) {
+                $entryKey = 'email:' . $email['id'];
+                $dateValue = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? $email['date_sent'] ?? null;
+                $allItems[] = [
+                    'type' => 'email',
+                    'date' => $dateValue ? strtotime($dateValue) : 0,
+                    'data' => $email,
+                    'score' => $scoreMap[$entryKey] ?? null,
+                    'entry_type' => 'email',
+                    'entry_id' => (int)$email['id'],
+                    'is_favourite' => true,
+                ];
+            }
+        }
+
+        if (!empty($favouriteIdsByType['lex_item'])) {
+            $ph = implode(',', array_fill(0, count($favouriteIdsByType['lex_item']), '?'));
+            $lexStmt = $pdo->prepare("SELECT * FROM lex_items WHERE id IN ($ph)");
+            $lexStmt->execute($favouriteIdsByType['lex_item']);
+            foreach ($lexStmt->fetchAll() as $lexItem) {
+                $entryKey = 'lex_item:' . $lexItem['id'];
+                $dateValue = $lexItem['document_date'] ?? $lexItem['created_at'] ?? null;
+                $allItems[] = [
+                    'type' => 'lex',
+                    'date' => $dateValue ? strtotime($dateValue) : 0,
+                    'data' => $lexItem,
+                    'score' => $scoreMap[$entryKey] ?? null,
+                    'entry_type' => 'lex_item',
+                    'entry_id' => (int)$lexItem['id'],
+                    'is_favourite' => true,
+                ];
+            }
+        }
+
+        if (!empty($favouriteIdsByType['calendar_event'])) {
+            $ph = implode(',', array_fill(0, count($favouriteIdsByType['calendar_event']), '?'));
+            $calStmt = $pdo->prepare("SELECT * FROM calendar_events WHERE id IN ($ph)");
+            $calStmt->execute($favouriteIdsByType['calendar_event']);
+            foreach ($calStmt->fetchAll() as $calEvent) {
+                $entryKey = 'calendar_event:' . $calEvent['id'];
+                $dateValue = $calEvent['event_date'] ?? $calEvent['created_at'] ?? null;
+                $allItems[] = [
+                    'type' => 'calendar',
+                    'date' => $dateValue ? strtotime($dateValue) : 0,
+                    'data' => $calEvent,
+                    'score' => $scoreMap[$entryKey] ?? null,
+                    'entry_type' => 'calendar_event',
+                    'entry_id' => (int)$calEvent['id'],
+                    'is_favourite' => true,
+                ];
+            }
+        }
+    } else {
+        foreach ($latestItems as $item) {
+            $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
+            $entryKey = 'feed_item:' . $item['id'];
+            $allItems[] = [
+                'type' => 'feed',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $item,
+                'score' => $scoreMap[$entryKey] ?? null,
+                'entry_type' => 'feed_item',
+                'entry_id' => (int)$item['id'],
+                'is_favourite' => !empty($favouritesMap[$entryKey]),
+            ];
+        }
+        
+        foreach ($substackItems as $item) {
+            $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
+            $entryKey = 'feed_item:' . $item['id'];
+            $allItems[] = [
+                'type' => 'substack',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $item,
+                'score' => $scoreMap[$entryKey] ?? null,
+                'entry_type' => 'feed_item',
+                'entry_id' => (int)$item['id'],
+                'is_favourite' => !empty($favouritesMap[$entryKey]),
+            ];
+        }
+        
+        foreach ($emails as $email) {
+            $dateValue = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? $email['date_sent'] ?? null;
+            $entryKey = 'email:' . $email['id'];
+            $allItems[] = [
+                'type' => 'email',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $email,
+                'score' => $scoreMap[$entryKey] ?? null,
+                'entry_type' => 'email',
+                'entry_id' => (int)$email['id'],
+                'is_favourite' => !empty($favouritesMap[$entryKey]),
+            ];
+        }
+        
+        foreach ($lexItems as $lexItem) {
+            $dateValue = $lexItem['document_date'] ?? $lexItem['created_at'] ?? null;
+            $entryKey = 'lex_item:' . $lexItem['id'];
+            $allItems[] = [
+                'type' => 'lex',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $lexItem,
+                'score' => $scoreMap[$entryKey] ?? null,
+                'entry_type' => 'lex_item',
+                'entry_id' => (int)$lexItem['id'],
+                'is_favourite' => !empty($favouritesMap[$entryKey]),
+            ];
+        }
+        
+        foreach ($scraperItemsForFeed as $item) {
+            $dateValue = $item['published_date'] ?? $item['cached_at'] ?? null;
+            $entryKey = 'feed_item:' . $item['id'];
+            $allItems[] = [
+                'type' => 'scraper',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $item,
+                'score' => $scoreMap[$entryKey] ?? null,
+                'entry_type' => 'feed_item',
+                'entry_id' => (int)$item['id'],
+                'is_favourite' => !empty($favouritesMap[$entryKey]),
+            ];
+        }
+
+        $calendarEventsForIndex = [];
+        if ($selectedCalendar && $calendarEnabled) {
+            try {
+                $calStmt = $pdo->query("
+                    SELECT * FROM calendar_events
+                    WHERE event_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) OR event_date IS NULL
+                    ORDER BY event_date DESC
+                    LIMIT 15
+                ");
+                $calendarEventsForIndex = $calStmt->fetchAll();
+            } catch (PDOException $e) {}
+        }
+
+        foreach ($calendarEventsForIndex as $calEvent) {
+            $dateValue = $calEvent['event_date'] ?? $calEvent['created_at'] ?? null;
+            $entryKey = 'calendar_event:' . $calEvent['id'];
+            $allItems[] = [
+                'type' => 'calendar',
+                'date' => $dateValue ? strtotime($dateValue) : 0,
+                'data' => $calEvent,
+                'score' => $scoreMap[$entryKey] ?? null,
+                'entry_type' => 'calendar_event',
+                'entry_id' => (int)$calEvent['id'],
+                'is_favourite' => !empty($favouritesMap[$entryKey]),
+            ];
+        }
     }
 
     usort($allItems, function($a, $b) {
