@@ -84,6 +84,19 @@
                     $relevanceScore = $entryScore ? (float)$entryScore['relevance_score'] : null;
                     $predictedLabel = $entryScore['predicted_label'] ?? null;
                     $scoreExplanation = $entryScore ? json_decode($entryScore['explanation'] ?? '{}', true) : null;
+                    $scoreBadgeClass = '';
+                    if ($relevanceScore !== null) {
+                        $scorePercent = (int)round($relevanceScore * 100);
+                        if ($scorePercent <= 25) {
+                            $scoreBadgeClass = 'magnitu-badge-noise';
+                        } elseif ($scorePercent <= 50) {
+                            $scoreBadgeClass = 'magnitu-badge-background';
+                        } elseif ($scorePercent <= 75) {
+                            $scoreBadgeClass = 'magnitu-badge-important';
+                        } else {
+                            $scoreBadgeClass = 'magnitu-badge-investigation';
+                        }
+                    }
                 ?>
                 <?php if ($itemWrapper['type'] === 'feed' || $itemWrapper['type'] === 'substack' || $itemWrapper['type'] === 'scraper'): ?>
                     <?php $item = $itemWrapper['data']; ?>
@@ -102,7 +115,7 @@
                                 <span class="entry-tag" style="<?= $feedTagColor ?>"><?= htmlspecialchars($item['feed_category']) ?></span>
                             <?php endif; ?>
                             <?php if ($relevanceScore !== null): ?>
-                                <span class="magnitu-badge magnitu-badge-investigation" title="Investigation lead (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title">
@@ -159,7 +172,7 @@
                             <span class="entry-tag" style="background-color: #f5f562; border-color: #000000;"><?= $lexSourceEmoji ?> <?= $lexSourceLabel ?></span>
                             <span class="entry-tag" style="background-color: #f5f5f5;"><?= htmlspecialchars($lexDocType) ?></span>
                             <?php if ($relevanceScore !== null): ?>
-                                <span class="magnitu-badge magnitu-badge-investigation" title="Investigation lead (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title">
@@ -210,7 +223,7 @@
                                 <span class="entry-tag" style="background-color: #e2e3f1;"><?= htmlspecialchars($calCouncil) ?></span>
                             <?php endif; ?>
                             <?php if ($relevanceScore !== null): ?>
-                                <span class="magnitu-badge magnitu-badge-investigation" title="Investigation lead (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title">
@@ -273,7 +286,7 @@
                                 <span class="entry-tag" style="background-color: #FFDBBB;"><?= htmlspecialchars($email['sender_tag']) ?></span>
                             <?php endif; ?>
                             <?php if ($relevanceScore !== null): ?>
-                                <span class="magnitu-badge magnitu-badge-investigation" title="Investigation lead (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
+                                <span class="magnitu-badge <?= $scoreBadgeClass ?>" title="<?= htmlspecialchars($predictedLabel ?? '') ?> (<?= round($relevanceScore * 100) ?>%)"><?= round($relevanceScore * 100) ?></span>
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title"><?= htmlspecialchars($subject) ?></h3>

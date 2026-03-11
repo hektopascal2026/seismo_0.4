@@ -89,10 +89,18 @@
                         $relevanceScore = $entryScore ? (float)$entryScore['relevance_score'] : null;
                         $predictedLabel = $entryScore['predicted_label'] ?? null;
                         $scoreBadgeClass = '';
-                        if ($predictedLabel === 'investigation_lead') $scoreBadgeClass = 'magnitu-badge-investigation';
-                        elseif ($predictedLabel === 'important') $scoreBadgeClass = 'magnitu-badge-important';
-                        elseif ($predictedLabel === 'background') $scoreBadgeClass = 'magnitu-badge-background';
-                        elseif ($predictedLabel === 'noise') $scoreBadgeClass = 'magnitu-badge-noise';
+                        if ($relevanceScore !== null) {
+                            $scorePercent = (int)round($relevanceScore * 100);
+                            if ($scorePercent <= 25) {
+                                $scoreBadgeClass = 'magnitu-badge-noise';
+                            } elseif ($scorePercent <= 50) {
+                                $scoreBadgeClass = 'magnitu-badge-background';
+                            } elseif ($scorePercent <= 75) {
+                                $scoreBadgeClass = 'magnitu-badge-important';
+                            } else {
+                                $scoreBadgeClass = 'magnitu-badge-investigation';
+                            }
+                        }
                     ?>
                     <div class="entry-card">
                         <div class="entry-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
