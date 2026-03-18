@@ -254,9 +254,9 @@ function refreshFeed($pdo, $feedId) {
         
         $updateStmt = $pdo->prepare("UPDATE feeds SET title = ?, description = ?, link = ?, last_fetched = NOW(), consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE id = ?");
         $updateStmt->execute([
-            $simplepie->get_title() ?: $feed['title'],
-            $simplepie->get_description() ?: $feed['description'],
-            $simplepie->get_link() ?: $feed['link'],
+            limitUtf8Bytes($simplepie->get_title() ?: $feed['title'], 255),
+            limitUtf8Bytes($simplepie->get_description() ?: $feed['description'], 65535),
+            limitUtf8Bytes($simplepie->get_link() ?: $feed['link'], 500),
             $feedId
         ]);
         
@@ -264,6 +264,15 @@ function refreshFeed($pdo, $feedId) {
     } catch (\Exception $e) {
         recordFeedFailure($pdo, $feedId, $e->getMessage());
     }
+}
+
+/**
+ * Truncate UTF-8 text to a byte limit without breaking characters.
+ */
+function limitUtf8Bytes($value, $maxBytes) {
+    if ($value === null) return '';
+    $value = (string)$value;
+    return mb_strcut($value, 0, $maxBytes, 'UTF-8');
 }
 
 function cacheFeedItems($pdo, $feedId, $simplepie) {
@@ -284,15 +293,42 @@ function cacheFeedItems($pdo, $feedId, $simplepie) {
         
         $stmt->execute([
             $feedId,
-            $guid,
-            $item->get_title() ?: 'Untitled',
-            $item->get_link() ?: '',
-            $item->get_description() ?: '',
-            $item->get_content() ?: '',
-            $item->get_author() ? $item->get_author()->get_name() : '',
+            limitUtf8Bytes($guid, 500),
+            limitUtf8Bytes($item->get_title() ?: 'Untitled', 500),
+            limitUtf8Bytes($item->get_link() ?: '', 500),
+            limitUtf8Bytes($item->get_description() ?: '', 65535),
+            limitUtf8Bytes($item->get_content() ?: '', 16777215),
+            limitUtf8Bytes($item->get_author() ? $item->get_author()->get_name() : '', 255),
             $published
         ]);
     }
+}
+
+/**
+ * Single-feed fallback for curl/network failures.
+ * Helps recover transient HTTP 0 issues in curl_multi.
+ */
+function refreshFeedViaSimplePieUrl($pdo, $feed) {
+    $feedId = (int)$feed['id'];
+    $simplepie = new \SimplePie\SimplePie();
+    $simplepie->set_feed_url($feed['url']);
+    $simplepie->enable_cache(false);
+    $simplepie->set_timeout(15);
+    $simplepie->init();
+
+    if ($simplepie->error()) {
+        throw new \RuntimeException('Fallback: ' . $simplepie->error());
+    }
+
+    $upd = $pdo->prepare("UPDATE feeds SET title = ?, description = ?, link = ?, last_fetched = NOW(), consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE id = ?");
+    $upd->execute([
+        limitUtf8Bytes($simplepie->get_title() ?: $feed['title'], 255),
+        limitUtf8Bytes($simplepie->get_description() ?: $feed['description'], 65535),
+        limitUtf8Bytes($simplepie->get_link() ?: $feed['link'], 500),
+        $feedId
+    ]);
+
+    cacheFeedItems($pdo, $feedId, $simplepie);
 }
 
 /**
@@ -339,6 +375,7 @@ function refreshAllFeeds($pdo) {
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 5,
                 CURLOPT_USERAGENT      => 'Seismo/0.4 (RSS reader)',
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
                 CURLOPT_ENCODING       => '',
             ]);
             curl_multi_add_handle($mh, $ch);
@@ -364,10 +401,17 @@ function refreshAllFeeds($pdo) {
 
             if ($curlErr || $httpCode >= 400 || empty($body)) {
                 $errMsg = $curlErr ?: "HTTP $httpCode";
-                recordFeedFailure($pdo, $feedId, $errMsg);
-                $failedNames[] = ($feed['title'] ?: $feed['url']) . " ($errMsg)";
-                $failed++;
-                continue;
+                try {
+                    refreshFeedViaSimplePieUrl($pdo, $feed);
+                    $refreshed++;
+                    continue;
+                } catch (\Exception $fallbackError) {
+                    $finalErr = $errMsg . '; ' . $fallbackError->getMessage();
+                    recordFeedFailure($pdo, $feedId, $finalErr);
+                    $failedNames[] = ($feed['title'] ?: $feed['url']) . " ($errMsg)";
+                    $failed++;
+                    continue;
+                }
             }
 
             try {
@@ -385,9 +429,9 @@ function refreshAllFeeds($pdo) {
 
                 $upd = $pdo->prepare("UPDATE feeds SET title = ?, description = ?, link = ?, last_fetched = NOW(), consecutive_failures = 0, last_error = NULL, last_error_at = NULL WHERE id = ?");
                 $upd->execute([
-                    $simplepie->get_title() ?: $feed['title'],
-                    $simplepie->get_description() ?: $feed['description'],
-                    $simplepie->get_link() ?: $feed['link'],
+                    limitUtf8Bytes($simplepie->get_title() ?: $feed['title'], 255),
+                    limitUtf8Bytes($simplepie->get_description() ?: $feed['description'], 65535),
+                    limitUtf8Bytes($simplepie->get_link() ?: $feed['link'], 500),
                     $feedId
                 ]);
 

@@ -45,7 +45,7 @@ function getDbConnection() {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 15);
+define('SCHEMA_VERSION', 16);
 
 /**
  * Initialize database tables
@@ -162,6 +162,13 @@ function initDatabase() {
         UNIQUE KEY unique_feed_guid (feed_id, guid(255)),
         FOREIGN KEY (feed_id) REFERENCES feeds(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Widen feed_items.content to MEDIUMTEXT to avoid truncation for long articles.
+    try {
+        $pdo->exec("ALTER TABLE feed_items MODIFY COLUMN content MEDIUMTEXT");
+    } catch (PDOException $e) {
+        // Ignore non-critical ALTER issues on constrained hosts.
+    }
     
     // Create emails table
     $pdo->exec("CREATE TABLE IF NOT EXISTS emails (
