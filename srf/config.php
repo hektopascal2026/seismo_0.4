@@ -108,7 +108,7 @@ function srf_merged_config(): array
         [
             'bu' => 'srf',
             'page_size' => 30,
-            'oauth_token_url' => 'https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials',
+            'oauth_token_url' => 'https://srgssr-prod.apigee.net/oauth/v1/accesstoken?grant_type=client_credentials',
             'video_latest_episodes_url' => 'https://api.srgssr.ch/videometadata/v2/latest_episodes',
             'video_episodes_by_date_url' => 'https://api.srgssr.ch/videometadata/v2/episodes_by_date/{day}',
             'use_episodes_by_date' => false,

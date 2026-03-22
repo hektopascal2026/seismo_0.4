@@ -35,9 +35,9 @@ final class SrgOAuthToken
         if ($r['code'] < 200 || $r['code'] >= 300) {
             throw new RuntimeException(
                 'SRG OAuth failed HTTP ' . $r['code'] . ': ' . mb_substr($r['body'], 0, 500)
-                . ' — In the developer portal: use Consumer Key + Consumer Secret (not your login password).'
-                . ' App must be Approved. Set SRG_API_KEY if the app page shows an API key.'
-                . ' If it still fails, test the same request in the portal “Try it” or contact api@srgssr.ch.'
+                . ' — SRGSSR Video OpenAPI lists the token URL on https://srgssr-prod.apigee.net (not api.srgssr.ch).'
+                . ' Deploy the latest srf code (tries both hosts). Use Consumer Key + Secret from the portal; set SRG_API_KEY if shown.'
+                . ' Clear DB row srf_fetch_state.oauth_token if you cached an old failure. Else api@srgssr.ch.'
             );
         }
         $data = json_decode($r['body'], true);
@@ -62,67 +62,74 @@ final class SrgOAuthToken
     }
 
     /**
+     * Video OpenAPI tokenUrl is https://srgssr-prod.apigee.net/oauth/v1/accesstoken — keys may only work there.
+     * Play Subtitles references api.srgssr.ch; we try both bases with the same patterns.
+     *
      * @param array<string, mixed> $cfg
      * @return array{body: string, code: int, content_type: string}
      */
     private static function requestAccessToken(array $cfg, string $key, string $secret): array
     {
-        $configured = $cfg['oauth_token_url'] ?? 'https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials';
+        $configured = $cfg['oauth_token_url'] ?? 'https://srgssr-prod.apigee.net/oauth/v1/accesstoken?grant_type=client_credentials';
         $basic = base64_encode($key . ':' . $secret);
         $apiKey = SRG_API_KEY !== '' ? self::cleanCredential(SRG_API_KEY) : '';
 
-        $base = self::oauthBaseUrl($configured);
         $headersBasic = [
             'Authorization' => 'Basic ' . $basic,
             'Cache-Control' => 'no-cache',
         ];
 
-        $tries = [];
-
-        // 1) RFC 6749: grant_type in POST body (many Apigee / OAuth2 servers expect this).
-        $u1 = $base;
-        if ($apiKey !== '') {
-            $u1 .= (strpos($u1, '?') !== false ? '&' : '?') . 'apikey=' . rawurlencode($apiKey);
+        $bases = [];
+        $fromCfg = self::oauthBaseUrl($configured);
+        if ($fromCfg !== '') {
+            $bases[] = $fromCfg;
         }
-        $tries[] = SrfHttp::postRaw(
-            $u1,
-            'grant_type=client_credentials',
-            $headersBasic + [
-                'Content-Type' => 'application/x-www-form-urlencoded',
-            ],
-            false
-        );
-
-        // 2) SRG portal curl example: grant_type only in query, empty POST body.
-        $u2 = $configured;
-        if (strpos($u2, 'grant_type=') === false) {
-            $u2 .= (strpos($u2, '?') !== false ? '&' : '?') . 'grant_type=client_credentials';
+        foreach ([
+            'https://srgssr-prod.apigee.net/oauth/v1/accesstoken',
+            'https://api.srgssr.ch/oauth/v1/accesstoken',
+        ] as $b) {
+            if (!in_array($b, $bases, true)) {
+                $bases[] = $b;
+            }
         }
-        if ($apiKey !== '' && stripos($u2, 'apikey=') === false) {
-            $u2 .= (strpos($u2, '?') !== false ? '&' : '?') . 'apikey=' . rawurlencode($apiKey);
-        }
-        $tries[] = SrfHttp::postEmpty($u2, $headersBasic, false);
 
-        // 3) Form body + x-api-key header (some gateways).
-        if ($apiKey !== '') {
-            $tries[] = SrfHttp::postRaw(
-                $base,
+        $last = ['body' => '', 'code' => 0, 'content_type' => ''];
+        foreach ($bases as $base) {
+            $uForm = $base;
+            if ($apiKey !== '') {
+                $uForm .= '?apikey=' . rawurlencode($apiKey);
+            }
+            $last = SrfHttp::postRaw(
+                $uForm,
                 'grant_type=client_credentials',
-                $headersBasic + [
-                    'Content-Type' => 'application/x-www-form-urlencoded',
-                    'x-api-key' => $apiKey,
-                ],
+                $headersBasic + ['Content-Type' => 'application/x-www-form-urlencoded'],
                 false
             );
-        }
+            if (self::isTokenSuccess($last)) {
+                return $last;
+            }
 
-        $last = $tries[0];
-        foreach ($tries as $resp) {
-            $last = $resp;
-            if ($resp['code'] >= 200 && $resp['code'] < 300) {
-                $data = json_decode($resp['body'], true);
-                if (is_array($data) && !empty($data['access_token'])) {
-                    return $resp;
+            $uQuery = $base . '?grant_type=client_credentials';
+            if ($apiKey !== '') {
+                $uQuery .= '&apikey=' . rawurlencode($apiKey);
+            }
+            $last = SrfHttp::postEmpty($uQuery, $headersBasic, false);
+            if (self::isTokenSuccess($last)) {
+                return $last;
+            }
+
+            if ($apiKey !== '') {
+                $last = SrfHttp::postRaw(
+                    $base,
+                    'grant_type=client_credentials',
+                    $headersBasic + [
+                        'Content-Type' => 'application/x-www-form-urlencoded',
+                        'x-api-key' => $apiKey,
+                    ],
+                    false
+                );
+                if (self::isTokenSuccess($last)) {
+                    return $last;
                 }
             }
         }
@@ -130,11 +137,23 @@ final class SrgOAuthToken
         return $last;
     }
 
+    /**
+     * @param array{body: string, code: int, content_type: string} $r
+     */
+    private static function isTokenSuccess(array $r): bool
+    {
+        if ($r['code'] < 200 || $r['code'] >= 300) {
+            return false;
+        }
+        $data = json_decode($r['body'], true);
+        return is_array($data) && !empty($data['access_token']);
+    }
+
     private static function oauthBaseUrl(string $configured): string
     {
         $p = parse_url($configured);
         if (!is_array($p) || empty($p['host'])) {
-            return 'https://api.srgssr.ch/oauth/v1/accesstoken';
+            return '';
         }
         $scheme = $p['scheme'] ?? 'https';
         $path = $p['path'] ?? '/oauth/v1/accesstoken';
