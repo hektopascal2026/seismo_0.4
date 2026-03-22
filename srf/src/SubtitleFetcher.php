@@ -26,7 +26,7 @@ final class SubtitleFetcher
             throw new RuntimeException('Subtitle lookup HTTP ' . $r['code'] . ' for ' . $urn);
         }
 
-        $body = $r['body'];
+        $body = ltrim($r['body'], "\xEF\xBB\xBF");
         $ct = strtolower($r['content_type']);
 
         if (strpos($ct, 'json') !== false || (strlen($body) > 0 && ($body[0] === '{' || $body[0] === '['))) {

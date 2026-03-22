@@ -8,7 +8,7 @@ declare(strict_types=1);
 final class EpisodeExtractor
 {
     /**
-     * @return list<array{episode_id: string, title: ?string, description: ?string, permalink: ?string, published: ?string, subtitles_available: bool, raw: array<string, mixed>}>
+     * @return list<array{bu: string, episode_id: string, title: ?string, description: ?string, permalink: ?string, published: ?string, subtitles_available: bool, raw: array<string, mixed>}>
      */
     public static function fromDecodedJson($data, string $bu): array
     {
@@ -36,7 +36,9 @@ final class EpisodeExtractor
                 $desc = self::pickString($episode, ['lead', 'description', 'shortDescription']);
                 $link = self::pickString($episode, ['playableUrl', 'url', 'shareUrl', 'link']);
                 $published = self::pickString($episode, ['publishedDate', 'publishDate', 'date', 'createdDate']);
+                $buSlug = self::buForMedia($node, $bu);
                 $out[] = [
+                    'bu' => $buSlug,
                     'episode_id' => $id,
                     'title' => $title,
                     'description' => $desc,
@@ -64,6 +66,27 @@ final class EpisodeExtractor
     private static function isMediaNode(array $node): bool
     {
         return isset($node['episode']) && is_array($node['episode']);
+    }
+
+    /**
+     * Play Subtitles URNs use the media vendor (srf, rts, …), not only the API ?bu= filter.
+     *
+     * @param array<string, mixed> $node Media item from Video API
+     */
+    private static function buForMedia(array $node, string $fallback): string
+    {
+        $v = $node['vendor'] ?? null;
+        if (is_string($v) && $v !== '') {
+            return strtolower($v);
+        }
+        if (is_array($v)) {
+            foreach (['value', 'name', 'code'] as $k) {
+                if (!empty($v[$k]) && is_string($v[$k])) {
+                    return strtolower($v[$k]);
+                }
+            }
+        }
+        return strtolower($fallback);
     }
 
     /**

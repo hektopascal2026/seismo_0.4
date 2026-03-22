@@ -59,12 +59,13 @@ final class ItemRepository
         ]);
     }
 
-    public function updateSubtitleText(string $urn, string $text, ?string $lang): void
+    public function updateSubtitleText(string $urn, string $text, ?string $lang): int
     {
         $st = $this->pdo->prepare(
             'UPDATE srf_items SET subtitle_text = ?, subtitle_lang = ?, fetched_subtitles_at = NOW() WHERE urn = ?'
         );
         $st->execute([$text, $lang, $urn]);
+        return $st->rowCount();
     }
 
     /**

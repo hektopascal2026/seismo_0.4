@@ -18,13 +18,13 @@ final class FetchService
     }
 
     /**
-     * @return array{episodes_seen: int, subtitles_fetched: int, errors: list<string>}
+     * @return array{episodes_seen: int, subtitles_fetched: int, subtitles_attempted: int, errors: list<string>}
      */
     public function run(bool $fetchSubtitles, int $subtitleBatch, int $msDelay): array
     {
         $errors = [];
         if (!srf_srg_configured()) {
-            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'errors' => ['SRG_CONSUMER_KEY / SRG_CONSUMER_SECRET not set in config.local.php']];
+            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'errors' => ['SRG_CONSUMER_KEY / SRG_CONSUMER_SECRET not set in config.local.php']];
         }
 
         $bu = (string) ($this->cfg['bu'] ?? 'srf');
@@ -46,23 +46,24 @@ final class FetchService
 
         if ($r['code'] < 200 || $r['code'] >= 300) {
             $errors[] = 'Video list HTTP ' . $r['code'] . ': ' . mb_substr($r['body'], 0, 400);
-            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'errors' => $errors];
+            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'errors' => $errors];
         }
 
         $json = json_decode($r['body'], true);
         if (!is_array($json)) {
             $errors[] = 'Video list: invalid JSON';
-            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'errors' => $errors];
+            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'errors' => $errors];
         }
 
         $episodes = EpisodeExtractor::fromDecodedJson($json, $bu);
         $seen = 0;
         foreach ($episodes as $ep) {
-            $urn = EpisodeExtractor::buildEpisodeUrn($bu, $ep['episode_id']);
+            $buSlug = (string) ($ep['bu'] ?? $bu);
+            $urn = EpisodeExtractor::buildEpisodeUrn($buSlug, $ep['episode_id']);
             $published = self::normalizeDate($ep['published']);
             $this->repo->upsertItem([
                 'urn' => $urn,
-                'bu' => $bu,
+                'bu' => $buSlug,
                 'episode_id' => $ep['episode_id'],
                 'title' => $ep['title'],
                 'description' => $ep['description'],
@@ -75,16 +76,21 @@ final class FetchService
         }
 
         $subCount = 0;
+        $subAttempted = 0;
         if ($fetchSubtitles && $subtitleBatch > 0) {
             $pending = $this->repo->itemsNeedingSubtitles($subtitleBatch);
             foreach ($pending as $row) {
                 $urn = (string) $row['urn'];
+                $subAttempted++;
                 if ($msDelay > 0) {
                     usleep($msDelay * 1000);
                 }
                 try {
                     $result = SubtitleFetcher::fetchForUrn($bearer, $this->cfg, $urn);
-                    $this->repo->updateSubtitleText($urn, $result['text'], $result['lang']);
+                    $updated = $this->repo->updateSubtitleText($urn, $result['text'], $result['lang']);
+                    if ($updated === 0) {
+                        $errors[] = $urn . ': subtitle UPDATE matched 0 rows (check urn in DB)';
+                    }
                     if ($result['text'] !== '') {
                         $subCount++;
                     }
@@ -96,7 +102,12 @@ final class FetchService
 
         $this->repo->stateSet('last_list_sync', date('c'));
 
-        return ['episodes_seen' => $seen, 'subtitles_fetched' => $subCount, 'errors' => $errors];
+        return [
+            'episodes_seen' => $seen,
+            'subtitles_fetched' => $subCount,
+            'subtitles_attempted' => $subAttempted,
+            'errors' => $errors,
+        ];
     }
 
     private function buildListUrl(string $bu, int $pageSize): string

@@ -43,7 +43,11 @@ try {
     $repo = new ItemRepository($pdo);
     $service = new FetchService($repo, srf_merged_config());
     $result = $service->run($fetchSubtitles, $subtitleBatch, $delayMs);
-    echo date('c'), ' episodes=', $result['episodes_seen'], ' subtitles=', $result['subtitles_fetched'], "\n";
+    echo date('c'),
+        ' episodes=', $result['episodes_seen'],
+        ' subtitles=', $result['subtitles_fetched'],
+        ' subtitle_tries=', $result['subtitles_attempted'] ?? 0,
+        "\n";
     foreach ($result['errors'] as $err) {
         fwrite(STDERR, $err . "\n");
     }
