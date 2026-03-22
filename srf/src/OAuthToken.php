@@ -35,9 +35,9 @@ final class SrgOAuthToken
         if ($r['code'] < 200 || $r['code'] >= 300) {
             throw new RuntimeException(
                 'SRG OAuth failed HTTP ' . $r['code'] . ': ' . mb_substr($r['body'], 0, 500)
-                . ' — SRGSSR Video OpenAPI lists the token URL on https://srgssr-prod.apigee.net (not api.srgssr.ch).'
-                . ' Deploy the latest srf code (tries both hosts). Use Consumer Key + Secret from the portal; set SRG_API_KEY if shown.'
-                . ' Clear DB row srf_fetch_state.oauth_token if you cached an old failure. Else api@srgssr.ch.'
+                . ' — Keys are rejected by SRG (wrong values, Pending app, or missing API product).'
+                . ' Run: php srf/bin/oauth_probe.php (on the server) and send output to api@srgssr.ch.'
+                . ' Portal: Consumer Key + Consumer Secret; SRG_API_KEY if listed; all products Approved.'
             );
         }
         $data = json_decode($r['body'], true);
@@ -131,6 +131,29 @@ final class SrgOAuthToken
                 if (self::isTokenSuccess($last)) {
                     return $last;
                 }
+            }
+
+            // 4) client_id + client_secret in body only (no Basic) — some Apigee policies.
+            $uBody = $base;
+            if ($apiKey !== '') {
+                $uBody .= '?apikey=' . rawurlencode($apiKey);
+            }
+            $bodyCreds = http_build_query([
+                'grant_type' => 'client_credentials',
+                'client_id' => $key,
+                'client_secret' => $secret,
+            ], '', '&', PHP_QUERY_RFC3986);
+            $last = SrfHttp::postRaw(
+                $uBody,
+                $bodyCreds,
+                [
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                    'Cache-Control' => 'no-cache',
+                ],
+                false
+            );
+            if (self::isTokenSuccess($last)) {
+                return $last;
             }
         }
 
