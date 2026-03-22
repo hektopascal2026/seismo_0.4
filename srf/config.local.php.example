@@ -11,7 +11,10 @@ define('SRF_DB_PASS', 'CHANGE_ME');
 define('SRG_CONSUMER_KEY', '');
 define('SRG_CONSUMER_SECRET', '');
 
-/** Optional: append ?apikey= to each API request (if your product requires it). */
+/**
+ * Optional: append ?apikey= to Video/Subtitles requests and to the OAuth token URL
+ * (some Apigee apps require it; copy from the app page in the developer portal).
+ */
 define('SRG_API_KEY', '');
 
 /**

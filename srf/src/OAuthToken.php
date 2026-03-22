@@ -26,14 +26,27 @@ final class SrgOAuthToken
         }
 
         $url = $cfg['oauth_token_url'] ?? 'https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials';
-        $basic = base64_encode(SRG_CONSUMER_KEY . ':' . SRG_CONSUMER_SECRET);
+        $key = trim(SRG_CONSUMER_KEY);
+        $secret = trim(SRG_CONSUMER_SECRET);
+        if ($key === '' || $secret === '') {
+            throw new RuntimeException('SRG OAuth: empty consumer key or secret after trim — check srf/config.local.php');
+        }
+        if (SRG_API_KEY !== '') {
+            $sep = strpos($url, '?') !== false ? '&' : '?';
+            $url .= $sep . 'apikey=' . rawurlencode(trim(SRG_API_KEY));
+        }
+        $basic = base64_encode($key . ':' . $secret);
+        // Do not follow redirects: Authorization is often dropped on redirect → bogus 401 / empty token.
         $r = SrfHttp::postEmpty($url, [
             'Authorization' => 'Basic ' . $basic,
             'Cache-Control' => 'no-cache',
-        ]);
+        ], false);
 
         if ($r['code'] < 200 || $r['code'] >= 300) {
-            throw new RuntimeException('SRG OAuth failed HTTP ' . $r['code'] . ': ' . mb_substr($r['body'], 0, 500));
+            throw new RuntimeException(
+                'SRG OAuth failed HTTP ' . $r['code'] . ': ' . mb_substr($r['body'], 0, 500)
+                . ' — verify Consumer Key + Secret in the portal (no spaces), app Approved, and try SRG_API_KEY on token URL if your product requires it.'
+            );
         }
         $data = json_decode($r['body'], true);
         if (!is_array($data) || empty($data['access_token'])) {

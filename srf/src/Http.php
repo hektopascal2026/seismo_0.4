@@ -35,8 +35,10 @@ final class SrfHttp
         return ['body' => $resp, 'code' => $code, 'content_type' => $ct];
     }
 
-    /** @return array{body: string, code: int, content_type: string} */
-    public static function postEmpty(string $url, array $headers = []): array
+    /**
+     * @return array{body: string, code: int, content_type: string}
+     */
+    public static function postEmpty(string $url, array $headers = [], bool $followRedirects = true): array
     {
         $ch = curl_init($url);
         $h = [];
@@ -50,8 +52,8 @@ final class SrfHttp
             CURLOPT_HTTPHEADER => $h,
             CURLOPT_TIMEOUT => 60,
             CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_FOLLOWLOCATION => $followRedirects,
+            CURLOPT_MAXREDIRS => $followRedirects ? 5 : 0,
             CURLOPT_USERAGENT => 'Seismo-SRF-Monitor/1.0',
         ]);
         $resp = curl_exec($ch);
