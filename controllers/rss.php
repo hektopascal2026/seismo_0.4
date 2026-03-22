@@ -1078,32 +1078,3 @@ function formatFeedDiagnosticsReport(array $diag, float $elapsedSeconds): string
 
     return implode("\n", $lines) . "\n";
 }
-
-function handleFeedDiagnostics(PDO $pdo): void {
-    if (FEED_DIAGNOSTIC_KEY !== '' && (string)($_GET['key'] ?? '') !== FEED_DIAGNOSTIC_KEY) {
-        http_response_code(403);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo "403 Forbidden — set FEED_DIAGNOSTIC_KEY in config.local.php and pass the same value as ?key=\n";
-        exit;
-    }
-
-    set_time_limit(600);
-
-    $format = strtolower((string)($_GET['format'] ?? 'html'));
-    $t0 = microtime(true);
-    $diag = runFeedDiagnostics($pdo);
-    $elapsed = microtime(true) - $t0;
-    $report = formatFeedDiagnosticsReport($diag, $elapsed);
-
-    if ($format === 'text' || $format === 'txt' || $format === 'plain') {
-        header('Content-Type: text/plain; charset=utf-8');
-        header('X-Robots-Tag: noindex, nofollow');
-        echo $report;
-        exit;
-    }
-
-    header('X-Robots-Tag: noindex, nofollow');
-    $diag['_elapsed'] = $elapsed;
-    $diag['_report'] = $report;
-    include __DIR__ . '/../views/feed_diagnostics.php';
-}

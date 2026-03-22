@@ -23,7 +23,7 @@ $action = $_GET['action'] ?? 'index';
 $pdo = getDbConnection();
 
 // Release session lock early for read-only pages (prevents blocking concurrent requests).
-$readOnlyActions = ['index', 'feeds', 'view_feed', 'feed_diagnostics', 'lex', 'jus', 'mail', 'substack', 'magnitu', 'calendar', 'settings', 'about', 'beta', 'styleguide',
+$readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'jus', 'mail', 'substack', 'magnitu', 'calendar', 'settings', 'about', 'beta', 'styleguide',
                     'api_tags', 'api_substack_tags', 'api_email_tags', 'api_all_tags', 'api_items', 'api_stats',
                     'download_rss_config', 'download_substack_config', 'download_lex_config',
                     'download_calendar_config',
@@ -85,8 +85,12 @@ switch ($action) {
         break;
 
     case 'feed_diagnostics':
-        handleFeedDiagnostics($pdo);
-        break;
+        $fdQ = array_merge(
+            ['action' => 'settings', 'tab' => 'feed_diagnostics'],
+            array_intersect_key($_GET, array_flip(['key', 'format']))
+        );
+        header('Location: ' . getBasePath() . '/index.php?' . http_build_query($fdQ));
+        exit;
 
     case 'refresh_all_substacks':
         handleRefreshAllSubstacks($pdo);

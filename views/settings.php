@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - Seismo</title>
+    <title><?= ($settingsTab ?? '') === 'feed_diagnostics' ? 'Feed diagnostics · Settings - Seismo' : 'Settings - Seismo' ?></title>
     <link rel="stylesheet" href="<?= getBasePath() ?>/assets/css/style.css">
     <style>
         .settings-section {
@@ -108,10 +108,55 @@
             border-color: #00aa00;
             background-color: #f0fff0;
         }
+
+        .diag-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin: 16px 0 20px;
+        }
+        .diag-stat {
+            border: 2px solid #000;
+            padding: 10px 12px;
+            background: #fff;
+        }
+        .diag-stat strong { display: block; font-size: 20px; }
+        .diag-stat span { font-size: 11px; color: #333; }
+        .diag-stat.ok strong { color: #0a0; }
+        .diag-stat.bad strong { color: #c00; }
+        .diag-table-wrap { overflow-x: auto; border: 2px solid #000; margin-bottom: 16px; }
+        table.diag-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table.diag-table th, table.diag-table td {
+            border-bottom: 1px solid #000;
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+        table.diag-table th { background: #f5f5f5; }
+        tr.diag-ok td:first-child { border-left: 4px solid #0a0; }
+        tr.diag-fail td:first-child { border-left: 4px solid #c00; }
+        tr.diag-skip td:first-child { border-left: 4px solid #999; }
+        .diag-hint { color: #333; font-size: 11px; max-width: 420px; }
+        .diag-log {
+            width: 100%;
+            min-height: 280px;
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+            padding: 12px;
+            border: 2px solid #000;
+            background: #fafafa;
+            box-sizing: border-box;
+        }
+        .diag-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
         
     </style>
 </head>
 <body>
+    <?php
+    $settingsKeyQuery = (FEED_DIAGNOSTIC_KEY !== '' && isset($_GET['key']))
+        ? ('&amp;key=' . rawurlencode((string)$_GET['key']))
+        : '';
+    ?>
     <div class="container">
         <div class="top-bar">
             <div class="top-bar-left">
@@ -159,12 +204,13 @@
 
         <!-- Settings Tab Bar -->
         <div class="tag-filter-list" style="margin-bottom: 16px;">
-            <a href="?action=settings&amp;tab=basic" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
-            <a href="?action=settings&amp;tab=script" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
-            <a href="?action=settings&amp;tab=calendar" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'calendar' ? ' background-color: #d4edda;' : '' ?>">Calendar</a>
-            <a href="?action=settings&amp;tab=lex" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
-            <a href="?action=settings&amp;tab=magnitu" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
-            <a href="?action=settings&amp;tab=styleguide" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'styleguide' ? ' background-color: #f5f5f5;' : '' ?>">Styleguide</a>
+            <a href="?action=settings&amp;tab=basic<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
+            <a href="?action=settings&amp;tab=script<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
+            <a href="?action=settings&amp;tab=calendar<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'calendar' ? ' background-color: #d4edda;' : '' ?>">Calendar</a>
+            <a href="?action=settings&amp;tab=lex<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
+            <a href="?action=settings&amp;tab=magnitu<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
+            <a href="?action=settings&amp;tab=feed_diagnostics<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'feed_diagnostics' ? ' background-color: #e8e0f5;' : '' ?>">Feed diagnostics</a>
+            <a href="?action=settings&amp;tab=styleguide<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'styleguide' ? ' background-color: #f5f5f5;' : '' ?>">Styleguide</a>
         </div>
 
         <?php if (!empty($trippedFeeds) || !empty($trippedLexSources) || !empty($trippedCalendarSources)): ?>
@@ -198,6 +244,10 @@
                 </div>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'feed_diagnostics'): ?>
+        <?php include __DIR__ . '/settings_tab_feed_diagnostics.php'; ?>
         <?php endif; ?>
 
         <?php if ($settingsTab === 'magnitu'): ?>
@@ -343,8 +393,8 @@
         <section class="settings-section">
             <h2 style="background-color: #add8e6; padding: 8px 14px; display: inline-block;">RSS</h2>
             <p style="font-size: 12px; margin: 8px 0 12px;">
-                <a href="<?= getBasePath() ?>/index.php?action=feed_diagnostics">Feed diagnostics</a>
-                — test every feed URL (HTTP + parse), copy a detailed log. Optional: set <code>FEED_DIAGNOSTIC_KEY</code> in <code>config.local.php</code> and add <code>&amp;key=…</code>.
+                <a href="<?= getBasePath() ?>/index.php?action=settings&amp;tab=feed_diagnostics<?= $settingsKeyQuery ?>">Feed diagnostics</a>
+                — test every feed URL (HTTP + parse), copy a detailed log (Settings tab). Optional: set <code>FEED_DIAGNOSTIC_KEY</code> in <code>config.local.php</code> and add <code>&amp;key=…</code> to the URL.
             </p>
             
             <!-- Add Feed Section -->

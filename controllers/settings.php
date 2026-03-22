@@ -8,7 +8,27 @@
 
 function handleSettingsPage($pdo) {
     $settingsTab = $_GET['tab'] ?? 'basic';
-    
+
+    $feedDiagnosticsData = null;
+    if ($settingsTab === 'feed_diagnostics') {
+        if (FEED_DIAGNOSTIC_KEY !== '' && (string)($_GET['key'] ?? '') !== FEED_DIAGNOSTIC_KEY) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo "403 Forbidden — set FEED_DIAGNOSTIC_KEY in config.local.php and pass the same value as ?key= (e.g. ?action=settings&tab=feed_diagnostics&key=…)\n";
+            exit;
+        }
+        set_time_limit(600);
+        $fdFormat = strtolower((string)($_GET['format'] ?? 'html'));
+        if ($fdFormat === 'text' || $fdFormat === 'txt' || $fdFormat === 'plain') {
+            $t0 = microtime(true);
+            $fdDiag = runFeedDiagnostics($pdo);
+            header('Content-Type: text/plain; charset=utf-8');
+            header('X-Robots-Tag: noindex, nofollow');
+            echo formatFeedDiagnosticsReport($fdDiag, microtime(true) - $t0);
+            exit;
+        }
+    }
+
     $feedsStmt = $pdo->query("SELECT * FROM feeds WHERE source_type = 'rss' OR source_type IS NULL ORDER BY created_at DESC");
     $allFeeds = $feedsStmt->fetchAll();
     
@@ -179,6 +199,15 @@ function handleSettingsPage($pdo) {
         if ($val !== null && (int)$val >= 3) {
             $trippedCalendarSources[] = $src;
         }
+    }
+
+    if ($settingsTab === 'feed_diagnostics') {
+        $fdT0 = microtime(true);
+        $feedDiagnosticsData = runFeedDiagnostics($pdo);
+        $fdElapsed = microtime(true) - $fdT0;
+        $feedDiagnosticsData['_elapsed'] = $fdElapsed;
+        $feedDiagnosticsData['_report'] = formatFeedDiagnosticsReport($feedDiagnosticsData, $fdElapsed);
+        header('X-Robots-Tag: noindex, nofollow');
     }
 
     include 'views/settings.php';

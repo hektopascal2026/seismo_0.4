@@ -7,5 +7,5 @@ define('DB_NAME', 'CHANGE_ME');
 define('DB_USER', 'CHANGE_ME');
 define('DB_PASS', 'CHANGE_ME');
 
-// Optional: protect feed diagnostics (?action=feed_diagnostics) with ?key=...
+// Optional: protect Settings → Feed diagnostics with ?key= on the URL (same tab supports &format=text)
 // define('FEED_DIAGNOSTIC_KEY', 'generate-a-long-random-string');
