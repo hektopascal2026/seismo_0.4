@@ -95,6 +95,17 @@ final class SrgOAuthToken
 
         $last = ['body' => '', 'code' => 0, 'content_type' => ''];
         foreach ($bases as $base) {
+            // 1) SRG portal / Apigee: grant_type in query, empty POST body + Basic (probe #2 → HTTP 200).
+            $uQuery = $base . '?grant_type=client_credentials';
+            if ($apiKey !== '') {
+                $uQuery .= '&apikey=' . rawurlencode($apiKey);
+            }
+            $last = SrfHttp::postEmpty($uQuery, $headersBasic, false);
+            if (self::isTokenSuccess($last)) {
+                return $last;
+            }
+
+            // 2) RFC-style: grant_type in body + Basic (some gateways; Apigee may return 400).
             $uForm = $base;
             if ($apiKey !== '') {
                 $uForm .= '?apikey=' . rawurlencode($apiKey);
@@ -105,15 +116,6 @@ final class SrgOAuthToken
                 $headersBasic + ['Content-Type' => 'application/x-www-form-urlencoded'],
                 false
             );
-            if (self::isTokenSuccess($last)) {
-                return $last;
-            }
-
-            $uQuery = $base . '?grant_type=client_credentials';
-            if ($apiKey !== '') {
-                $uQuery .= '&apikey=' . rawurlencode($apiKey);
-            }
-            $last = SrfHttp::postEmpty($uQuery, $headersBasic, false);
             if (self::isTokenSuccess($last)) {
                 return $last;
             }
@@ -133,7 +135,7 @@ final class SrgOAuthToken
                 }
             }
 
-            // 4) client_id + client_secret in body only (no Basic) — some Apigee policies.
+            // 3) client_id + client_secret in body only (no Basic) — rare gateways.
             $uBody = $base;
             if ($apiKey !== '') {
                 $uBody .= '?apikey=' . rawurlencode($apiKey);

@@ -48,6 +48,11 @@ echo "SRG OAuth probe (key len=" . strlen($key) . ", secret len=" . strlen($sec)
 
 $n = 0;
 foreach ($bases as $base) {
+    $uQuery = $base . '?grant_type=client_credentials' . ($apiKey !== '' ? '&apikey=' . rawurlencode($apiKey) : '');
+    $n++;
+    $r = SrfHttp::postEmpty($uQuery, $headersBasic, false);
+    echo "#{$n} POST empty+query+Basic …/accesstoken?grant_type=…\n    HTTP {$r['code']} " . snippet($r['body']) . "\n";
+
     $uForm = $base . ($apiKey !== '' ? '?apikey=' . rawurlencode($apiKey) : '');
     $n++;
     $r = SrfHttp::postRaw(
@@ -57,11 +62,6 @@ foreach ($bases as $base) {
         false
     );
     echo "#{$n} POST form+Basic {$uForm}\n    HTTP {$r['code']} " . snippet($r['body']) . "\n";
-
-    $uQuery = $base . '?grant_type=client_credentials' . ($apiKey !== '' ? '&apikey=' . rawurlencode($apiKey) : '');
-    $n++;
-    $r = SrfHttp::postEmpty($uQuery, $headersBasic, false);
-    echo "#{$n} POST empty+query+Basic …/accesstoken?grant_type=…\n    HTTP {$r['code']} " . snippet($r['body']) . "\n";
 
     if ($apiKey !== '') {
         $n++;
@@ -93,7 +93,8 @@ foreach ($bases as $base) {
     echo "\n";
 }
 
-echo "If every line is HTTP 401 with empty access_token, SRG is rejecting this app’s credentials or the app is not allowed to use OAuth.\n";
+echo "Apigee often: #1 (empty POST + grant_type in URL) = 200, form-body duplicate grant_type = 400.\n";
+echo "If all 401 with empty access_token, SRG is rejecting credentials or OAuth product not approved.\n";
 
 function snippet(string $body): string
 {
