@@ -1,10 +1,14 @@
 {
+  "_comment": "Keys starting with _ are ignored by the app (hints only).",
+  "_openapi_video": "SRGSSR Video OpenAPI 3: server https://api.srgssr.ch/videometadata/v2 — GET /latest_episodes?bu=&pageSize= — GET /episodes_by_date/{day}?bu=&pageSize= (day = YYYY-MM-DD).",
+  "_openapi_subtitles": "Play Subtitles v2: server https://api.srgssr.ch/srgssr-play-subtitles/v2 — GET /subtitles?episode=<URN> (query param name is episode). Response: JSON array of {id, url}.",
+
   "bu": "srf",
   "page_size": 30,
   "subtitle_language_preference": ["de", "fr", "it", "en"],
   "oauth_token_url": "https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials",
-  "video_latest_episodes_url": "https://api.srgssr.ch/{bu}/video/v2/latestEpisodes",
-  "video_episodes_by_date_url": "https://api.srgssr.ch/{bu}/video/v2/episodesByDate",
+  "video_latest_episodes_url": "https://api.srgssr.ch/videometadata/v2/latest_episodes",
+  "video_episodes_by_date_url": "https://api.srgssr.ch/videometadata/v2/episodes_by_date/{day}",
   "use_episodes_by_date": false,
-  "subtitle_lookup_url_template": "https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles/{urn}"
+  "subtitle_lookup_url_template": "https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles?episode={urn}"
 }

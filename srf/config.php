@@ -48,7 +48,17 @@ function srf_load_json_config(): array
         return [];
     }
     $data = json_decode($raw, true);
-    return is_array($data) ? $data : [];
+    if (!is_array($data)) {
+        return [];
+    }
+    $out = [];
+    foreach ($data as $k => $v) {
+        if (is_string($k) && $k !== '' && $k[0] === '_') {
+            continue;
+        }
+        $out[$k] = $v;
+    }
+    return $out;
 }
 
 function srf_pdo(): PDO
@@ -99,10 +109,10 @@ function srf_merged_config(): array
             'bu' => 'srf',
             'page_size' => 30,
             'oauth_token_url' => 'https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials',
-            'video_latest_episodes_url' => 'https://api.srgssr.ch/{bu}/video/v2/latestEpisodes',
-            'video_episodes_by_date_url' => 'https://api.srgssr.ch/{bu}/video/v2/episodesByDate',
+            'video_latest_episodes_url' => 'https://api.srgssr.ch/videometadata/v2/latest_episodes',
+            'video_episodes_by_date_url' => 'https://api.srgssr.ch/videometadata/v2/episodes_by_date/{day}',
             'use_episodes_by_date' => false,
-            'subtitle_lookup_url_template' => 'https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles/{urn}',
+            'subtitle_lookup_url_template' => 'https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles?episode={urn}',
         ],
         srf_load_json_config()
     );

@@ -28,7 +28,7 @@ final class FetchService
         }
 
         $bu = (string) ($this->cfg['bu'] ?? 'srf');
-        $pageSize = (int) ($this->cfg['page_size'] ?? 30);
+        $pageSize = min(100, max(1, (int) ($this->cfg['page_size'] ?? 30)));
 
         $bearer = SrgOAuthToken::getBearer(
             $this->cfg,
@@ -101,19 +101,16 @@ final class FetchService
 
     private function buildListUrl(string $bu, int $pageSize): string
     {
+        $query = ['bu' => $bu, 'pageSize' => $pageSize];
         if (!empty($this->cfg['use_episodes_by_date'])) {
-            $base = str_replace('{bu}', $bu, (string) ($this->cfg['video_episodes_by_date_url'] ?? ''));
-            $d = new DateTimeImmutable('today');
-            $q = http_build_query([
-                'day' => $d->format('d'),
-                'month' => $d->format('m'),
-                'year' => $d->format('Y'),
-                'pageSize' => $pageSize,
-            ]);
+            $base = (string) ($this->cfg['video_episodes_by_date_url'] ?? '');
+            $day = (new DateTimeImmutable('today'))->format('Y-m-d');
+            $base = str_replace('{day}', $day, $base);
+            $q = http_build_query($query);
             return $base . (strpos($base, '?') !== false ? '&' : '?') . $q;
         }
-        $base = str_replace('{bu}', $bu, (string) ($this->cfg['video_latest_episodes_url'] ?? ''));
-        $q = http_build_query(['pageSize' => $pageSize]);
+        $base = (string) ($this->cfg['video_latest_episodes_url'] ?? '');
+        $q = http_build_query($query);
         return $base . (strpos($base, '?') !== false ? '&' : '?') . $q;
     }
 

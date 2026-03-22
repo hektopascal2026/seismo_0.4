@@ -1,0 +1,96 @@
+openapi: 3.0.1
+info:
+  title: SRGSSR Play Subtitles
+  description: "This API provides the links to download subtitles of all videos in Play (SRF, RTS, RSI, RTR, SWI)."
+  contact:
+    email: api@srgssr.ch
+  version: 2.0.0
+  x-summary-info: "This API provides the links to download subtitles of all videos in Play (SRF, RTS, RSI, RTR, SWI)."
+servers:
+  - url: https://api.srgssr.ch/srgssr-play-subtitles/v2
+tags:
+  - name: SRGSSR Play Subtitles
+    description: Retrieve the subtitles of a TV episode.
+
+paths:
+
+  /subtitles:
+    get:
+      tags:
+        - Subtitles
+      summary: Get Subtitles
+      description: |
+        Retrieve the subtitles of a TV episode. It requires the URN of the TV  episode from an SRGSSR Video API call.
+      operationId: Subtitles
+      parameters:
+        - name: episode
+          in: query
+          description: |
+            The URN of an episode which is composed of the episode id from the response of a SRGSSR Video API call: urn = urn:[srf|rts|rsi|rtr|swi]:episode:tv:{id}, e.g. urn:srf:episode:tv:fb946f9c-3176-4eb0-a55a-9019245a7046.
+          required: true
+          schema:
+            type: string
+          example: urn:srf:episode:tv:fb946f9c-3176-4eb0-a55a-9019245a7046
+      responses:
+        "200":
+          description: "OK [Resource] - returns the resource"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subtitle'
+        "401":
+          description: Unauthorized - the authorization header is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "403":
+          description: Forbidden - the API key doesn't have access to this resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      deprecated: false
+      security:
+        - auth: [ ]
+
+components:
+  schemas:
+
+    Subtitle:
+      required:
+        - id
+        - url
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the subtitle.
+        url:
+          type: string
+          description: The URL from which the subtitle file can be downloaded.
+
+    Error:
+      required:
+        - code
+      type: object
+      properties:
+        code:
+          type: string
+          description: The HTTP response status code.
+        message:
+          type: string
+          description: The message describing the error.
+        info:
+          type: string
+          description: An URL with more information about the error.
+
+  securitySchemes:
+    auth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials
+          scopes: { }
