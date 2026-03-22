@@ -31,7 +31,7 @@ final class EpisodeExtractor
             $episode = $node['episode'] ?? null;
             if (is_array($episode) && !empty($episode['id'])) {
                 $id = (string) $episode['id'];
-                $sub = !empty($node['subtitlesAvailable']);
+                $sub = self::hasSubtitleHint($node, $episode);
                 $title = self::pickString($episode, ['title', 'name', 'shortTitle']);
                 $desc = self::pickString($episode, ['lead', 'description', 'shortDescription']);
                 $link = self::pickString($episode, ['playableUrl', 'url', 'shareUrl', 'link']);
@@ -64,6 +64,27 @@ final class EpisodeExtractor
     private static function isMediaNode(array $node): bool
     {
         return isset($node['episode']) && is_array($node['episode']);
+    }
+
+    /**
+     * @param array<string, mixed> $node Media / mediaList item
+     * @param array<string, mixed> $episode
+     */
+    private static function hasSubtitleHint(array $node, array $episode): bool
+    {
+        if (!empty($node['subtitlesAvailable']) || !empty($node['subtitles_available'])) {
+            return true;
+        }
+        if (!empty($episode['subtitlesAvailable']) || !empty($episode['subtitles_available'])) {
+            return true;
+        }
+        if (isset($node['subtitleList']) && is_array($node['subtitleList']) && $node['subtitleList'] !== []) {
+            return true;
+        }
+        if (isset($episode['subtitleList']) && is_array($episode['subtitleList']) && $episode['subtitleList'] !== []) {
+            return true;
+        }
+        return false;
     }
 
     /**

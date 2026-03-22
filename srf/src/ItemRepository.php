@@ -143,10 +143,11 @@ final class ItemRepository
      */
     public function itemsNeedingSubtitles(int $limit): array
     {
+        // latest_episodes often omits subtitlesAvailable on Media; still call Play Subtitles API once per row.
         $st = $this->pdo->prepare(
             'SELECT * FROM srf_items
-             WHERE subtitles_available = 1
-               AND (fetched_subtitles_at IS NULL OR subtitle_text IS NULL OR subtitle_text = \'\')
+             WHERE fetched_subtitles_at IS NULL
+               AND (subtitle_text IS NULL OR subtitle_text = \'\')
              ORDER BY published_at DESC
              LIMIT ' . (int) $limit
         );
