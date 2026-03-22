@@ -17,6 +17,11 @@ if (file_exists($localConfig)) {
  */
 define('CACHE_DURATION', 3600); // Cache feeds for 1 hour (in seconds)
 
+/** Optional: if non-empty, `?action=feed_diagnostics` requires matching `?key=` (set in config.local.php). */
+if (!defined('FEED_DIAGNOSTIC_KEY')) {
+    define('FEED_DIAGNOSTIC_KEY', '');
+}
+
 /**
  * Database Connection
  */

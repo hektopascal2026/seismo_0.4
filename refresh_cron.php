@@ -25,7 +25,7 @@ $startTime = microtime(true);
 
 $localConfig = __DIR__ . '/config.php';
 if (file_exists($localConfig) && !function_exists('initDatabase')) {
-    $cfg = require $localConfig;
+    $cfg = require_once $localConfig;
     if (is_array($cfg) && isset($cfg['seismo_path'])) {
         $seismoDir = rtrim($cfg['seismo_path'], '/');
     }
@@ -48,7 +48,7 @@ function clog(string $level, string $msg): void {
 
 clog('INFO', 'Starting Seismo refresh...');
 
-require $seismoDir . '/config.php';
+require_once $seismoDir . '/config.php';
 require $seismoDir . '/vendor/autoload.php';
 require $seismoDir . '/controllers/magnitu.php';
 require $seismoDir . '/controllers/lex_jus.php';

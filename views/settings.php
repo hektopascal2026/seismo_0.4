@@ -342,6 +342,10 @@
         <!-- RSS Section -->
         <section class="settings-section">
             <h2 style="background-color: #add8e6; padding: 8px 14px; display: inline-block;">RSS</h2>
+            <p style="font-size: 12px; margin: 8px 0 12px;">
+                <a href="<?= getBasePath() ?>/index.php?action=feed_diagnostics">Feed diagnostics</a>
+                — test every feed URL (HTTP + parse), copy a detailed log. Optional: set <code>FEED_DIAGNOSTIC_KEY</code> in <code>config.local.php</code> and add <code>&amp;key=…</code>.
+            </p>
             
             <!-- Add Feed Section -->
             <div class="add-feed-section" style="margin-bottom: 16px;">

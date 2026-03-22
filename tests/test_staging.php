@@ -392,6 +392,19 @@ echo "\n10. Content integrity\n";
 $r = req("$BASE?action=feeds");
 assert_contains("Feeds page has category content", $r, 'feed');
 
+$r = req("$BASE?action=feed_diagnostics");
+if ($r['status'] === 200) {
+    assert_contains("Feed diagnostics page has report body", $r, 'Seismo feed diagnostics');
+} elseif ($r['status'] === 403) {
+    assert_contains("Feed diagnostics key gate when FEED_DIAGNOSTIC_KEY set", $r, 'Forbidden');
+} else {
+    global $failed, $errors;
+    $failed++;
+    $msg = "  ✗ Feed diagnostics — expected 200 or 403, got {$r['status']}";
+    echo "$msg\n";
+    $errors[] = $msg;
+}
+
 $r = req("$BASE?action=mail");
 assert_body_size("Mail page has content", $r, 2000);
 

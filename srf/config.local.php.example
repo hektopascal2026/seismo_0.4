@@ -1,0 +1,21 @@
+<?php
+/**
+ * Copy to config.local.php and fill in. Never commit config.local.php.
+ */
+define('SRF_DB_HOST', 'localhost:3306');
+define('SRF_DB_NAME', 'mediadb_');
+define('SRF_DB_USER', 'CHANGE_ME');
+define('SRF_DB_PASS', 'CHANGE_ME');
+
+/** SRG SSR Developer Portal: app Consumer Key + Secret (Basic auth for token). */
+define('SRG_CONSUMER_KEY', '');
+define('SRG_CONSUMER_SECRET', '');
+
+/** Optional: append ?apikey= to each API request (if your product requires it). */
+define('SRG_API_KEY', '');
+
+/**
+ * Optional shared secret for ?action=sync in the browser (leave empty to disable web sync).
+ * CLI bin/fetch.php does not require this.
+ */
+define('SRF_WEB_SYNC_SECRET', '');

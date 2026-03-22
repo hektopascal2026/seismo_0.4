@@ -1,0 +1,10 @@
+{
+  "bu": "srf",
+  "page_size": 30,
+  "subtitle_language_preference": ["de", "fr", "it", "en"],
+  "oauth_token_url": "https://api.srgssr.ch/oauth/v1/accesstoken?grant_type=client_credentials",
+  "video_latest_episodes_url": "https://api.srgssr.ch/{bu}/video/v2/latestEpisodes",
+  "video_episodes_by_date_url": "https://api.srgssr.ch/{bu}/video/v2/episodesByDate",
+  "use_episodes_by_date": false,
+  "subtitle_lookup_url_template": "https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles/{urn}"
+}
