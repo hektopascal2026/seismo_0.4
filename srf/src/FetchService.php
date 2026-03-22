@@ -18,13 +18,13 @@ final class FetchService
     }
 
     /**
-     * @return array{episodes_seen: int, subtitles_fetched: int, subtitles_attempted: int, errors: list<string>}
+     * @return array{episodes_seen: int, subtitles_fetched: int, subtitles_attempted: int, subtitles_no_text: int, errors: list<string>}
      */
     public function run(bool $fetchSubtitles, int $subtitleBatch, int $msDelay): array
     {
         $errors = [];
         if (!srf_srg_configured()) {
-            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'errors' => ['SRG_CONSUMER_KEY / SRG_CONSUMER_SECRET not set in config.local.php']];
+            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'subtitles_no_text' => 0, 'errors' => ['SRG_CONSUMER_KEY / SRG_CONSUMER_SECRET not set in config.local.php']];
         }
 
         $bu = (string) ($this->cfg['bu'] ?? 'srf');
@@ -46,13 +46,13 @@ final class FetchService
 
         if ($r['code'] < 200 || $r['code'] >= 300) {
             $errors[] = 'Video list HTTP ' . $r['code'] . ': ' . mb_substr($r['body'], 0, 400);
-            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'errors' => $errors];
+            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'subtitles_no_text' => 0, 'errors' => $errors];
         }
 
         $json = json_decode($r['body'], true);
         if (!is_array($json)) {
             $errors[] = 'Video list: invalid JSON';
-            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'errors' => $errors];
+            return ['episodes_seen' => 0, 'subtitles_fetched' => 0, 'subtitles_attempted' => 0, 'subtitles_no_text' => 0, 'errors' => $errors];
         }
 
         $episodes = EpisodeExtractor::fromDecodedJson($json, $bu);
@@ -77,6 +77,7 @@ final class FetchService
 
         $subCount = 0;
         $subAttempted = 0;
+        $subNoText = 0;
         if ($fetchSubtitles && $subtitleBatch > 0) {
             $pending = $this->repo->itemsNeedingSubtitles($subtitleBatch);
             foreach ($pending as $row) {
@@ -93,6 +94,8 @@ final class FetchService
                     }
                     if ($result['text'] !== '') {
                         $subCount++;
+                    } else {
+                        $subNoText++;
                     }
                 } catch (Throwable $e) {
                     $errors[] = $urn . ': ' . $e->getMessage();
@@ -106,6 +109,7 @@ final class FetchService
             'episodes_seen' => $seen,
             'subtitles_fetched' => $subCount,
             'subtitles_attempted' => $subAttempted,
+            'subtitles_no_text' => $subNoText,
             'errors' => $errors,
         ];
     }

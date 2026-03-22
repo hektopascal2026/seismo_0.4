@@ -72,10 +72,11 @@ if ($action === 'sync' && $pdo && $schemaOk) {
     $fetcher = new FetchService(new ItemRepository($pdo), srf_merged_config());
     $result = $fetcher->run(true, 20, 150);
     $msg = sprintf(
-        'Sync: %d episodes indexed, %d subtitle texts updated (%d subtitle API tries).',
+        'Sync: %d episodes indexed, %d subtitle texts updated (%d API tries, %d with no caption payload).',
         $result['episodes_seen'],
         $result['subtitles_fetched'],
-        $result['subtitles_attempted'] ?? 0
+        $result['subtitles_attempted'] ?? 0,
+        $result['subtitles_no_text'] ?? 0
     );
     if ($result['errors'] !== []) {
         $msg .= ' Warnings: ' . implode(' | ', array_slice($result['errors'], 0, 3));

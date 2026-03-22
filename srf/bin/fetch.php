@@ -47,6 +47,7 @@ try {
         ' episodes=', $result['episodes_seen'],
         ' subtitles=', $result['subtitles_fetched'],
         ' subtitle_tries=', $result['subtitles_attempted'] ?? 0,
+        ' subtitle_no_text=', $result['subtitles_no_text'] ?? 0,
         "\n";
     foreach ($result['errors'] as $err) {
         fwrite(STDERR, $err . "\n");
