@@ -483,6 +483,18 @@ function refreshEmails($pdo) {
                     $_SESSION['success'] = "Emails refreshed. Table '$tableName' exists but contains 0 emails.";
                 }
             }
+
+            // Ensure newly fetched emails get a score without requiring "Refresh All".
+            $recipeJson = getMagnituConfig($pdo, 'recipe_json');
+            if (!empty($recipeJson)) {
+                $recipeData = json_decode($recipeJson, true);
+                if (is_array($recipeData) && !empty($recipeData['keywords'])) {
+                    $scoredNow = rescoreEmailsWithRecipe($pdo, $recipeData, 500);
+                    if (!$isCli && $scoredNow > 0) {
+                        $_SESSION['success'] = ($_SESSION['success'] ?? 'Emails refreshed') . " Scored {$scoredNow} email(s).";
+                    }
+                }
+            }
         } catch (PDOException $e) {
             if (!$isCli) $_SESSION['error'] = "Error querying table '$tableName': " . $e->getMessage();
             else throw $e;

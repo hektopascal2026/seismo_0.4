@@ -158,6 +158,17 @@ function handleSettingsPage($pdo) {
         $magnituScoreStats['magnitu'] = (int)$pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'magnitu'")->fetchColumn();
         $magnituScoreStats['recipe'] = (int)$pdo->query("SELECT COUNT(*) FROM entry_scores WHERE score_source = 'recipe'")->fetchColumn();
     } catch (PDOException $e) {}
+
+    $emailScoreStats = ['total' => 0, 'scored' => 0, 'unscored' => 0, 'coverage_pct' => 0];
+    try {
+        $emailTableName = getEmailTableName($pdo);
+        $emailScoreStats['total'] = (int)$pdo->query("SELECT COUNT(*) FROM `$emailTableName`")->fetchColumn();
+        $emailScoreStats['scored'] = (int)$pdo->query("SELECT COUNT(*) FROM entry_scores WHERE entry_type = 'email'")->fetchColumn();
+        $emailScoreStats['unscored'] = max(0, $emailScoreStats['total'] - $emailScoreStats['scored']);
+        if ($emailScoreStats['total'] > 0) {
+            $emailScoreStats['coverage_pct'] = (int)round(($emailScoreStats['scored'] / $emailScoreStats['total']) * 100);
+        }
+    } catch (PDOException $e) {}
     
     $scraperConfigs = [];
     try {

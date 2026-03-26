@@ -885,6 +885,7 @@ function magnituRescore($pdo, $recipeData) {
               SELECT 1 FROM entry_scores es 
               WHERE es.entry_type = 'feed_item' AND es.entry_id = fi.id AND es.score_source = 'magnitu'
           )
+        ORDER BY fi.id DESC
         LIMIT 500
     ");
     $upsert = $pdo->prepare("
@@ -925,6 +926,7 @@ function magnituRescore($pdo, $recipeData) {
                 SELECT 1 FROM entry_scores es 
                 WHERE es.entry_type = 'lex_item' AND es.entry_id = li.id AND es.score_source = 'magnitu'
             )
+            ORDER BY li.id DESC
             LIMIT 500
         ");
         foreach ($stmt->fetchAll() as $row) {
@@ -955,6 +957,19 @@ function magnituRescore($pdo, $recipeData) {
     }
 
     // Score emails
+    rescoreEmailsWithRecipe($pdo, $recipeData, 500);
+
+    // Score calendar_events
+    rescoreCalendarEvents($pdo, $recipeData);
+}
+
+/**
+ * Score emails with the recipe model unless a Magnitu score already exists.
+ * Returns the number of email rows processed.
+ */
+function rescoreEmailsWithRecipe($pdo, $recipeData, $limit = 500) {
+    if (empty($recipeData) || empty($recipeData['keywords'])) return 0;
+
     try {
         $emailTable = getEmailTableName($pdo);
         $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
@@ -965,11 +980,14 @@ function magnituRescore($pdo, $recipeData) {
             SELECT e.id, e.subject, e.$textBodyCol as text_body, e.$htmlBodyCol as html_body
             FROM `$emailTable` e
             WHERE NOT EXISTS (
-                SELECT 1 FROM entry_scores es 
+                SELECT 1 FROM entry_scores es
                 WHERE es.entry_type = 'email' AND es.entry_id = e.id AND es.score_source = 'magnitu'
             )
-            LIMIT 500
+            ORDER BY e.id DESC
+            LIMIT " . (int)$limit . "
         ");
+
+        $version = (int)($recipeData['version'] ?? 0);
         $upsertEmail = $pdo->prepare("
             INSERT INTO entry_scores (entry_type, entry_id, relevance_score, predicted_label, explanation, score_source, model_version)
             VALUES ('email', ?, ?, ?, ?, 'recipe', ?)
@@ -980,6 +998,8 @@ function magnituRescore($pdo, $recipeData) {
                 score_source = IF(score_source = 'magnitu', score_source, 'recipe'),
                 model_version = IF(score_source = 'magnitu', model_version, VALUES(model_version))
         ");
+
+        $processed = 0;
         foreach ($stmt->fetchAll() as $row) {
             $body = $row['text_body'] ?: strip_tags($row['html_body'] ?? '');
             $result = scoreEntryWithRecipe($recipeData, $row['subject'] ?? '', $body, 'email');
@@ -991,12 +1011,13 @@ function magnituRescore($pdo, $recipeData) {
                     json_encode($result['explanation']),
                     $version,
                 ]);
+                $processed++;
             }
         }
-    } catch (PDOException $e) {
-        // Email table might not exist
-    }
 
-    // Score calendar_events
-    rescoreCalendarEvents($pdo, $recipeData);
+        return $processed;
+    } catch (PDOException $e) {
+        error_log('rescoreEmailsWithRecipe: ' . $e->getMessage());
+        return 0;
+    }
 }

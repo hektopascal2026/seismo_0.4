@@ -610,6 +610,13 @@
                 ③ Upload both files to a folder on your server (requires PHP IMAP extension — enabled on most hosts).
                 ④ Add a cronjob: <code>*/15 * * * * /usr/bin/php /path/to/fetch_mail.php</code>
             </p>
+            <p style="font-size: 12px; margin-bottom: 12px; color: #444;">
+                Score coverage: <strong><?= (int)($emailScoreStats['scored'] ?? 0) ?></strong> / <?= (int)($emailScoreStats['total'] ?? 0) ?>
+                (<?= (int)($emailScoreStats['coverage_pct'] ?? 0) ?>%)
+                <?php if ((int)($emailScoreStats['unscored'] ?? 0) > 0): ?>
+                    &middot; <?= (int)$emailScoreStats['unscored'] ?> unscored
+                <?php endif; ?>
+            </p>
 
             <!-- Mail IMAP Configuration -->
             <div style="margin-bottom: 16px; padding: 16px; border: 2px solid #000000; background: #fafafa;">
