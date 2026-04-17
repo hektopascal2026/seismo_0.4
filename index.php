@@ -7,12 +7,12 @@ session_start();
 
 require_once 'config.php';
 require_once 'vendor/autoload.php';
-require_once 'controllers/magnitu.php';
 require_once 'controllers/lex_jus.php';
 require_once 'controllers/scraper.php';
 require_once 'controllers/mail.php';
 require_once 'controllers/rss.php';
 require_once 'controllers/dashboard.php';
+require_once 'controllers/magnitu.php';
 require_once 'controllers/settings.php';
 require_once 'controllers/calendar.php';
 
