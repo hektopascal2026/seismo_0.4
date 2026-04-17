@@ -9,3 +9,13 @@ define('DB_PASS', 'CHANGE_ME');
 
 // Optional: protect Settings → Feed diagnostics with ?key= on the URL (same tab supports &format=text)
 // define('FEED_DIAGNOSTIC_KEY', 'generate-a-long-random-string');
+
+// ---------------------------------------------------------------------------
+// Satellite mode (multi-profile branching — leave commented out on mothership)
+// ---------------------------------------------------------------------------
+// Set this to the mothership's database name (same MySQL host/user) so this
+// instance reads entries (feed_items, feeds, lex_items, emails) from there
+// while keeping its own scoring tables (entry_scores, magnitu_config, etc.).
+// The DB_USER must have SELECT on the mothership DB.
+// Generate a fresh API key for this instance — do NOT reuse the mothership key.
+// define('SEISMO_MOTHERSHIP_DB', 'seismo_main');

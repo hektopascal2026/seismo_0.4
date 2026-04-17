@@ -197,7 +197,10 @@
 
             <p style="margin-top: 12px; font-weight: 700;">Model Profiles</p>
             <p style="margin-top: 4px;">
-                Each Magnitu instance runs a named model profile (e.g. "pascal1"). Models are portable: they can be exported as <code>.magnitu</code> files and shared with colleagues. A <code>.magnitu</code> file contains the trained model, all labels, the keyword recipe, and a version manifest. When someone imports a model file, labels are merged (newer wins), and the trained model is loaded if it's a newer version — protecting against accidental regression.
+                Each Magnitu instance runs one or more named profiles (e.g. "security", "digital policy"). Models are portable: they can be exported as <code>.magnitu</code> files and shared with colleagues. A <code>.magnitu</code> file contains the trained model, all labels, the keyword recipe, and a version manifest. When someone imports a model file, labels are merged (newer wins), and the trained model is loaded if it's a newer version — protecting against accidental regression.
+            </p>
+            <p style="margin-top: 8px;">
+                In a multi-profile setup, each topic profile can push scores to its own <strong>satellite Seismo instance</strong>. The satellite reads entries from this (mothership) database and maintains independent scoring tables — letting different audiences get a feed scored for their specific focus area, without duplicating ingestion infrastructure.
             </p>
             <p style="margin-top: 8px;">
                 The currently connected model name and version are displayed at the top of the <a href="?action=magnitu" class="about-link">Magnitu page</a> and in <a href="?action=settings" class="about-link">Settings</a>.
@@ -390,12 +393,21 @@
                     </ul>
 
                     <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">v3 — Reliability &amp; collaboration:</p>
-                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                    <ul style="margin: 0 0 8px 0; padding-left: 16px;">
                         <li>Multi-user sync: label conflict resolution, incremental push, quality gating</li>
                         <li>Magnitu Mini: standalone mobile labeling web app for quick triage</li>
                         <li>Retry queue for silent label loss prevention</li>
                         <li>Guard against silent failures: structured error logging, contract tests, startup verification</li>
                         <li>Auto-update on startup (<code>git pull</code> + <code>pip install</code>)</li>
+                    </ul>
+
+                    <p style="margin: 0 0 6px 0; font-weight: 600; font-size: 12px;">v4 — Multi-profile &amp; satellite mode:</p>
+                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                        <li>Multiple named profiles (e.g. "security", "digital policy") — each profile has its own trained model, label set, and push target</li>
+                        <li>Each profile can push scores and recipes to a dedicated <strong>satellite Seismo instance</strong> — independent scoring without independent scraping</li>
+                        <li>Mothership Seismo remains the single source of truth for entries; satellites read entries via cross-DB queries and maintain their own <code>entry_scores</code></li>
+                        <li>Seismo groundwork: <code>SEISMO_MOTHERSHIP_DB</code> config constant, <code>entryTable()</code> helper, all Magnitu API entry reads satellite-aware</li>
+                        <li>API contract unchanged — no format or endpoint changes required</li>
                     </ul>
                 </div>
 
@@ -409,7 +421,7 @@
                 Built by <a href="https://hektopascal.org" class="about-link" target="_blank" rel="noopener">hektopascal.org</a>.
             </p>
             <p class="about-version" style="margin-top: 8px;">
-                Version 0.4.1 · Last updated: <?= $lastChangeDate ?>
+                Version 0.4.2 · Last updated: <?= $lastChangeDate ?>
             </p>
         </section>
     </div>

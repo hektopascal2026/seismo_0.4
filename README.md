@@ -8,14 +8,17 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 - **RSS** — add and manage standard RSS/Atom feeds with tag-based filtering
 - **Substack** — subscribe to Substack newsletters via their RSS feeds
 - **Mail** — IMAP email fetcher with configurable credentials, downloadable cronjob script (native PHP IMAP, no external libraries), and sender tagging
-- **Lex** — track legislation from the EU, Switzerland, and Germany
+- **Lex** — track legislation from the EU, Switzerland, Germany, and France
   - 🇪🇺 **EU CELLAR** — regulations, directives, and decisions from EUR-Lex via SPARQL (CDM ontology)
   - 🇨🇭 **Fedlex** — Bundesgesetze, Verordnungen, Bundesbeschlüsse, and international treaties via SPARQL (JOLux ontology)
   - 🇩🇪 **recht.bund.de** — Bundesgesetzblatt Teil I + II (German federal legislation) via RSS
+  - 🇫🇷 **Légifrance** — lois, ordonnances, décrets from the Journal Officiel via PISTE API (OAuth2)
+  - 🏛 **Parl MM** — Swiss parliamentary press releases via the parlament.ch SharePoint REST API
 - **Jus** — Swiss case law from BGer, BGE, and BVGer via [entscheidsuche.ch](https://entscheidsuche.ch) with incremental sync
+- **Calendar** — upcoming parliamentary events (sessions, motions, hearings) fetched from the Swiss Parliament OData API; scored by the recipe engine and shown in the timeline
 - **Scraper** — configurable web page scraper with link-following mode, CSS-based date extraction, polite delays, and per-entry soft-delete
-- **Magnitu Integration** — optional companion ML app that learns which entries matter to you and pushes relevance scores back via API
-- **Settings** — four-tab settings page (Basic, Script, Lex, Magnitu) to manage all sources and configuration
+- **Magnitu Integration** — optional companion ML app that learns which entries matter to you and pushes relevance scores back via API; supports multiple topic profiles, each pushing to its own Seismo instance
+- **Settings** — tabbed settings page (Basic, Script, Lex, Magnitu, Calendar) to manage all sources and configuration
 - **Consistent card layout** — unified entry cards across all pages with source tag, user-assigned category, and date
 
 ## Requirements
@@ -58,12 +61,13 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 | **Feed** | Combined timeline of all active sources |
 | **Magnitu** | ML-scored entries: investigation leads, important items |
 | **RSS** | RSS/Atom feed items with tag filters |
-| **Lex** | EU, Swiss, and German legislation with source filters (🇪🇺 / 🇨🇭 / 🇩🇪) |
+| **Calendar** | Upcoming parliamentary events sorted by date, recipe-scored |
+| **Lex** | EU, CH, DE, FR legislation + Swiss parliamentary press releases |
 | **Jus** | Swiss case law — BGer, BGE, BVGer decisions |
 | **Mail** | Email newsletters with sender tag filters |
 | **Substack** | Substack newsletter items with tag filters |
 | **Scraper** | Scraped web page entries with per-source filters and delete |
-| **Settings** | Four tabs — Basic (RSS/Substack), Script (Mail config + Scraper config with downloadable scripts), Lex (EU/CH/DE/Jus), Magnitu |
+| **Settings** | Basic (RSS/Substack), Script (Mail + Scraper scripts), Lex, Magnitu, Calendar tabs |
 | **About** | Project info, data sources, and stats |
 
 ## Dependencies
@@ -114,37 +118,41 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 ### Magnitu (optional)
 - **Type:** Local Python companion app
 - **Protocol:** REST API with bearer token authentication
-- **Features:** ML relevance scoring, active learning, portable model profiles (`.magnitu` files)
+- **Features:** ML relevance scoring, active learning, portable model profiles (`.magnitu` files), multi-profile satellite mode
 - **Endpoints:** `magnitu_entries`, `magnitu_scores`, `magnitu_recipe`, `magnitu_labels`, `magnitu_status`
+- **Multi-profile:** Each Magnitu topic profile (e.g. "security", "digital policy") can push scores to its own **satellite Seismo instance**. A satellite reads entries from the mothership's database via cross-DB queries (`SEISMO_MOTHERSHIP_DB`) while keeping its own scoring tables. Set `define('SEISMO_MOTHERSHIP_DB', 'seismo_main')` in `config.local.php` to enable satellite mode — see `config.local.php.example` for details.
 
 ## Project Structure
 
 ```
 seismo_0.4/
 ├── index.php              # Thin router — maps actions to controller handlers
-├── config.php             # Database helpers, table initialization, shared utilities
-├── config.local.php       # Database credentials (gitignored)
+├── config.php             # DB helpers, table init, entryTable()/entryDbSchemaExpr() satellite helpers
+├── config.local.php       # DB credentials + optional SEISMO_MOTHERSHIP_DB (gitignored)
+├── config.local.php.example
 ├── refresh_cron.php       # CLI cronjob — full background refresh cycle
 ├── composer.json          # PHP dependencies
 ├── controllers/
 │   ├── dashboard.php      # Main feed page, search, global refresh
 │   ├── rss.php            # RSS & Substack feeds, CRUD, tags, config import/export
 │   ├── mail.php           # Email page, sender management, mail fetcher config
-│   ├── lex_jus.php        # EU/CH/DE legislation, Swiss case law (BGer/BGE/BVGer)
+│   ├── lex_jus.php        # EU/CH/DE/FR legislation, Parl MM, Swiss case law
+│   ├── calendar.php       # Parliamentary calendar events, fetch, settings, scoring
 │   ├── scraper.php        # Web scraper configs, entries, script downloads
-│   ├── magnitu.php        # ML scoring, Magnitu API, AI views
+│   ├── magnitu.php        # ML scoring, Magnitu API (satellite-aware), AI views
 │   └── settings.php       # Settings page, about, beta, styleguide
 ├── views/
 │   ├── index.php          # Combined feed page
 │   ├── magnitu.php        # Magnitu ML-scored entries
 │   ├── feeds.php          # RSS feed page
 │   ├── feed.php           # Single feed view
-│   ├── lex.php            # Legislation page (EU + CH + DE)
+│   ├── calendar.php       # Parliamentary calendar page
+│   ├── lex.php            # Legislation page (EU + CH + DE + FR + Parl MM)
 │   ├── jus.php            # Swiss case law page (BGer / BGE / BVGer)
 │   ├── mail.php           # Email page
 │   ├── substack.php       # Substack page
 │   ├── scraper.php        # Scraped web pages
-│   ├── settings.php       # Settings page (tabbed: Basic, Script, Lex, Magnitu)
+│   ├── settings.php       # Settings page (tabbed: Basic, Script, Lex, Magnitu, Calendar)
 │   ├── about.php          # About page
 │   └── styleguide.php     # Internal style reference
 ├── fetcher/

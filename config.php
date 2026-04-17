@@ -57,6 +57,49 @@ function seismo_nav_url_for_action(string $targetAction): string {
 }
 
 /**
+ * Satellite mode — read entries from a mothership Seismo database on the same MySQL server.
+ *
+ * Set SEISMO_MOTHERSHIP_DB to the mothership's database name (same host/user) to enable
+ * cross-DB reads for entry tables (feed_items, feeds, lex_items, sender_tags, email table).
+ * All scoring tables (entry_scores, magnitu_config, magnitu_labels) always stay local.
+ *
+ * Leave empty (default) for standard local/mothership mode — no behaviour change.
+ */
+if (!defined('SEISMO_MOTHERSHIP_DB')) {
+    define('SEISMO_MOTHERSHIP_DB', '');
+}
+
+/**
+ * Returns a SQL table reference for an entry-source table.
+ *
+ * Local mode  → bare table name (no change to existing behaviour).
+ * Satellite   → `{SEISMO_MOTHERSHIP_DB}`.{table}  for cross-DB reads.
+ *
+ * Use for: feed_items, feeds, lex_items, sender_tags, and the dynamic email table.
+ * Do NOT use for: entry_scores, magnitu_config, magnitu_labels (always local).
+ */
+function entryTable(string $table): string {
+    if (SEISMO_MOTHERSHIP_DB !== '') {
+        return '`' . SEISMO_MOTHERSHIP_DB . '`.' . $table;
+    }
+    return $table;
+}
+
+/**
+ * Returns the SQL expression for the schema that holds entry tables.
+ * Intended for inline use in INFORMATION_SCHEMA queries.
+ *
+ * Local mode  → DATABASE()
+ * Satellite   → '<mothership_db_name>'
+ */
+function entryDbSchemaExpr(): string {
+    if (SEISMO_MOTHERSHIP_DB !== '') {
+        return "'" . addslashes(SEISMO_MOTHERSHIP_DB) . "'";
+    }
+    return 'DATABASE()';
+}
+
+/**
  * Current schema version — bump this when DDL changes are made
  */
 define('SCHEMA_VERSION', 16);
@@ -526,7 +569,11 @@ function getEmailTableName($pdo) {
     static $cached = null;
     if ($cached !== null) return $cached;
 
-    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+    // In satellite mode enumerate the mothership's tables; otherwise the local DB.
+    $showSql = SEISMO_MOTHERSHIP_DB !== ''
+        ? "SHOW TABLES FROM `" . SEISMO_MOTHERSHIP_DB . "`"
+        : "SHOW TABLES";
+    $tables = $pdo->query($showSql)->fetchAll(PDO::FETCH_COLUMN);
     foreach ($tables as $t) {
         if (strtolower($t) === 'fetched_emails') return $cached = $t;
     }

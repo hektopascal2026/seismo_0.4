@@ -457,8 +457,8 @@ function handleMagnituEntries($pdo) {
         $sql = "SELECT fi.id, fi.title, fi.description, fi.content, fi.link, fi.author,
                        fi.published_date, f.title as feed_title, f.category as feed_category,
                        f.source_type
-                FROM feed_items fi
-                JOIN feeds f ON fi.feed_id = f.id
+                FROM " . entryTable('feed_items') . " fi
+                JOIN " . entryTable('feeds') . " f ON fi.feed_id = f.id
                 WHERE f.disabled = 0";
         $params = [];
         if ($since) {
@@ -490,7 +490,7 @@ function handleMagnituEntries($pdo) {
         $emailTable = getEmailTableName($pdo);
 
         try {
-            $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
+            $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = " . entryDbSchemaExpr() . " AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
             $fromEmailCol = in_array('from_email', $cols) ? 'from_email' : (in_array('from_addr', $cols) ? 'from_addr' : 'from_email');
             $fromNameCol = in_array('from_name', $cols) ? 'from_name' : "''" ;
             $textBodyCol = in_array('text_body', $cols) ? 'text_body' : (in_array('body_text', $cols) ? 'body_text' : 'text_body');
@@ -500,8 +500,8 @@ function handleMagnituEntries($pdo) {
             $sql = "SELECT e.id, e.subject, e.$fromEmailCol as from_email, $fromNameCol as from_name,
                            e.$textBodyCol as text_body, e.$htmlBodyCol as html_body, e.$dateCol as entry_date,
                            COALESCE(st.tag, 'unclassified') as sender_tag
-                    FROM `$emailTable` e
-                    LEFT JOIN sender_tags st ON e.$fromEmailCol = st.from_email AND (st.removed_at IS NULL) AND st.disabled = 0";
+                    FROM " . entryTable("`$emailTable`") . " e
+                    LEFT JOIN " . entryTable('sender_tags') . " st ON e.$fromEmailCol = st.from_email AND (st.removed_at IS NULL) AND st.disabled = 0";
             $params = [];
             if ($since) {
                 $sql .= " WHERE e.$dateCol >= ?";
@@ -535,7 +535,7 @@ function handleMagnituEntries($pdo) {
     if ($type === 'all' || $type === 'lex_item') {
         try {
             $sql = "SELECT id, celex, title, description, document_date, document_type, eurlex_url, source
-                    FROM lex_items";
+                    FROM " . entryTable('lex_items');
             $params = [];
             if ($since) {
                 $sql .= " WHERE document_date >= ?";
@@ -703,14 +703,14 @@ function handleMagnituStatus($pdo) {
         return;
     }
 
-    $totalFeedItems = $pdo->query("SELECT COUNT(*) FROM feed_items")->fetchColumn();
+    $totalFeedItems = $pdo->query("SELECT COUNT(*) FROM " . entryTable('feed_items'))->fetchColumn();
     $totalEmails = 0;
     try {
         $emailTable = getEmailTableName($pdo);
-        $totalEmails = $pdo->query("SELECT COUNT(*) FROM `$emailTable`")->fetchColumn();
+        $totalEmails = $pdo->query("SELECT COUNT(*) FROM " . entryTable("`$emailTable`"))->fetchColumn();
     } catch (PDOException $e) {}
     $totalLex = 0;
-    try { $totalLex = $pdo->query("SELECT COUNT(*) FROM lex_items")->fetchColumn(); } catch (PDOException $e) {}
+    try { $totalLex = $pdo->query("SELECT COUNT(*) FROM " . entryTable('lex_items'))->fetchColumn(); } catch (PDOException $e) {}
     // Calendar events are excluded from Magnitu status for now (scored internally only).
 
     $scoredCount = $pdo->query("SELECT COUNT(*) FROM entry_scores WHERE entry_type != 'calendar_event'")->fetchColumn();
@@ -830,8 +830,8 @@ function magnituRescore($pdo, $recipeData) {
     // Score feed_items that don't have a magnitu score
     $stmt = $pdo->query("
         SELECT fi.id, fi.title, fi.description, fi.content, f.source_type
-        FROM feed_items fi
-        JOIN feeds f ON fi.feed_id = f.id
+        FROM " . entryTable('feed_items') . " fi
+        JOIN " . entryTable('feeds') . " f ON fi.feed_id = f.id
         WHERE f.disabled = 0
           AND NOT EXISTS (
               SELECT 1 FROM entry_scores es 
@@ -873,7 +873,7 @@ function magnituRescore($pdo, $recipeData) {
     try {
         $stmt = $pdo->query("
             SELECT li.id, li.title, li.document_type, li.source
-            FROM lex_items li
+            FROM " . entryTable('lex_items') . " li
             WHERE NOT EXISTS (
                 SELECT 1 FROM entry_scores es 
                 WHERE es.entry_type = 'lex_item' AND es.entry_id = li.id AND es.score_source = 'magnitu'
@@ -924,13 +924,13 @@ function rescoreEmailsWithRecipe($pdo, $recipeData, $limit = 500) {
 
     try {
         $emailTable = getEmailTableName($pdo);
-        $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
+        $cols = $pdo->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = " . entryDbSchemaExpr() . " AND TABLE_NAME = '$emailTable'")->fetchAll(PDO::FETCH_COLUMN);
         $textBodyCol = in_array('text_body', $cols) ? 'text_body' : (in_array('body_text', $cols) ? 'body_text' : 'text_body');
         $htmlBodyCol = in_array('html_body', $cols) ? 'html_body' : (in_array('body_html', $cols) ? 'body_html' : 'html_body');
 
         $stmt = $pdo->query("
             SELECT e.id, e.subject, e.$textBodyCol as text_body, e.$htmlBodyCol as html_body
-            FROM `$emailTable` e
+            FROM " . entryTable("`$emailTable`") . " e
             WHERE NOT EXISTS (
                 SELECT 1 FROM entry_scores es
                 WHERE es.entry_type = 'email' AND es.entry_id = e.id AND es.score_source = 'magnitu'

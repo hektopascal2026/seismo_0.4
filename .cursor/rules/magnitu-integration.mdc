@@ -42,6 +42,30 @@ Magnitu connects via these endpoints in `index.php`. All require `Authorization:
 
 Magnitu uses Seismo's styleguide (`views/styleguide.php`, `assets/css/style.css`). When building or updating Magnitu's UI, follow the same design system: colors, typography, button styles, card layout, expand/collapse patterns, etc.
 
+## Satellite mode (multi-profile groundwork)
+
+Seismo supports a **satellite mode** so a second, lightweight Seismo instance can serve a topic-specific Magnitu profile (e.g. "security", "digital policy") without independent scraping.
+
+### How it works
+
+- Set `SEISMO_MOTHERSHIP_DB` in the satellite's `config.local.php` to the mothership's MySQL database name (same server/user).
+- Entry tables (`feed_items`, `feeds`, `lex_items`, `sender_tags`, email table) are cross-DB read via `` `mothership_db`.tablename `` SQL references.
+- Scoring tables (`entry_scores`, `magnitu_config`, `magnitu_labels`) are always local to each instance.
+- Each satellite has its own API key in its own `magnitu_config` table.
+- The mothership runs with `SEISMO_MOTHERSHIP_DB = ''` (default) — zero behaviour change.
+
+### Implementation touchpoints
+
+- `config.php`: `entryTable(string $table)` — wraps a table name with DB qualifier when in satellite mode. `entryDbSchemaExpr()` — returns the SQL schema expression for `INFORMATION_SCHEMA` queries. `getEmailTableName()` — uses `SHOW TABLES FROM <mothership_db>` when in satellite mode.
+- `controllers/magnitu.php`: All entry-table reads (`handleMagnituEntries`, `handleMagnituStatus`, `magnituRescore`, `rescoreEmailsWithRecipe`) use `entryTable()` / `entryDbSchemaExpr()`. Score/config writes remain on `$pdo` (local) untouched.
+
+### Rules
+
+- `entryTable()` and `entryDbSchemaExpr()` are **only for entry-source tables**. Never use them for `entry_scores`, `magnitu_config`, `magnitu_labels`.
+- The MySQL user for the satellite DB must have `SELECT` granted on the mothership database.
+- Do NOT reuse the mothership API key — generate a fresh one for each satellite.
+- The API contract (JSON formats, endpoint signatures) is identical between mothership and satellite. Magnitu does not need any changes to support satellites.
+
 ## Rules when changing seismo
 
 - Do NOT change the API response format without updating Magnitu's `sync.py`
@@ -49,3 +73,4 @@ Magnitu uses Seismo's styleguide (`views/styleguide.php`, `assets/css/style.css`
 - The recipe JSON format (keywords, source_weights, classes, class_weights) is a contract — changes require updating both `scoreEntryWithRecipe()` in `config.php` AND `distiller.py` in Magnitu
 - Config keys in `magnitu_config` table: `api_key`, `alert_threshold`, `sort_by_relevance`, `recipe_json`, `recipe_version`, `last_sync_at`
 - When changing Seismo's styleguide or CSS, be aware that Magnitu's UI depends on the same design system
+- When adding new entry-source table queries (e.g. new content type), wrap them with `entryTable()` so satellites stay in sync
