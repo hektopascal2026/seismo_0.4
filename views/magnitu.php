@@ -60,7 +60,7 @@
         </div>
         <?php endif; ?>
 
-        <p style="font-size: 12px; margin: 0 0 16px 0; color: #000000; max-width: 52rem;">Same list as the main Feed for your current URL (search and tag filters included), limited to the last 7 days with scores <code>investigation_lead</code> or <code>important</code>. Use the Feed link above to keep filters when switching pages.</p>
+        <p style="font-size: 12px; margin: 0 0 16px 0; color: #000000; max-width: 52rem;">Same filters as the main Feed for your current URL (search and tag pills). Magnitu loads a deeper pool per source (e.g. 150 RSS/Substack/email/scraper rows, wider Lex), merges up to 800 items, then keeps the last 7 days with <code>investigation_lead</code> or <code>important</code>. Newer calendar days first; within each day, highest score first. Use the Feed link above to keep filters when switching pages.</p>
 
         <div class="latest-entries-section">
             <div class="section-title-row">

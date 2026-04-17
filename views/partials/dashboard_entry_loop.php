@@ -34,7 +34,7 @@ $feedLoopPrevDayKey = null;
                         <?php
                             $__ts = (int)($itemWrapper['date'] ?? 0);
                             $__dk = $__ts > 0 ? date('Y-m-d', $__ts) : '';
-                            if ($__dk !== '' && $feedLoopPrevDayKey !== null && $feedLoopPrevDayKey !== $__dk) {
+                            if ($__dk !== '' && ($feedLoopPrevDayKey === null || $feedLoopPrevDayKey !== $__dk)) {
                                 $__h = seismo_magnitu_day_heading($__ts);
                                 if ($__h !== '') {
                                     echo '<div class="magnitu-day-separator"><span class="magnitu-day-separator-text">' . htmlspecialchars($__h) . '</span></div>';

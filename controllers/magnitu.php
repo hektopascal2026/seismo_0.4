@@ -12,9 +12,9 @@
 // ---------------------------------------------------------------------------
 
 function handleMagnituPage($pdo) {
-    // Same timeline as the main Feed for the current GET (q, tag pills, favourites view, etc.),
-    // narrowed to the last 7 days and scores investigation_lead / important. Order stays Feed order (newest first).
-    $feedCtx = buildDashboardIndexData($pdo);
+    // Same filters as the Feed (GET), wider merged cap so older days appear; last 7 days;
+    // labels investigation_lead / important; calendar days newest-first, within each day by score descending.
+    $feedCtx = buildDashboardIndexData($pdo, 800);
     $cutoffDate = strtotime('-7 days');
     $magnituFeedItems = [];
     foreach ($feedCtx['allItems'] as $row) {
@@ -31,6 +31,31 @@ function handleMagnituPage($pdo) {
         }
         $magnituFeedItems[] = $row;
     }
+
+    usort($magnituFeedItems, function ($a, $b) {
+        $ta = (int)($a['date'] ?? 0);
+        $tb = (int)($b['date'] ?? 0);
+        $da = $ta > 0 ? date('Y-m-d', $ta) : '';
+        $db = $tb > 0 ? date('Y-m-d', $tb) : '';
+        if ($da === '' && $db === '') {
+            return 0;
+        }
+        if ($da === '') {
+            return 1;
+        }
+        if ($db === '') {
+            return -1;
+        }
+        if ($da !== $db) {
+            return strcmp($db, $da);
+        }
+        $sa = (float)($a['score']['relevance_score'] ?? 0);
+        $sb = (float)($b['score']['relevance_score'] ?? 0);
+        if ($sb != $sa) {
+            return $sb <=> $sa;
+        }
+        return $tb <=> $ta;
+    });
 
     $magnituModelName = getMagnituConfig($pdo, 'model_name');
     $magnituModelVersion = getMagnituConfig($pdo, 'model_version');

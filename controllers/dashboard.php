@@ -40,11 +40,20 @@ function handleToggleFavourite($pdo) {
  * Build the same timeline and filter state as the main Feed for the current request (GET).
  * Used by handleDashboard and by the Magnitu page so both stay in sync when q / tag filters apply.
  *
+ * @param int|null $timelineItemCap After merge and date sort, keep at most this many rows (default: 30, or 200 when searching). Pass a higher cap for Magnitu so a 7-day window is not empty.
  * @return array<string, mixed>
  */
-function buildDashboardIndexData(PDO $pdo): array {
+function buildDashboardIndexData(PDO $pdo, ?int $timelineItemCap = null): array {
     $searchQuery = trim($_GET['q'] ?? '');
     $currentView = (isset($_GET['view']) && $_GET['view'] === 'favourites') ? 'favourites' : 'newest';
+
+    // Wider per-source windows when building a deep timeline (Magnitu): default Feed stays at 30.
+    $magnituWidePool = ($timelineItemCap !== null);
+    $srcFeedLimit = $magnituWidePool ? 150 : 30;
+    $lexSqlLimit = $magnituWidePool ? 400 : 100;
+    $lexSliceLimit = $magnituWidePool ? 120 : 30;
+    $calendarFetchLimit = $magnituWidePool ? 60 : 15;
+    $searchIndexLimit = $magnituWidePool ? 400 : 100;
 
     $tagsStmt = $pdo->query("
         SELECT DISTINCT f.category
@@ -93,8 +102,8 @@ function buildDashboardIndexData(PDO $pdo): array {
     $selectedLexSources = array_values(array_intersect($selectedLexSources, $enabledLexSources));
     
     if (!empty($searchQuery)) {
-        $latestItems = searchFeedItems($pdo, $searchQuery, 100, $selectedTags);
-        $searchEmails = searchEmails($pdo, $searchQuery, 100, $selectedEmailTags);
+        $latestItems = searchFeedItems($pdo, $searchQuery, $searchIndexLimit, $selectedTags);
+        $searchEmails = searchEmails($pdo, $searchQuery, $searchIndexLimit, $selectedEmailTags);
         $searchResultsCount = count($latestItems) + count($searchEmails);
     } else {
         if (!empty($selectedTags)) {
@@ -112,7 +121,7 @@ function buildDashboardIndexData(PDO $pdo): array {
                   )
                   AND f.category IN ($placeholders)
                 ORDER BY fi.published_date DESC, fi.cached_at DESC
-                LIMIT 30
+                LIMIT " . (int)$srcFeedLimit . "
             ";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($selectedTags);
@@ -130,7 +139,7 @@ function buildDashboardIndexData(PDO $pdo): array {
                       WHERE sc.url = f.url
                   )
                 ORDER BY fi.published_date DESC, fi.cached_at DESC
-                LIMIT 30
+                LIMIT " . (int)$srcFeedLimit . "
             ");
             $latestItems = $latestItemsStmt->fetchAll();
         } else {
@@ -143,9 +152,9 @@ function buildDashboardIndexData(PDO $pdo): array {
         $emails = $searchEmails;
     } else {
         if (!empty($selectedEmailTags)) {
-            $emails = getEmailsForIndex($pdo, 30, $selectedEmailTags);
+            $emails = getEmailsForIndex($pdo, $srcFeedLimit, $selectedEmailTags);
         } elseif (!$tagsSubmitted) {
-            $emails = getEmailsForIndex($pdo, 30, []);
+            $emails = getEmailsForIndex($pdo, $srcFeedLimit, []);
         } else {
             $emails = [];
         }
@@ -160,7 +169,7 @@ function buildDashboardIndexData(PDO $pdo): array {
             WHERE f.source_type = 'substack' AND f.disabled = 0
               AND f.category IN ($placeholders)
             ORDER BY fi.published_date DESC, fi.cached_at DESC
-            LIMIT 30
+            LIMIT " . (int)$srcFeedLimit . "
         ");
         $substackItemsStmt->execute($selectedSubstackTags);
         $substackItems = $substackItemsStmt->fetchAll();
@@ -171,7 +180,7 @@ function buildDashboardIndexData(PDO $pdo): array {
             JOIN feeds f ON fi.feed_id = f.id
             WHERE f.source_type = 'substack' AND f.disabled = 0
             ORDER BY fi.published_date DESC, fi.cached_at DESC
-            LIMIT 30
+            LIMIT " . (int)$srcFeedLimit . "
         ");
         $substackItems = $substackItemsStmt->fetchAll();
     } else {
@@ -226,7 +235,7 @@ function buildDashboardIndexData(PDO $pdo): array {
                 JOIN feeds f ON fi.feed_id = f.id
                 WHERE f.id IN ($ph) AND fi.hidden = 0
                 ORDER BY fi.published_date DESC
-                LIMIT 30
+                LIMIT " . (int)$srcFeedLimit . "
             ");
             $scraperStmt->execute($activeScraperFeedIds);
             $scraperItemsForFeed = $scraperStmt->fetchAll();
@@ -242,17 +251,17 @@ function buildDashboardIndexData(PDO $pdo): array {
                 SELECT * FROM lex_items
                 WHERE source IN ($lexPlaceholders)
                 ORDER BY document_date DESC
-                LIMIT 100
+                LIMIT " . (int)$lexSqlLimit . "
             ");
             $lexStmt->execute($selectedLexSources);
-            $lexItems = array_slice(filterJusBannedWords($lexStmt->fetchAll()), 0, 30);
+            $lexItems = array_slice(filterJusBannedWords($lexStmt->fetchAll()), 0, $lexSliceLimit);
         } elseif (!$tagsSubmitted) {
             $lexStmt = $pdo->query("
                 SELECT * FROM lex_items
                 ORDER BY document_date DESC
-                LIMIT 100
+                LIMIT " . (int)$lexSqlLimit . "
             ");
-            $lexItems = array_slice(filterJusBannedWords($lexStmt->fetchAll()), 0, 30);
+            $lexItems = array_slice(filterJusBannedWords($lexStmt->fetchAll()), 0, $lexSliceLimit);
         }
     } catch (PDOException $e) {
         $lexItems = [];
@@ -475,7 +484,7 @@ function buildDashboardIndexData(PDO $pdo): array {
                     SELECT * FROM calendar_events
                     WHERE event_date >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) OR event_date IS NULL
                     ORDER BY event_date DESC
-                    LIMIT 15
+                    LIMIT " . (int)$calendarFetchLimit . "
                 ");
                 $calendarEventsForIndex = $calStmt->fetchAll();
             } catch (PDOException $e) {}
@@ -499,8 +508,12 @@ function buildDashboardIndexData(PDO $pdo): array {
     usort($allItems, function($a, $b) {
         return $b['date'] - $a['date'];
     });
-    
-    $limit = !empty($searchQuery) ? 200 : 30;
+
+    if ($timelineItemCap !== null) {
+        $limit = max(1, min((int)$timelineItemCap, 2000));
+    } else {
+        $limit = !empty($searchQuery) ? 200 : 30;
+    }
     $allItems = array_slice($allItems, 0, $limit);
     
     $scoredCount = count(array_filter($allItems, function($i) { return $i['score'] !== null; }));
