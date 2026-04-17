@@ -36,7 +36,13 @@ function handleToggleFavourite($pdo) {
     exit;
 }
 
-function handleDashboard($pdo) {
+/**
+ * Build the same timeline and filter state as the main Feed for the current request (GET).
+ * Used by handleDashboard and by the Magnitu page so both stay in sync when q / tag filters apply.
+ *
+ * @return array<string, mixed>
+ */
+function buildDashboardIndexData(PDO $pdo): array {
     $searchQuery = trim($_GET['q'] ?? '');
     $currentView = (isset($_GET['view']) && $_GET['view'] === 'favourites') ? 'favourites' : 'newest';
 
@@ -175,6 +181,7 @@ function handleDashboard($pdo) {
     // Scraper items
     $scraperItemsForFeed = [];
     $scraperFeedsForIndex = [];
+    $selectedScraperPills = [];
     try {
         $allScraperFeedsIdx = $pdo->query("
             SELECT f.id, f.title AS name
@@ -507,8 +514,61 @@ function handleDashboard($pdo) {
     }
     
     $lastChangeDate = date('d.m.Y', filemtime(__DIR__ . '/../index.php'));
-    
+
+    return [
+        'searchQuery' => $searchQuery,
+        'currentView' => $currentView,
+        'tags' => $tags,
+        'emailTags' => $emailTags,
+        'substackTags' => $substackTags,
+        'tagsSubmitted' => $tagsSubmitted,
+        'selectedTags' => $selectedTags,
+        'selectedEmailTags' => $selectedEmailTags,
+        'selectedSubstackTags' => $selectedSubstackTags,
+        'selectedLexSources' => $selectedLexSources,
+        'enabledLexSources' => $enabledLexSources,
+        'selectedScraperPills' => $selectedScraperPills,
+        'scraperFeedsForIndex' => $scraperFeedsForIndex,
+        'calendarEnabled' => $calendarEnabled,
+        'selectedCalendar' => $selectedCalendar,
+        'allItems' => $allItems,
+        'searchResultsCount' => $searchResultsCount,
+        'hasMagnituScores' => $hasMagnituScores,
+        'scoredCount' => $scoredCount,
+        'totalScored' => $totalScored,
+        'lastRefreshDate' => $lastRefreshDate,
+        'lastChangeDate' => $lastChangeDate,
+    ];
+}
+
+function handleDashboard($pdo) {
+    extract(buildDashboardIndexData($pdo), EXTR_SKIP);
     include 'views/index.php';
+}
+
+/**
+ * German day label for Magnitu date separators (Heute, Gestern, …).
+ */
+function seismo_magnitu_day_heading(int $unixTs): string {
+    if ($unixTs <= 0) {
+        return '';
+    }
+    $todayStart = strtotime('today');
+    $itemDayStart = strtotime(date('Y-m-d', $unixTs) . ' 00:00:00');
+    $diffDays = (int)(($todayStart - $itemDayStart) / 86400);
+    if ($diffDays === 0) {
+        return 'Heute';
+    }
+    if ($diffDays === 1) {
+        return 'Gestern';
+    }
+    if ($diffDays === 2) {
+        return 'Vorgestern';
+    }
+    if ($diffDays >= 3 && $diffDays <= 6) {
+        return 'Heute -' . $diffDays;
+    }
+    return date('d.m.Y', $unixTs);
 }
 
 // ---------------------------------------------------------------------------

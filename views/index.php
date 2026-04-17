@@ -32,7 +32,7 @@
         <!-- Navigation Drawer -->
         <nav class="nav-drawer" id="navDrawer">
             <a href="?action=index" class="nav-link active">Feed</a>
-            <a href="?action=magnitu" class="nav-link">Magnitu</a>
+            <a href="<?= htmlspecialchars(seismo_nav_url_for_action('magnitu')) ?>" class="nav-link">Magnitu</a>
             <a href="?action=feeds" class="nav-link">RSS</a>
             <a href="?action=calendar" class="nav-link">Calendar</a>
             <a href="?action=lex" class="nav-link">Lex</a>

@@ -334,6 +334,20 @@ h3 {
     box-shadow: 2px 2px 0px #000000;
 }
 
+/* Magnitu timeline: day group headings between cards */
+.magnitu-day-separator {
+    margin: 18px 0 10px 0;
+}
+.magnitu-day-separator-text {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 2px solid #000000;
+    background: #f0f0f0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #000000;
+}
+
 /* Card header row (tags left, magnitu badge pushed right via margin-left:auto) */
 .entry-header,
 .item-meta {

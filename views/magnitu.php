@@ -12,7 +12,7 @@
         <div class="top-bar">
             <div class="top-bar-left">
                 <span class="top-bar-title">
-                    <a href="?action=index">
+                    <a href="<?= htmlspecialchars(seismo_nav_url_for_action('index')) ?>">
                         <svg class="logo-icon logo-icon-large" viewBox="0 0 24 16" xmlns="http://www.w3.org/2000/svg">
                             <rect width="24" height="16" fill="#FFFFC5"/>
                             <path d="M0,8 L4,12 L6,4 L10,10 L14,2 L18,8 L20,6 L24,8" stroke="#000000" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
@@ -60,7 +60,7 @@
         </div>
         <?php endif; ?>
 
-        <p style="font-size: 12px; margin: 0 0 16px 0; color: #000000; max-width: 52rem;">Entries from the last 7 days scored as <code>investigation_lead</code> or <code>important</code>, in the same order as the main Feed (newest first).</p>
+        <p style="font-size: 12px; margin: 0 0 16px 0; color: #000000; max-width: 52rem;">Same list as the main Feed for your current URL (search and tag filters included), limited to the last 7 days with scores <code>investigation_lead</code> or <code>important</code>. Use the Feed link above to keep filters when switching pages.</p>
 
         <div class="latest-entries-section">
             <div class="section-title-row">
@@ -71,12 +71,13 @@
                 <?php
                     $allItems = $magnituFeedItems;
                     $searchQuery = '';
-                    $returnQuery = 'action=magnitu';
+                    $returnQuery = $_SERVER['QUERY_STRING'] ?? 'action=magnitu';
                     $showFavourites = false;
+                    $showDaySeparators = true;
                     include __DIR__ . '/partials/dashboard_entry_loop.php';
                 ?>
             <?php else: ?>
-                <div class="empty-state">No entries scored as <code>investigation_lead</code> or <code>important</code> in the last 7 days. Train or refresh Magnitu and push scores to see results here.</div>
+                <div class="empty-state">No entries in the current Feed view match <code>investigation_lead</code> or <code>important</code> within the last 7 days. Adjust filters on the Feed or train Magnitu and push scores to see results here.</div>
             <?php endif; ?>
         </div>
 

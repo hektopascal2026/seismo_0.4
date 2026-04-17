@@ -12,106 +12,24 @@
 // ---------------------------------------------------------------------------
 
 function handleMagnituPage($pdo) {
-    // Last 7 days, labels investigation_lead + important; same chronological ordering as the main Feed (newest first).
-    $magnituFeedItems = [];
+    // Same timeline as the main Feed for the current GET (q, tag pills, favourites view, etc.),
+    // narrowed to the last 7 days and scores investigation_lead / important. Order stays Feed order (newest first).
+    $feedCtx = buildDashboardIndexData($pdo);
     $cutoffDate = strtotime('-7 days');
-
-    try {
-        $scoredStmt = $pdo->query("
-            SELECT entry_type, entry_id, relevance_score, predicted_label, explanation, score_source, model_version
-            FROM entry_scores
-            WHERE predicted_label IN ('investigation_lead', 'important')
-            ORDER BY relevance_score DESC
-            LIMIT 1500
-        ");
-        $scoredEntries = $scoredStmt->fetchAll();
-
-        foreach ($scoredEntries as $scored) {
-            $entryData = null;
-            $entryType = null;
-            $dateValue = null;
-            $entryTypeKey = null;
-
-            if ($scored['entry_type'] === 'feed_item') {
-                $stmt = $pdo->prepare("
-                    SELECT fi.*, f.title AS feed_title, f.title AS feed_name, f.category AS feed_category, f.source_type, f.url AS source_url
-                    FROM feed_items fi
-                    JOIN feeds f ON fi.feed_id = f.id
-                    WHERE fi.id = ?
-                ");
-                $stmt->execute([$scored['entry_id']]);
-                $entryData = $stmt->fetch();
-                if ($entryData) {
-                    $st = $entryData['source_type'] ?? 'rss';
-                    if ($st === 'substack') {
-                        $entryType = 'substack';
-                    } elseif ($st === 'scraper' || ($entryData['feed_category'] ?? '') === 'scraper') {
-                        $entryType = 'scraper';
-                    } else {
-                        $entryType = 'feed';
-                    }
-                    $dateValue = $entryData['published_date'] ?? $entryData['cached_at'] ?? null;
-                    $entryTypeKey = 'feed_item';
-                }
-            } elseif ($scored['entry_type'] === 'email') {
-                $emailTableName = getEmailTableName($pdo);
-                $stmt = $pdo->prepare("SELECT * FROM `$emailTableName` WHERE id = ?");
-                $stmt->execute([$scored['entry_id']]);
-                $entryData = $stmt->fetch();
-                if ($entryData) {
-                    $entryType = 'email';
-                    $dateValue = $entryData['date_received'] ?? $entryData['date_utc'] ?? $entryData['created_at'] ?? $entryData['date_sent'] ?? null;
-                    $entryTypeKey = 'email';
-                }
-            } elseif ($scored['entry_type'] === 'lex_item') {
-                $stmt = $pdo->prepare("SELECT * FROM lex_items WHERE id = ?");
-                $stmt->execute([$scored['entry_id']]);
-                $entryData = $stmt->fetch();
-                if ($entryData) {
-                    $entryType = 'lex';
-                    $dateValue = $entryData['document_date'] ?? $entryData['created_at'] ?? null;
-                    $entryTypeKey = 'lex_item';
-                }
-            } elseif ($scored['entry_type'] === 'calendar_event') {
-                $stmt = $pdo->prepare("SELECT * FROM calendar_events WHERE id = ?");
-                $stmt->execute([$scored['entry_id']]);
-                $entryData = $stmt->fetch();
-                if ($entryData) {
-                    $entryType = 'calendar';
-                    $dateValue = $entryData['event_date'] ?? $entryData['created_at'] ?? null;
-                    $entryTypeKey = 'calendar_event';
-                }
-            }
-
-            if (!$entryData || !$entryTypeKey) {
-                continue;
-            }
-
-            $ts = $dateValue ? strtotime($dateValue) : 0;
-            if ($ts < $cutoffDate) {
-                continue;
-            }
-
-            $magnituFeedItems[] = [
-                'type' => $entryType,
-                'date' => $ts,
-                'data' => $entryData,
-                'score' => $scored,
-                'entry_type' => $entryTypeKey,
-                'entry_id' => (int)$scored['entry_id'],
-                'is_favourite' => false,
-            ];
+    $magnituFeedItems = [];
+    foreach ($feedCtx['allItems'] as $row) {
+        $sc = $row['score'] ?? null;
+        if (!is_array($sc)) {
+            continue;
         }
-
-        usort($magnituFeedItems, function ($a, $b) {
-            $da = (int)($a['date'] ?? 0);
-            $db = (int)($b['date'] ?? 0);
-            if ($db !== $da) {
-                return $db <=> $da;
-            }
-            return (float)($b['score']['relevance_score'] ?? 0) <=> (float)($a['score']['relevance_score'] ?? 0);
-        });
-    } catch (PDOException $e) {
+        $label = $sc['predicted_label'] ?? '';
+        if ($label !== 'investigation_lead' && $label !== 'important') {
+            continue;
+        }
+        if ((int)($row['date'] ?? 0) < $cutoffDate) {
+            continue;
+        }
+        $magnituFeedItems[] = $row;
     }
 
     $magnituModelName = getMagnituConfig($pdo, 'model_name');

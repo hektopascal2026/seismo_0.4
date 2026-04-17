@@ -48,6 +48,15 @@ function getDbConnection() {
 }
 
 /**
+ * Preserve current GET filters (q, tags, etc.) while switching `action` (e.g. Feed ↔ Magnitu).
+ */
+function seismo_nav_url_for_action(string $targetAction): string {
+    $params = isset($_GET) && is_array($_GET) ? $_GET : [];
+    $params['action'] = $targetAction;
+    return '?' . http_build_query($params);
+}
+
+/**
  * Current schema version — bump this when DDL changes are made
  */
 define('SCHEMA_VERSION', 16);

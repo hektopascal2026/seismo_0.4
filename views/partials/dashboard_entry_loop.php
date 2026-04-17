@@ -4,6 +4,8 @@ if (!isset($showFavourites)) {
     $showFavourites = true;
 }
 $returnQuery = $returnQuery ?? ($_SERVER['QUERY_STRING'] ?? 'action=index');
+$showDaySeparators = !empty($showDaySeparators);
+$feedLoopPrevDayKey = null;
 ?>
                 <?php foreach ($allItems as $itemWrapper): ?>
                     <?php
@@ -28,6 +30,21 @@ $returnQuery = $returnQuery ?? ($_SERVER['QUERY_STRING'] ?? 'action=index');
                         $favouriteEntryId = (int)($itemWrapper['entry_id'] ?? 0);
                         $isFavourite = !empty($itemWrapper['is_favourite']);
                     ?>
+                    <?php if ($showDaySeparators): ?>
+                        <?php
+                            $__ts = (int)($itemWrapper['date'] ?? 0);
+                            $__dk = $__ts > 0 ? date('Y-m-d', $__ts) : '';
+                            if ($__dk !== '' && $feedLoopPrevDayKey !== null && $feedLoopPrevDayKey !== $__dk) {
+                                $__h = seismo_magnitu_day_heading($__ts);
+                                if ($__h !== '') {
+                                    echo '<div class="magnitu-day-separator"><span class="magnitu-day-separator-text">' . htmlspecialchars($__h) . '</span></div>';
+                                }
+                            }
+                            if ($__dk !== '') {
+                                $feedLoopPrevDayKey = $__dk;
+                            }
+                        ?>
+                    <?php endif; ?>
                     <?php if ($itemWrapper['type'] === 'feed' || $itemWrapper['type'] === 'substack'): ?>
                         <?php $item = $itemWrapper['data']; ?>
                         <?php
