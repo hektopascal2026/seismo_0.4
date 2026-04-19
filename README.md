@@ -15,10 +15,10 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
   - 🇫🇷 **Légifrance** — lois, ordonnances, décrets from the Journal Officiel via PISTE API (OAuth2)
   - 🏛 **Parl MM** — Swiss parliamentary press releases via the parlament.ch SharePoint REST API
 - **Jus** — Swiss case law from BGer, BGE, and BVGer via [entscheidsuche.ch](https://entscheidsuche.ch) with incremental sync
-- **Calendar** — upcoming parliamentary events (sessions, motions, hearings) fetched from the Swiss Parliament OData API; scored by the recipe engine and shown in the timeline
+- **Leg** — parliamentary business (sessions, motions, hearings, etc.) fetched from the Swiss Parliament OData API; scored by the recipe engine and shown in the timeline (not a personal calendar)
 - **Scraper** — configurable web page scraper with link-following mode, CSS-based date extraction, polite delays, and per-entry soft-delete
 - **Magnitu Integration** — optional companion ML app that learns which entries matter to you and pushes relevance scores back via API; supports multiple topic profiles, each pushing to its own Seismo instance
-- **Settings** — tabbed settings page (Basic, Script, Lex, Magnitu, Calendar) to manage all sources and configuration
+- **Settings** — tabbed settings page (Basic, Script, Lex, Magnitu, Leg) to manage all sources and configuration
 - **Consistent card layout** — unified entry cards across all pages with source tag, user-assigned category, and date
 
 ## Requirements
@@ -61,13 +61,13 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 | **Feed** | Combined timeline of all active sources |
 | **Magnitu** | ML-scored entries: investigation leads, important items |
 | **RSS** | RSS/Atom feed items with tag filters |
-| **Calendar** | Upcoming parliamentary events sorted by date, recipe-scored |
+| **Leg** | Parliamentary business sorted by date, recipe-scored |
 | **Lex** | EU, CH, DE, FR legislation + Swiss parliamentary press releases |
 | **Jus** | Swiss case law — BGer, BGE, BVGer decisions |
 | **Mail** | Email newsletters with sender tag filters; **Mail subs** lists subscription sources (categories, unsubscribe) |
 | **Substack** | Substack newsletter items with tag filters |
 | **Scraper** | Scraped web page entries with per-source filters and delete |
-| **Settings** | Basic (RSS/Substack), Script (Mail + Scraper scripts), Lex, Magnitu, Calendar tabs |
+| **Settings** | Basic (RSS/Substack), Script (Mail + Scraper scripts), Lex, Magnitu, Leg tabs |
 | **About** | Project info, data sources, and stats |
 
 ## Dependencies
@@ -137,7 +137,7 @@ seismo_0.4/
 │   ├── rss.php            # RSS & Substack feeds, CRUD, tags, config import/export
 │   ├── mail.php           # Email page, sender management, mail fetcher config
 │   ├── lex_jus.php        # EU/CH/DE/FR legislation, Parl MM, Swiss case law
-│   ├── calendar.php       # Parliamentary calendar events, fetch, settings, scoring
+│   ├── calendar.php       # Leg (parliamentary business), fetch, settings, scoring
 │   ├── scraper.php        # Web scraper configs, entries, script downloads
 │   ├── magnitu.php        # ML scoring, Magnitu API (satellite-aware), AI views
 │   └── settings.php       # Settings page, about, beta, styleguide
@@ -146,13 +146,13 @@ seismo_0.4/
 │   ├── magnitu.php        # Magnitu ML-scored entries
 │   ├── feeds.php          # RSS feed page
 │   ├── feed.php           # Single feed view
-│   ├── calendar.php       # Parliamentary calendar page
+│   ├── calendar.php       # Leg page (parliamentary business)
 │   ├── lex.php            # Legislation page (EU + CH + DE + FR + Parl MM)
 │   ├── jus.php            # Swiss case law page (BGer / BGE / BVGer)
 │   ├── mail.php           # Email page
 │   ├── substack.php       # Substack page
 │   ├── scraper.php        # Scraped web pages
-│   ├── settings.php       # Settings page (tabbed: Basic, Script, Lex, Magnitu, Calendar)
+│   ├── settings.php       # Settings page (tabbed: Basic, Script, Lex, Magnitu, Leg)
 │   ├── about.php          # About page
 │   └── styleguide.php     # Internal style reference
 ├── fetcher/

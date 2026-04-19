@@ -244,7 +244,7 @@
             <?php endif; ?>
             <?php if (!empty($trippedCalendarSources)): ?>
                 <div style="margin-top: 6px;">
-                    Calendar sources tripped: <strong><?= htmlspecialchars(implode(', ', $trippedCalendarSources)) ?></strong>
+                    Leg sources tripped: <strong><?= htmlspecialchars(implode(', ', $trippedCalendarSources)) ?></strong>
                     — will auto-retry on next successful refresh cycle.
                 </div>
             <?php endif; ?>
@@ -920,11 +920,11 @@
             <div style="margin-top: 20px; padding-top: 16px; border-top: 2px solid #000000;">
                 <h3 style="margin-top: 0; margin-bottom: 10px;">Config File</h3>
                 <p style="font-size: 12px; margin-bottom: 12px;">
-                    Download the current calendar configuration as JSON, or upload a config file to apply.
+                    Download the current Leg configuration as JSON, or upload a config file to apply.
                 </p>
                 <div style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;">
                     <a href="?action=download_calendar_config" class="btn" style="text-decoration: none;">
-                        Download calendar_config.json
+                        Download Leg configuration (calendar_config.json)
                     </a>
                     <form method="POST" action="<?= getBasePath() ?>/index.php?action=upload_calendar_config" enctype="multipart/form-data" style="display: flex; gap: 8px; align-items: center;">
                         <input type="file" name="calendar_config_file" accept=".json,application/json" style="font-size: 12px; font-family: inherit;">
@@ -937,10 +937,10 @@
             <div style="margin-top: 20px; padding: 16px; border: 2px solid #FF2C2C; background: #fff5f5;">
                 <h3 style="margin-top: 0; margin-bottom: 8px; color: #FF2C2C;">Danger Zone</h3>
                 <p style="font-size: 12px; margin-bottom: 12px;">
-                    Delete all calendar events from the database. Source configuration is kept.
+                    Delete all Leg entries from the database. Source configuration is kept.
                 </p>
                 <form method="POST" action="<?= getBasePath() ?>/index.php?action=clear_calendar_events">
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete all calendar events? This cannot be undone.');">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete all Leg entries? This cannot be undone.');">
                         Clear All Events
                     </button>
                 </form>

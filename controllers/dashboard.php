@@ -691,15 +691,15 @@ function refreshAllSources(PDO $pdo): array {
     if (!empty($calendarCfg['parliament_ch']['enabled'])) {
         $failKey = 'calendar_parliament_ch_failures';
         if (isSourceTripped($pdo, $failKey)) {
-            $results[] = 'Calendar: skipped (tripped)';
+            $results[] = 'Leg: skipped (tripped)';
         } else {
             try {
                 $count = refreshParliamentChEvents($pdo);
                 resetSourceFailure($pdo, $failKey);
-                $results[] = "{$count} calendar events";
+                $results[] = "{$count} Leg entries";
             } catch (\Exception $e) {
                 recordSourceFailure($pdo, $failKey);
-                $results[] = 'Calendar: ' . $e->getMessage();
+                $results[] = 'Leg: ' . $e->getMessage();
                 $hasErrors = true;
             }
         }

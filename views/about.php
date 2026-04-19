@@ -98,7 +98,7 @@
             <h2>What is Seismo?</h2>
             <p>
                 Seismo is a self-hosted monitoring dashboard that aggregates information from multiple sources into a single feed.
-                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the EU, Switzerland, Germany, and France, Swiss parliamentary press releases, Swiss case law, parliamentary calendars, and scraped web pages — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
+                It tracks RSS feeds, email newsletters, Substack publications, legislative changes from the EU, Switzerland, Germany, and France, Swiss parliamentary press releases, Swiss case law, Leg (parliamentary business from the Swiss Parliament API), and scraped web pages — helping you stay informed about policy, regulation, jurisprudence, and media that matter.
             </p>
         </section>
 
@@ -157,8 +157,8 @@
                     Entries can be soft-deleted (hidden) individually.
                 </li>
                 <li>
-                    <span class="about-source-label" style="background-color: #C5E8C5;">📅 Calendar</span>
-                    Parliamentary calendar events fetched from the Swiss Parliament data API — session schedules, committee meetings, and submitted texts with expand/collapse previews
+                    <span class="about-source-label" style="background-color: #C5E8C5;">📅 Leg</span>
+                    Parliamentary business and sessions from the Swiss Parliament data API — motions, interpellations, schedules, and related items with expand/collapse previews
                 </li>
             </ul>
         </section>
@@ -221,7 +221,7 @@
                 <li><strong>German Lex feed:</strong> PHP cURL with cookie-jar (recht.bund.de requires a session cookie)</li>
                 <li><strong>French Lex API:</strong> OAuth2 client-credentials flow against <a href="https://piste.gouv.fr/" class="about-link" target="_blank" rel="noopener">PISTE</a>, then Légifrance search endpoint</li>
                 <li><strong>Parl MM:</strong> SharePoint REST API (OData) with JSON response parsing</li>
-                <li><strong>Calendar:</strong> Swiss Parliament data API (ws-old.parlament.ch)</li>
+                <li><strong>Leg:</strong> Swiss Parliament data API (ws-old.parlament.ch)</li>
                 <li><strong>Web scraping:</strong> PHP DOMDocument + cURL with polite delays, User-Agent rotation, CSS-to-XPath date extraction</li>
                 <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS — no framework, no build step</li>
             </ul>
@@ -235,7 +235,7 @@
                 <li><strong>Emails:</strong> <?= number_format($stats['emails'] ?? 0) ?> messages</li>
                 <li><strong>Lex items:</strong> <?= number_format($stats['lex_eu'] ?? 0) ?> EU, <?= number_format($stats['lex_ch'] ?? 0) ?> CH, <?= number_format($stats['lex_de'] ?? 0) ?> DE, <?= number_format($stats['lex_fr'] ?? 0) ?> FR, <?= number_format($stats['lex_parl_mm'] ?? 0) ?> Parl MM</li>
                 <li><strong>Jus items:</strong> <?= number_format($stats['jus_bger'] ?? 0) ?> BGer, <?= number_format($stats['jus_bge'] ?? 0) ?> BGE, <?= number_format($stats['jus_bvger'] ?? 0) ?> BVGer</li>
-                <li><strong>Calendar:</strong> <?= number_format($stats['calendar'] ?? 0) ?> events</li>
+                <li><strong>Leg:</strong> <?= number_format($stats['calendar'] ?? 0) ?> entries</li>
                 <li><strong>Scraper:</strong> <?= number_format($stats['scraper_configs'] ?? 0) ?> configured, <?= number_format($stats['scraper_items'] ?? 0) ?> items</li>
             </ul>
         </section>
@@ -322,7 +322,7 @@
                         <li>🇫🇷 French legislation via <a href="https://www.legifrance.gouv.fr/" class="about-link" target="_blank">Légifrance</a> PISTE API (OAuth2 client credentials)</li>
                         <li>⚖️ Swiss case law: BGer, BGE (Leitentscheide), BVGer via <a href="https://entscheidsuche.ch" class="about-link" target="_blank">entscheidsuche.ch</a> with incremental sync</li>
                         <li>🏛 Swiss Parliament press releases via <a href="https://www.parlament.ch/press-releases/" class="about-link" target="_blank">parlament.ch</a> SharePoint REST API</li>
-                        <li>📅 Parliamentary calendar events from the Swiss Parliament data API</li>
+                        <li>📅 Leg — parliamentary business from the Swiss Parliament data API</li>
                         <li>🌐 Web scraper with link-following mode, CSS-based date extraction, readability heuristics, and soft-delete</li>
                     </ul>
 
@@ -397,7 +397,7 @@
                         <li><strong>Basic</strong> → <strong>General</strong> (thin overview + pointers to module tabs)</li>
                         <li><strong>Script</strong> split into <strong>Mail</strong> (IMAP + fetcher) and <strong>Scraper</strong> (URLs + cron scripts)</li>
                         <li>New <strong>RSS</strong> tab — Substack settings live here (Substack is RSS under the hood); RSS feed sources remain on <em>RSS &rsaquo; Feeds</em></li>
-                        <li><strong>Lex</strong> → <strong>Lex / Jus</strong>; <strong>Calendar</strong> → <strong>Leg</strong> (legislative / parliamentary activity, as opposed to finished legal text)</li>
+                        <li><strong>Lex</strong> → <strong>Lex / Jus</strong>; navigation label <strong>Leg</strong> replaces the old “Calendar” name (parliamentary activity, not a personal calendar)</li>
                         <li><strong>Satellites</strong> → <strong>Satellite</strong>; <strong>Feed diagnostics</strong> → <strong>Diagnostics</strong> (still RSS-only for now &mdash; honest disclaimer shown, scope expanding later)</li>
                         <li>New <strong>LLM</strong> tab hosts the AI View Generator previously under the <em>Beta</em> nav entry; Beta nav item retired, <code>?action=beta</code> 302-redirects to <code>?action=settings&amp;tab=llm</code></li>
                         <li>All legacy tab slugs (<code>basic</code>, <code>script</code>, <code>calendar</code>, <code>satellites</code>, <code>feed_diagnostics</code>) still resolve via a normalization map so bookmarks don't break</li>
@@ -417,7 +417,7 @@
                     <ul style="margin: 0 0 0 0; padding-left: 16px;">
                         <li>Groundwork already in 0.4: <code>SEISMO_MOTHERSHIP_DB</code>, <code>entryTable()</code>, satellite-aware email-table resolution, and a satellite-ready Magnitu API</li>
                         <li>0.5 adds the full satellite experience: per-instance identity, UI cues, setup docs, and an end-to-end mothership ⇄ satellite sync story</li>
-                        <li>No duplicate scraping: satellites cross-DB-read feeds, emails, lex, and calendar from the mothership; only scoring tables are local</li>
+                        <li>No duplicate scraping: satellites cross-DB-read feeds, emails, lex, and Leg data from the mothership; only scoring tables are local</li>
                         <li>Each satellite pairs with its own Magnitu profile and its own API key — the API contract stays unchanged</li>
                         <li>Fresh API key per satellite, explicit SELECT grant on the mothership DB, and clear boundaries between entry-source tables and scoring tables</li>
                     </ul>

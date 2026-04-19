@@ -24,7 +24,7 @@ $navItems = [
     ['index',              'Feed',      null,      true],
     ['magnitu',            'Magnitu',   null,      true],
     ['feeds',              'RSS',       '#add8e6', false],
-    ['calendar',           'Calendar',  '#d4edda', false],
+    ['calendar',           'Leg',       '#d4edda', false],
     ['lex',                'Lex',       '#f5f562', false],
     ['jus',                'Jus',       '#f5f562', false],
     ['mail',               'Mail',      '#FFDBBB', false],

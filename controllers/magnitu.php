@@ -325,7 +325,7 @@ function handleAiView($pdo) {
                 $scoreKey = 'calendar_event:' . $event['id'];
                 $score = $aiScoreMap[$scoreKey] ?? null;
                 $allItems[] = [
-                    'source' => 'CALENDAR: ' . getCalendarSourceLabel($event['source']),
+                    'source' => 'Leg: ' . getCalendarSourceLabel($event['source']),
                     'source_type' => 'calendar',
                     'date' => $date ? strtotime($date) : 0,
                     'title' => $event['title'] ?: '(No Title)',

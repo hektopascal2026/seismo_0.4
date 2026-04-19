@@ -74,7 +74,7 @@
                             'parl_mm' => 'Parl MM',
                             'jus' => 'Jus',
                             'scraper' => 'Scraper',
-                            'calendar' => 'Calendar',
+                            'calendar' => 'Leg',
                         ];
                         foreach ($sourceOptions as $key => $label): ?>
                         <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer;">

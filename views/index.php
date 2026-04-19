@@ -136,7 +136,7 @@
                             <?php if (!empty($calendarEnabled)): ?>
                             <label class="tag-filter-pill<?= !empty($selectedCalendar) ? ' tag-filter-pill-active' : '' ?>"<?= !empty($selectedCalendar) ? ' style="background-color: #d4edda;"' : '' ?>>
                                 <input type="checkbox" name="calendar_enabled" value="1" <?= !empty($selectedCalendar) ? 'checked' : '' ?> onchange="this.form.submit()">
-                                <span>Calendar</span>
+                                <span>Leg</span>
                             </label>
                             <?php endif; ?>
                         </div>

@@ -331,7 +331,7 @@ switch ($action) {
         handleDownloadLexConfig($pdo);
         break;
 
-    // ── Calendar Events ─────────────────────────────────────────
+    // ── Leg (parliamentary business, action=calendar) ───────────
     case 'calendar':
         handleCalendarPage($pdo);
         break;

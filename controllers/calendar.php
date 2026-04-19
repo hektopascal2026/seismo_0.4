@@ -1,8 +1,8 @@
 <?php
 /**
- * Calendar Events Controller
+ * Leg (parliamentary business) — controller
  *
- * Handles the calendar page, refresh actions, and fetchers for
+ * Handles the Leg page (`?action=calendar`), refresh actions, and fetchers for
  * upcoming events (Swiss Parliament sessions, publications, etc.).
  *
  * Data sources:
@@ -128,7 +128,7 @@ function handleRefreshCalendar($pdo) {
     }
 
     if (empty($results)) {
-        $results[] = 'No calendar sources enabled';
+        $results[] = 'No Leg sources enabled';
     }
 
     $_SESSION['success'] = implode(' · ', $results);
@@ -545,7 +545,7 @@ function handleSaveCalendarConfig($pdo) {
 
     saveCalendarConfig($config);
 
-    $_SESSION['success'] = 'Calendar settings saved.';
+    $_SESSION['success'] = 'Leg settings saved.';
     header('Location: ?action=settings&tab=leg');
     exit;
 }
@@ -583,7 +583,7 @@ function handleUploadCalendarConfig($pdo) {
     }
 
     saveCalendarConfig($config);
-    $_SESSION['success'] = 'Calendar config uploaded and applied.';
+    $_SESSION['success'] = 'Leg configuration uploaded and applied.';
     header('Location: ?action=settings&tab=leg');
     exit;
 }
@@ -600,9 +600,9 @@ function handleClearCalendarEvents($pdo) {
     try {
         $pdo->exec("DELETE FROM entry_scores WHERE entry_type = 'calendar_event'");
         $pdo->exec("DELETE FROM calendar_events");
-        $_SESSION['success'] = 'All calendar events cleared.';
+        $_SESSION['success'] = 'All Leg entries cleared.';
     } catch (PDOException $e) {
-        $_SESSION['error'] = 'Failed to clear calendar events: ' . $e->getMessage();
+        $_SESSION['error'] = 'Failed to clear Leg entries: ' . $e->getMessage();
     }
 
     header('Location: ?action=settings&tab=leg');

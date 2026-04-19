@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calendar - Seismo</title>
+    <title>Leg - Seismo</title>
     <link rel="stylesheet" href="<?= getBasePath() ?>/assets/css/style.css">
 </head>
 <body>
@@ -17,12 +17,12 @@
                             <path d="M0,8 L4,12 L6,4 L10,10 L14,2 L18,8 L20,6 L24,8" stroke="#000000" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </a>
-                    Calendar
+                    Leg
                 </span>
-                <span class="top-bar-subtitle">Upcoming events &amp; parliament</span>
+                <span class="top-bar-subtitle">Parliamentary business</span>
             </div>
             <div class="top-bar-actions">
-                <a href="?action=refresh_calendar" class="top-bar-btn" title="Refresh calendar events"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
+                <a href="?action=refresh_calendar" class="top-bar-btn" title="Refresh Leg entries"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
                 <button type="button" class="top-bar-btn" id="menuToggle" title="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
             </div>
         </div>
@@ -104,7 +104,7 @@
 
             <?php if (empty($calendarEvents)): ?>
                 <div class="empty-state">
-                    <p>No calendar events yet. Click the refresh button to fetch upcoming events from the Swiss Parliament.</p>
+                    <p>No Leg entries yet. Click the refresh button to fetch upcoming parliamentary business from the Swiss Parliament.</p>
                 </div>
             <?php else: ?>
                 <?php
