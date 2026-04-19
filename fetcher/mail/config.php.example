@@ -7,6 +7,9 @@
  *
  * Only requires PHP's built-in IMAP extension (php-imap).
  * No Composer or external libraries needed.
+ *
+ * Newsletter workflow: route paid or non-RSS briefings (NZZ Pro, KPMG, Verbände) to a dedicated inbox;
+ * keep `db.table` the same as in Seismo Settings → Script (`fetched_emails` by default). Dedupe is by `imap_uid`.
  */
 
 return [
@@ -14,8 +17,11 @@ return [
         'mailbox'              => '{imap.example.com:993/imap/ssl}INBOX',
         'username'             => 'CHANGE_ME',
         'password'             => 'CHANGE_ME',
+        // Cap volume for newsletter-heavy inboxes (NZZ Pro, KPMG family, Verbands-Mailings per Umfeldanalyse plan).
         'max_messages_per_run' => 50,
+        // UNSEEN = only new mail. For catch-up after downtime, temporarily use ALL or SINCE "17-Apr-2026" (IMAP date format).
         'search_criteria'      => 'UNSEEN',
+        // Dedupe: rows are unique on imap_uid for the configured db.table; re-running fetch does not duplicate the same UID.
         'mark_seen'            => true,
     ],
     'db' => [

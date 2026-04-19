@@ -53,6 +53,7 @@ require $seismoDir . '/vendor/autoload.php';
 require $seismoDir . '/controllers/magnitu.php';
 require $seismoDir . '/controllers/lex_jus.php';
 require $seismoDir . '/controllers/scraper.php';
+require $seismoDir . '/controllers/email_subscriptions.php';
 require $seismoDir . '/controllers/mail.php';
 require $seismoDir . '/controllers/rss.php';
 require $seismoDir . '/controllers/dashboard.php';

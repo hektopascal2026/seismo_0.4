@@ -17,13 +17,13 @@ function handleMailPage($pdo) {
     $showAll = isset($_GET['show_all']) || isset($_SESSION['email_refresh_count']);
     $limit = $showAll ? 500 : 50;
     
-    $emailTagsStmt = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag");
-    $emailTags = $emailTagsStmt->fetchAll(PDO::FETCH_COLUMN);
+    $emailTags = esMailFilterTags($pdo);
     
     $selectedEmailTag = $_GET['email_tag'] ?? null;
     
     $disabledStmt = $pdo->query("SELECT from_email FROM sender_tags WHERE disabled = 1 OR removed_at IS NOT NULL");
-    $disabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
+    $legacyDisabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
+    $blockedSubs = esGetBlockedSubscriptionLists($pdo);
     
     $tableName = getEmailTableName($pdo);
     
@@ -112,40 +112,15 @@ function handleMailPage($pdo) {
                     }
                 }
                 
+                $fetchLimit = $limit;
+                if ($selectedEmailTag) {
+                    $fetchLimit = min(500, max(100, $limit * 5));
+                }
+                
                 $whereClause = "1=1";
                 $params = [];
                 
-                if (!empty($disabledEmails)) {
-                    $placeholders = implode(',', array_fill(0, count($disabledEmails), '?'));
-                    if ($isCronjobTable) {
-                        $whereClause = "from_addr NOT IN ($placeholders)";
-                    } else {
-                        $whereClause = "from_email NOT IN ($placeholders)";
-                    }
-                    $params = $disabledEmails;
-                }
-                
-                if ($selectedEmailTag) {
-                    $tagStmt = $pdo->prepare("SELECT from_email FROM sender_tags WHERE tag = ? AND removed_at IS NULL");
-                    $tagStmt->execute([$selectedEmailTag]);
-                    $taggedEmails = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
-                    
-                    if (!empty($taggedEmails)) {
-                        $tagPlaceholders = implode(',', array_fill(0, count($taggedEmails), '?'));
-                        if ($isCronjobTable) {
-                            $whereClause .= " AND from_addr IN ($tagPlaceholders)";
-                        } else {
-                            $whereClause .= " AND from_email IN ($tagPlaceholders)";
-                        }
-                        $params = array_merge($params, $taggedEmails);
-                    } else {
-                        $emails = [];
-                        include 'views/mail.php';
-                        return;
-                    }
-                }
-                
-                $sql = "SELECT $selectClause FROM `$tableName` WHERE $whereClause ORDER BY $orderBy LIMIT $limit";
+                $sql = "SELECT $selectClause FROM `$tableName` WHERE $whereClause ORDER BY $orderBy LIMIT " . (int)$fetchLimit;
                 if (!empty($params)) {
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
@@ -173,6 +148,23 @@ function handleMailPage($pdo) {
                 }
                 unset($email);
                 attachSenderTags($pdo, $emails);
+                esAttachSubscription($pdo, $emails);
+                
+                $filtered = [];
+                foreach ($emails as $em) {
+                    $norm = esNormalizeFromField((string)($em['from_email'] ?? ''));
+                    if (esShouldHideEmail($pdo, $norm['email'], $blockedSubs, $legacyDisabledEmails)) {
+                        continue;
+                    }
+                    if ($selectedEmailTag && !esEmailMatchesFilterTag($pdo, $em, $selectedEmailTag)) {
+                        continue;
+                    }
+                    $filtered[] = $em;
+                    if (count($filtered) >= $limit) {
+                        break;
+                    }
+                }
+                $emails = $filtered;
                 
                 usort($emails, function($a, $b) {
                     $dateA = $a['date_received'] ?? $a['date_utc'] ?? $a['created_at'] ?? $a['date_sent'] ?? '';
@@ -307,9 +299,7 @@ function handleDownloadMailScript($pdo) {
 
 function handleApiEmailTags($pdo) {
     header('Content-Type: application/json');
-    $stmt = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag");
-    $tags = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    echo json_encode($tags);
+    echo json_encode(array_values(esMailFilterTags($pdo)));
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +319,8 @@ function handleUpdateSenderTag($pdo) {
     
     $stmt = $pdo->prepare("INSERT INTO sender_tags (from_email, tag, disabled) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE tag = ?");
     $stmt->execute([$fromEmail, $tag, $tag]);
+    
+    esUpsertEmailSubscriptionFromSender($pdo, $fromEmail, $tag);
     
     echo json_encode(['success' => true, 'tag' => $tag]);
 }
@@ -357,6 +349,8 @@ function handleToggleSender($pdo) {
         $updateStmt->execute([$newStatus, $fromEmail]);
     }
     
+    esMirrorSenderToggle($pdo, $fromEmail, $newStatus);
+    
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Sender ' . $statusText . ' successfully';
     header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
@@ -375,6 +369,8 @@ function handleDeleteSender($pdo) {
     
     $stmt = $pdo->prepare("UPDATE sender_tags SET removed_at = NOW(), tag = 'unclassified' WHERE from_email = ?");
     $stmt->execute([$fromEmail]);
+    
+    esMirrorSenderDelete($pdo, $fromEmail);
     
     $_SESSION['success'] = "Sender removed from Seismo.\nFuture emails from this address will be tagged as \"unsortiert\" until you reassign them.\nTo stop receiving these emails, you need to manually unsubscribe from the sender's press releases.";
     header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
@@ -447,6 +443,13 @@ function handleRenameEmailTag($pdo) {
     
     $affectedRows = $stmt->rowCount();
     
+    try {
+        $t = esSubscriptionsTable();
+        $pdo->prepare("UPDATE $t SET category = ? WHERE category = ? AND removed_at IS NULL")->execute([$newTag, $oldTag]);
+    } catch (PDOException $e) {
+        // ignore
+    }
+    
     echo json_encode(['success' => true, 'affected' => $affectedRows]);
 }
 
@@ -484,6 +487,11 @@ function refreshEmails($pdo) {
                 }
             }
 
+            $synced = esSyncNewEmails($pdo, 500);
+            if ($synced > 0 && !$isCli) {
+                $_SESSION['success'] = ($_SESSION['success'] ?? '') . " Synced {$synced} message(s) to subscriptions.";
+            }
+
             // Ensure newly fetched emails get a score without requiring "Refresh All".
             $recipeJson = getMagnituConfig($pdo, 'recipe_json');
             if (!empty($recipeJson)) {
@@ -514,14 +522,12 @@ function getEmailsForIndex($pdo, $limit = 30, $selectedEmailTags = []) {
     
     try {
         $disabledStmt = $pdo->query("SELECT from_email FROM sender_tags WHERE disabled = 1 OR removed_at IS NOT NULL");
-        $disabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
+        $legacyDisabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
+        $blockedSubs = esGetBlockedSubscriptionLists($pdo);
         
-        $taggedEmails = [];
+        $fetchLimit = $limit;
         if (!empty($selectedEmailTags)) {
-            $tagPlaceholders = implode(',', array_fill(0, count($selectedEmailTags), '?'));
-            $tagStmt = $pdo->prepare("SELECT from_email FROM sender_tags WHERE tag IN ($tagPlaceholders) AND removed_at IS NULL");
-            $tagStmt->execute($selectedEmailTags);
-            $taggedEmails = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
+            $fetchLimit = min(200, max(60, $limit * 4));
         }
         
         $tableName = getEmailTableName($pdo);
@@ -581,39 +587,8 @@ function getEmailsForIndex($pdo, $limit = 30, $selectedEmailTags = []) {
                 }
             }
             
-            $whereClause = "1=1";
-            $params = [];
-            
-            if (!empty($disabledEmails)) {
-                $placeholders = implode(',', array_fill(0, count($disabledEmails), '?'));
-                if ($isCronjobTable) {
-                    $whereClause = "from_addr NOT IN ($placeholders)";
-                } else {
-                    $whereClause = "from_email NOT IN ($placeholders)";
-                }
-                $params = $disabledEmails;
-            }
-            
-            if (!empty($selectedEmailTags) && !empty($taggedEmails)) {
-                $tagPlaceholders = implode(',', array_fill(0, count($taggedEmails), '?'));
-                if ($isCronjobTable) {
-                    $whereClause .= " AND from_addr IN ($tagPlaceholders)";
-                } else {
-                    $whereClause .= " AND from_email IN ($tagPlaceholders)";
-                }
-                $params = array_merge($params, $taggedEmails);
-            } elseif (!empty($selectedEmailTags) && empty($taggedEmails)) {
-                return [];
-            }
-            
-            $sql = "SELECT $selectClause FROM `$tableName` WHERE $whereClause ORDER BY $orderBy LIMIT $limit";
-            if (!empty($params)) {
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
-            } else {
-                $stmt = $pdo->query($sql);
-            }
-            $emails = $stmt->fetchAll();
+            $sql = "SELECT $selectClause FROM `$tableName` WHERE 1=1 ORDER BY $orderBy LIMIT " . (int)$fetchLimit;
+            $emails = $pdo->query($sql)->fetchAll();
             
             foreach ($emails as &$email) {
                 if (isset($email['from_email']) && isset($email['from_name']) && 
@@ -634,6 +609,23 @@ function getEmailsForIndex($pdo, $limit = 30, $selectedEmailTags = []) {
             }
             unset($email);
             attachSenderTags($pdo, $emails);
+            esAttachSubscription($pdo, $emails);
+            
+            $out = [];
+            foreach ($emails as $em) {
+                $norm = esNormalizeFromField((string)($em['from_email'] ?? ''));
+                if (esShouldHideEmail($pdo, $norm['email'], $blockedSubs, $legacyDisabledEmails)) {
+                    continue;
+                }
+                if (!empty($selectedEmailTags) && !esEmailMatchesAnyFilterTags($pdo, $em, $selectedEmailTags)) {
+                    continue;
+                }
+                $out[] = $em;
+                if (count($out) >= $limit) {
+                    break;
+                }
+            }
+            $emails = $out;
         }
     } catch (PDOException $e) {
         // Error getting emails, return empty array
@@ -648,15 +640,10 @@ function searchEmails($pdo, $query, $limit = 100, $selectedEmailTags = []) {
     
     try {
         $disabledStmt = $pdo->query("SELECT from_email FROM sender_tags WHERE disabled = 1 OR removed_at IS NOT NULL");
-        $disabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
+        $legacyDisabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
+        $blockedSubs = esGetBlockedSubscriptionLists($pdo);
         
-        $taggedEmails = [];
-        if (!empty($selectedEmailTags)) {
-            $tagPlaceholders = implode(',', array_fill(0, count($selectedEmailTags), '?'));
-            $tagStmt = $pdo->prepare("SELECT from_email FROM sender_tags WHERE tag IN ($tagPlaceholders) AND removed_at IS NULL");
-            $tagStmt->execute($selectedEmailTags);
-            $taggedEmails = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
-        }
+        $searchFetchLimit = !empty($selectedEmailTags) ? min(400, max(100, $limit * 3)) : $limit;
         
         $tableName = getEmailTableName($pdo);
         
@@ -719,28 +706,6 @@ function searchEmails($pdo, $query, $limit = 100, $selectedEmailTags = []) {
             $whereParts = [$whereClause];
             $whereParams = $params;
             
-            if (!empty($disabledEmails)) {
-                $placeholders = implode(',', array_fill(0, count($disabledEmails), '?'));
-                if ($isCronjobTable) {
-                    $whereParts[] = "from_addr NOT IN ($placeholders)";
-                } else {
-                    $whereParts[] = "from_email NOT IN ($placeholders)";
-                }
-                $whereParams = array_merge($whereParams, $disabledEmails);
-            }
-            
-            if (!empty($selectedEmailTags) && !empty($taggedEmails)) {
-                $tagPlaceholders = implode(',', array_fill(0, count($taggedEmails), '?'));
-                if ($isCronjobTable) {
-                    $whereParts[] = "from_addr IN ($tagPlaceholders)";
-                } else {
-                    $whereParts[] = "from_email IN ($tagPlaceholders)";
-                }
-                $whereParams = array_merge($whereParams, $taggedEmails);
-            } elseif (!empty($selectedEmailTags) && empty($taggedEmails)) {
-                return [];
-            }
-            
             $finalWhereClause = implode(' AND ', $whereParts);
             
             if ($isCronjobTable) {
@@ -760,7 +725,7 @@ function searchEmails($pdo, $query, $limit = 100, $selectedEmailTags = []) {
                 FROM `$tableName`
                 WHERE $finalWhereClause
                 ORDER BY $searchOrderBy
-                LIMIT $limit
+                LIMIT " . (int)$searchFetchLimit . "
             ");
             $stmt->execute($whereParams);
             $emails = $stmt->fetchAll();
@@ -784,6 +749,23 @@ function searchEmails($pdo, $query, $limit = 100, $selectedEmailTags = []) {
             }
             unset($email);
             attachSenderTags($pdo, $emails);
+            esAttachSubscription($pdo, $emails);
+            
+            $filteredSearch = [];
+            foreach ($emails as $em) {
+                $norm = esNormalizeFromField((string)($em['from_email'] ?? ''));
+                if (esShouldHideEmail($pdo, $norm['email'], $blockedSubs, $legacyDisabledEmails)) {
+                    continue;
+                }
+                if (!empty($selectedEmailTags) && !esEmailMatchesAnyFilterTags($pdo, $em, $selectedEmailTags)) {
+                    continue;
+                }
+                $filteredSearch[] = $em;
+                if (count($filteredSearch) >= $limit) {
+                    break;
+                }
+            }
+            $emails = $filteredSearch;
         }
     } catch (PDOException $e) {
         // Error searching emails, return empty array

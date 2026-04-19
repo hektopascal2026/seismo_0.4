@@ -671,6 +671,10 @@
                         <a href="<?= getBasePath() ?>/index.php?action=download_mail_script" class="btn" style="text-decoration: none;">⬇ Download fetch_mail.php</a>
                     </div>
                 </form>
+                <p style="margin-top: 12px; font-size: 14px;">
+                    <a href="<?= getBasePath() ?>/index.php?action=mail_subscriptions">Manage subscriptions</a>
+                    <span style="opacity: 0.75;"> — newsletter sources, categories, pause, List-Unsubscribe</span>
+                </p>
             </div>
 
             <!-- Sender Tags -->

@@ -6,6 +6,10 @@ session_start();
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+$flashOk = $_SESSION['srf_success'] ?? null;
+$flashErr = $_SESSION['srf_error'] ?? null;
+unset($_SESSION['srf_success'], $_SESSION['srf_error']);
+
 /**
  * @return string HTML-safe text with <mark> around first match of query
  */
@@ -36,6 +40,202 @@ if ($dbOk) {
 }
 
 $action = $_GET['action'] ?? 'list';
+$settingsSessKey = 'srf_settings_ok';
+
+if ($action === 'settings') {
+    if (!$dbOk || !$pdo || !$schemaOk) {
+        header('Content-Type: text/html; charset=UTF-8');
+        ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — SRF Monitor</title>
+    <link rel="stylesheet" href="<?= htmlspecialchars(srf_assets_href(), ENT_QUOTES, 'UTF-8') ?>">
+</head>
+<body>
+<div class="container">
+    <p class="message message-error">Database not ready. Configure <code>srf/config.local.php</code> and import <code>srf/sql/schema.sql</code>.</p>
+    <p><a href="index.php" class="about-link">Back to list</a></p>
+</div>
+</body>
+</html>
+        <?php
+        exit;
+    }
+    if (SRF_WEB_SYNC_SECRET === '') {
+        header('Content-Type: text/html; charset=UTF-8');
+        ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — SRF Monitor</title>
+    <link rel="stylesheet" href="<?= htmlspecialchars(srf_assets_href(), ENT_QUOTES, 'UTF-8') ?>">
+</head>
+<body>
+<div class="container">
+    <p class="message message-error">Set <code>SRF_WEB_SYNC_SECRET</code> in <code>srf/config.local.php</code> (same value you use for Sync now).</p>
+    <p><a href="index.php" class="about-link">Back to list</a></p>
+</div>
+</body>
+</html>
+        <?php
+        exit;
+    }
+    if (isset($_GET['logout'])) {
+        unset($_SESSION[$settingsSessKey]);
+        header('Location: index.php?action=settings');
+        exit;
+    }
+    $repoSt = new ItemRepository($pdo);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $do = (string) ($_POST['settings_do'] ?? '');
+        if ($do === 'login') {
+            $p = (string) ($_POST['sync_secret'] ?? '');
+            if (hash_equals(SRF_WEB_SYNC_SECRET, $p)) {
+                $_SESSION[$settingsSessKey] = 1;
+                header('Location: index.php?action=settings');
+                exit;
+            }
+            $flashErr = trim(($flashErr ?? '') . ' Invalid secret.');
+        } elseif ($do === 'save') {
+            if (empty($_SESSION[$settingsSessKey])) {
+                $flashErr = 'Session expired. Log in again.';
+            } else {
+                [$filters, $errs] = SubtitleFilterSettings::parseFromRequest($_POST);
+                if ($errs !== []) {
+                    $flashErr = implode(' ', $errs);
+                } else {
+                    $repoSt->stateSet(SubtitleFilterSettings::STATE_KEY, json_encode($filters, JSON_UNESCAPED_UNICODE));
+                    $_SESSION['srf_success'] = 'Subtitle filters saved to the database.';
+                    header('Location: index.php?action=settings');
+                    exit;
+                }
+            }
+        } elseif ($do === 'reset') {
+            if (empty($_SESSION[$settingsSessKey])) {
+                $flashErr = 'Session expired. Log in again.';
+            } else {
+                $repoSt->stateDelete(SubtitleFilterSettings::STATE_KEY);
+                $_SESSION['srf_success'] = 'Database override removed. Values from config.json apply again.';
+                header('Location: index.php?action=settings');
+                exit;
+            }
+        }
+    }
+    $flashOk = $_SESSION['srf_success'] ?? $flashOk;
+    $flashErr = $_SESSION['srf_error'] ?? $flashErr;
+    unset($_SESSION['srf_success'], $_SESSION['srf_error']);
+
+    $authed = !empty($_SESSION[$settingsSessKey]);
+    $dbOverrideRaw = $repoSt->stateGet(SubtitleFilterSettings::STATE_KEY);
+    $usingDbOverride = $dbOverrideRaw !== null && $dbOverrideRaw !== '';
+    $effective = srf_effective_config($pdo);
+    $fil = $effective['subtitle_filters'] ?? [];
+    if (!is_array($fil)) {
+        $fil = [];
+    }
+    $saveFailed = $_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['settings_do'] ?? '') === 'save' && $flashErr !== null && $flashErr !== '';
+    if ($authed && $saveFailed) {
+        $form = [
+            'allow_show_ids' => (string) ($_POST['allow_show_ids'] ?? ''),
+            'allow_channel_ids' => (string) ($_POST['allow_channel_ids'] ?? ''),
+            'title_must_match_regex' => (string) ($_POST['title_must_match_regex'] ?? ''),
+            'title_must_not_match_regex' => (string) ($_POST['title_must_not_match_regex'] ?? ''),
+        ];
+    } elseif ($authed) {
+        $form = SubtitleFilterSettings::toForm($fil);
+    } else {
+        $form = ['allow_show_ids' => '', 'allow_channel_ids' => '', 'title_must_match_regex' => '', 'title_must_not_match_regex' => ''];
+    }
+
+    header('Content-Type: text/html; charset=UTF-8');
+    ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subtitle filters — SRF Monitor</title>
+    <link rel="stylesheet" href="<?= htmlspecialchars(srf_assets_href(), ENT_QUOTES, 'UTF-8') ?>">
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span class="top-bar-title">SRF Monitor</span>
+            <span class="top-bar-subtitle">Subtitle fetch filters</span>
+        </div>
+        <div class="top-bar-actions">
+            <a href="index.php" class="top-bar-btn" title="List" style="text-decoration:none;color:inherit;display:inline-flex;align-items:center;padding:8px;">List</a>
+        </div>
+    </div>
+
+    <?php if ($flashOk): ?>
+        <div class="message message-success"><?= htmlspecialchars($flashOk, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+    <?php if ($flashErr): ?>
+        <div class="message message-error"><?= htmlspecialchars($flashErr, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <div class="latest-entries-section">
+        <p style="max-width:720px;line-height:1.5;">
+            Control which episodes trigger the Play Subtitles API. Rules apply to the combined text of title, description, show name, and channel name.
+            If both allowlists are filled, a row must match <strong>show</strong> or <strong>channel</strong>. Empty fields mean no restriction for that rule.
+        </p>
+        <p style="max-width:720px;font-size:13px;color:#555;">
+            <?php if ($usingDbOverride): ?>
+                <strong>Active source:</strong> filters stored in the database (they replace <code>subtitle_filters</code> in <code>config.json</code> for CLI and web sync).
+            <?php else: ?>
+                <strong>Active source:</strong> <code>config.json</code> only (no database override). Save here to store overrides in the database.
+            <?php endif; ?>
+        </p>
+
+        <?php if (!$authed): ?>
+            <h2 class="section-title" style="margin-top:20px;">Sign in</h2>
+            <p style="font-size:13px;">Use the same secret as <strong>Sync now</strong> (<code>SRF_WEB_SYNC_SECRET</code>).</p>
+            <form method="post" action="index.php?action=settings" style="max-width:420px;margin-top:12px;">
+                <input type="hidden" name="settings_do" value="login">
+                <label for="sync_secret" style="display:block;font-weight:600;margin-bottom:6px;">Secret</label>
+                <input type="password" name="sync_secret" id="sync_secret" class="search-input" required autocomplete="current-password" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+                <button type="submit" class="btn btn-primary">Continue</button>
+            </form>
+        <?php else: ?>
+            <p style="margin:12px 0;"><a href="index.php?action=settings&amp;logout=1" class="btn btn-secondary">Log out</a></p>
+            <form method="post" action="index.php?action=settings" style="max-width:720px;">
+                <input type="hidden" name="settings_do" value="save">
+                <h2 class="section-title" style="margin-top:8px;">Allowlists</h2>
+                <label for="allow_show_ids" style="display:block;font-weight:600;margin:12px 0 6px;">Show IDs (one per line or comma-separated)</label>
+                <textarea name="allow_show_ids" id="allow_show_ids" class="search-input" rows="4" style="width:100%;box-sizing:border-box;font-family:inherit;"><?= htmlspecialchars($form['allow_show_ids'], ENT_QUOTES, 'UTF-8') ?></textarea>
+                <label for="allow_channel_ids" style="display:block;font-weight:600;margin:12px 0 6px;">Channel IDs (one per line or comma-separated)</label>
+                <textarea name="allow_channel_ids" id="allow_channel_ids" class="search-input" rows="4" style="width:100%;box-sizing:border-box;font-family:inherit;"><?= htmlspecialchars($form['allow_channel_ids'], ENT_QUOTES, 'UTF-8') ?></textarea>
+
+                <h2 class="section-title" style="margin-top:24px;">Regex (PCRE)</h2>
+                <label for="title_must_match_regex" style="display:block;font-weight:600;margin:12px 0 6px;">Must match (episode must match this pattern)</label>
+                <input type="text" name="title_must_match_regex" id="title_must_match_regex" class="search-input" value="<?= htmlspecialchars($form['title_must_match_regex'], ENT_QUOTES, 'UTF-8') ?>" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;">
+                <label for="title_must_not_match_regex" style="display:block;font-weight:600;margin:12px 0 6px;">Must not match (exclude if pattern matches)</label>
+                <input type="text" name="title_must_not_match_regex" id="title_must_not_match_regex" class="search-input" value="<?= htmlspecialchars($form['title_must_not_match_regex'], ENT_QUOTES, 'UTF-8') ?>" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;">
+
+                <div style="margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                    <button type="submit" class="btn btn-primary">Save filters</button>
+                </div>
+            </form>
+            <form method="post" action="index.php?action=settings" style="margin-top:24px;" onsubmit="return confirm('Remove database override and use config.json only?');">
+                <input type="hidden" name="settings_do" value="reset">
+                <button type="submit" class="btn btn-secondary">Reset to config.json only</button>
+            </form>
+        <?php endif; ?>
+    </div>
+</div>
+</body>
+</html>
+    <?php
+    exit;
+}
+
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 25;
 $offset = ($page - 1) * $perPage;
@@ -69,14 +269,16 @@ if ($action === 'sync' && $pdo && $schemaOk) {
         header('Location: index.php');
         exit;
     }
-    $fetcher = new FetchService(new ItemRepository($pdo), srf_merged_config());
+    $fetcher = new FetchService(new ItemRepository($pdo), srf_effective_config($pdo));
     $result = $fetcher->run(true, 20, 150);
+    $skipF = (int) ($result['subtitles_skipped_filter'] ?? 0);
     $msg = sprintf(
-        'Sync: %d episodes indexed, %d subtitle texts updated (%d API tries, %d with no caption payload).',
+        'Sync: %d episodes indexed, %d subtitle texts updated (%d API tries, %d with no caption payload%s).',
         $result['episodes_seen'],
         $result['subtitles_fetched'],
         $result['subtitles_attempted'] ?? 0,
-        $result['subtitles_no_text'] ?? 0
+        $result['subtitles_no_text'] ?? 0,
+        $skipF > 0 ? ', ' . $skipF . ' skipped by subtitle_filters' : ''
     );
     if ($result['errors'] !== []) {
         $msg .= ' Warnings: ' . implode(' | ', array_slice($result['errors'], 0, 3));
@@ -85,10 +287,6 @@ if ($action === 'sync' && $pdo && $schemaOk) {
     header('Location: index.php');
     exit;
 }
-
-$flashOk = $_SESSION['srf_success'] ?? null;
-$flashErr = $_SESSION['srf_error'] ?? null;
-unset($_SESSION['srf_success'], $_SESSION['srf_error']);
 
 $totalPages = max(1, (int) ceil($total / $perPage));
 
@@ -120,6 +318,7 @@ $totalPages = max(1, (int) ceil($total / $perPage));
 
     <nav class="nav-drawer" id="navDrawer">
         <span class="nav-link active" style="cursor:default;">SRF Monitor</span>
+        <a href="index.php?action=settings" class="nav-link">Subtitle filters</a>
         <a href="../../index.php" class="nav-link">Seismo</a>
     </nav>
 

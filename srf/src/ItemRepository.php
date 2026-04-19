@@ -28,16 +28,28 @@ final class ItemRepository
         $st->execute([$key, $value]);
     }
 
+    public function stateDelete(string $key): void
+    {
+        $st = $this->pdo->prepare('DELETE FROM srf_fetch_state WHERE state_key = ?');
+        $st->execute([$key]);
+    }
+
     /**
      * @param array<string, mixed> $row
      */
     public function upsertItem(array $row): void
     {
         $sql = 'INSERT INTO srf_items (
-            urn, bu, episode_id, title, description, permalink, published_at, subtitles_available, raw_metadata
+            urn, bu, episode_id, show_id, show_title, channel_id, channel_title,
+            title, description, permalink, published_at, subtitles_available, raw_metadata
         ) VALUES (
-            :urn, :bu, :episode_id, :title, :description, :permalink, :published_at, :subtitles_available, :raw_metadata
+            :urn, :bu, :episode_id, :show_id, :show_title, :channel_id, :channel_title,
+            :title, :description, :permalink, :published_at, :subtitles_available, :raw_metadata
         ) ON DUPLICATE KEY UPDATE
+            show_id = VALUES(show_id),
+            show_title = VALUES(show_title),
+            channel_id = VALUES(channel_id),
+            channel_title = VALUES(channel_title),
             title = VALUES(title),
             description = VALUES(description),
             permalink = VALUES(permalink),
@@ -50,6 +62,10 @@ final class ItemRepository
             'urn' => $row['urn'],
             'bu' => $row['bu'],
             'episode_id' => $row['episode_id'],
+            'show_id' => $row['show_id'] ?? null,
+            'show_title' => $row['show_title'] ?? null,
+            'channel_id' => $row['channel_id'] ?? null,
+            'channel_title' => $row['channel_title'] ?? null,
             'title' => $row['title'],
             'description' => $row['description'],
             'permalink' => $row['permalink'],

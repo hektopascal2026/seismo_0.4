@@ -8,7 +8,7 @@ declare(strict_types=1);
 final class EpisodeExtractor
 {
     /**
-     * @return list<array{bu: string, episode_id: string, title: ?string, description: ?string, permalink: ?string, published: ?string, subtitles_available: bool, raw: array<string, mixed>}>
+     * @return list<array{bu: string, episode_id: string, show_id: ?string, show_title: ?string, channel_id: ?string, channel_title: ?string, title: ?string, description: ?string, permalink: ?string, published: ?string, subtitles_available: bool, raw: array<string, mixed>}>
      */
     public static function fromDecodedJson($data, string $bu): array
     {
@@ -37,9 +37,15 @@ final class EpisodeExtractor
                 $link = self::pickString($episode, ['playableUrl', 'url', 'shareUrl', 'link']);
                 $published = self::pickString($episode, ['publishedDate', 'publishDate', 'date', 'createdDate']);
                 $buSlug = self::buForMedia($node, $bu);
+                [$showId, $showTitle] = self::entityIdTitle($node['show'] ?? $episode['show'] ?? null);
+                [$channelId, $channelTitle] = self::entityIdTitle($node['channel'] ?? $episode['channel'] ?? null);
                 $out[] = [
                     'bu' => $buSlug,
                     'episode_id' => $id,
+                    'show_id' => $showId,
+                    'show_title' => $showTitle,
+                    'channel_id' => $channelId,
+                    'channel_title' => $channelTitle,
                     'title' => $title,
                     'description' => $desc,
                     'permalink' => $link,
@@ -122,6 +128,25 @@ final class EpisodeExtractor
             }
         }
         return null;
+    }
+
+    /**
+     * Show / Channel objects from Video API (id + title).
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private static function entityIdTitle($obj): array
+    {
+        if (!is_array($obj)) {
+            return [null, null];
+        }
+        $id = null;
+        if (isset($obj['id']) && (is_string($obj['id']) || is_numeric($obj['id']))) {
+            $s = trim((string) $obj['id']);
+            $id = $s !== '' ? $s : null;
+        }
+        $title = self::pickString($obj, ['title', 'name', 'shortTitle']);
+        return [$id, $title];
     }
 
     public static function buildEpisodeUrn(string $bu, string $episodeId): string

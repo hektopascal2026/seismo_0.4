@@ -7,7 +7,7 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 - **Combined Feed** — merged timeline of all sources with full-text search and optional relevance sorting
 - **RSS** — add and manage standard RSS/Atom feeds with tag-based filtering
 - **Substack** — subscribe to Substack newsletters via their RSS feeds
-- **Mail** — IMAP email fetcher with configurable credentials, downloadable cronjob script (native PHP IMAP, no external libraries), and sender tagging
+- **Mail** — IMAP email fetcher with configurable credentials, downloadable cronjob script (native PHP IMAP, no external libraries), sender tagging, and a **Subscriptions** page (domain-first newsletter sources, categories, pause/remove, and List-Unsubscribe / one-click where supported)
 - **Lex** — track legislation from the EU, Switzerland, Germany, and France
   - 🇪🇺 **EU CELLAR** — regulations, directives, and decisions from EUR-Lex via SPARQL (CDM ontology)
   - 🇨🇭 **Fedlex** — Bundesgesetze, Verordnungen, Bundesbeschlüsse, and international treaties via SPARQL (JOLux ontology)
@@ -64,7 +64,7 @@ A self-hosted monitoring dashboard that aggregates RSS feeds, email newsletters,
 | **Calendar** | Upcoming parliamentary events sorted by date, recipe-scored |
 | **Lex** | EU, CH, DE, FR legislation + Swiss parliamentary press releases |
 | **Jus** | Swiss case law — BGer, BGE, BVGer decisions |
-| **Mail** | Email newsletters with sender tag filters |
+| **Mail** | Email newsletters with sender tag filters; **Mail subs** lists subscription sources (categories, unsubscribe) |
 | **Substack** | Substack newsletter items with tag filters |
 | **Scraper** | Scraped web page entries with per-source filters and delete |
 | **Settings** | Basic (RSS/Substack), Script (Mail + Scraper scripts), Lex, Magnitu, Calendar tabs |

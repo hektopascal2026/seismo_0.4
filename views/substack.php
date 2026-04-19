@@ -94,9 +94,15 @@
             <?php else: ?>
                 <?php foreach ($substackItems as $item): ?>
                     <?php
-                        $fullContent = strip_tags($item['content'] ?: $item['description']);
+                        $itemUrl = seismo_feed_item_resolved_link($item);
+                        $fullContent = trim(strip_tags((string) ($item['content'] ?: $item['description'])));
+                        if ($fullContent === '' && $itemUrl !== '' && !empty($item['title'])) {
+                            $fullContent = trim((string) $item['title']);
+                        }
                         $contentPreview = mb_substr($fullContent, 0, 200);
-                        if (mb_strlen($fullContent) > 200) $contentPreview .= '...';
+                        if (mb_strlen($fullContent) > 200) {
+                            $contentPreview .= '...';
+                        }
                         $hasMore = mb_strlen($fullContent) > 200;
                     ?>
                     <div class="entry-card">
@@ -106,18 +112,25 @@
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title">
-                            <a href="<?= htmlspecialchars($item['link']) ?>" target="_blank" rel="noopener">
+                            <?php if ($itemUrl !== ''): ?>
+                                <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener">
+                                    <?= htmlspecialchars($item['title']) ?>
+                                </a>
+                            <?php else: ?>
                                 <?= htmlspecialchars($item['title']) ?>
-                            </a>
+                            <?php endif; ?>
                         </h3>
-                        <?php if ($item['description'] || $item['content']): ?>
+                        <?php if ($fullContent !== ''): ?>
                             <div class="entry-content entry-preview">
                                 <?= htmlspecialchars($contentPreview) ?>
-                                <?php if ($item['link']): ?>
-                                    <a href="<?= htmlspecialchars($item['link']) ?>" target="_blank" rel="noopener" class="entry-link" style="margin-left: 4px;">Read more →</a>
+                                <?php if ($itemUrl !== ''): ?>
+                                    <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener" class="entry-link" style="margin-left: 4px;">Read more →</a>
                                 <?php endif; ?>
                             </div>
                             <div class="entry-full-content" style="display:none"><?= htmlspecialchars($fullContent) ?></div>
+                        <?php endif; ?>
+                        <?php if ($itemUrl === ''): ?>
+                            <p class="entry-meta-muted" style="font-size: 12px; margin: 4px 0 0 0; color: #555;">No URL in this feed entry (source item is incomplete).</p>
                         <?php endif; ?>
                         <div class="entry-actions">
                             <div style="display: flex; align-items: center; gap: 10px;">

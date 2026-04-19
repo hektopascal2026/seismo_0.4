@@ -77,6 +77,10 @@
                 </div>
             <?php else: ?>
                 <?php foreach ($items as $item): ?>
+                    <?php
+                        $itemUrl = seismo_feed_item_resolved_link($item);
+                        $bodyHtml = trim((string) ($item['content'] ?: $item['description']));
+                    ?>
                     <article class="entry-card">
                         <div class="entry-header">
                             <?php if ($item['author']): ?>
@@ -86,15 +90,28 @@
                             <?php endif; ?>
                         </div>
                         <h3 class="entry-title">
-                            <a href="<?= htmlspecialchars($item['link']) ?>" target="_blank" rel="noopener">
+                            <?php if ($itemUrl !== ''): ?>
+                                <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener">
+                                    <?= htmlspecialchars($item['title']) ?>
+                                </a>
+                            <?php else: ?>
                                 <?= htmlspecialchars($item['title']) ?>
-                            </a>
+                            <?php endif; ?>
                         </h3>
-                        <?php if ($item['description'] || $item['content']): ?>
+                        <?php if ($bodyHtml !== ''): ?>
                             <div class="entry-content">
-                                <?= $item['content'] ?: strip_tags($item['description'], '<p><a><strong><em><br>') ?>
-                                <a href="<?= htmlspecialchars($item['link']) ?>" target="_blank" rel="noopener" class="entry-link" style="margin-left: 4px;">Read more →</a>
+                                <?= $item['content'] ? $item['content'] : strip_tags($item['description'], '<p><a><strong><em><br>') ?>
+                                <?php if ($itemUrl !== ''): ?>
+                                    <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener" class="entry-link" style="margin-left: 4px;">Read more →</a>
+                                <?php endif; ?>
                             </div>
+                        <?php elseif ($itemUrl !== '' && !empty($item['title'])): ?>
+                            <div class="entry-content">
+                                <p><?= htmlspecialchars($item['title']) ?></p>
+                                <a href="<?= htmlspecialchars($itemUrl) ?>" target="_blank" rel="noopener" class="entry-link" style="margin-left: 4px;">Read more →</a>
+                            </div>
+                        <?php elseif ($itemUrl === ''): ?>
+                            <p class="entry-meta-muted" style="font-size: 12px; margin: 4px 0 0 0; color: #555;">No URL in this feed entry (source item is incomplete).</p>
                         <?php endif; ?>
                         <div class="entry-actions">
                             <?php if ($item['published_date']): ?>

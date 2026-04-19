@@ -71,8 +71,7 @@ function buildDashboardIndexData(PDO $pdo, ?int $timelineItemCap = null): array 
     ");
     $tags = $tagsStmt->fetchAll(PDO::FETCH_COLUMN);
     
-    $emailTagsStmt = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL AND disabled = 0 ORDER BY tag");
-    $emailTags = $emailTagsStmt->fetchAll(PDO::FETCH_COLUMN);
+    $emailTags = esMailFilterTags($pdo);
     
     $substackTagsStmt = $pdo->query("SELECT DISTINCT category FROM feeds WHERE source_type = 'substack' AND disabled = 0 AND category IS NOT NULL AND category != '' ORDER BY category");
     $substackTags = $substackTagsStmt->fetchAll(PDO::FETCH_COLUMN);

@@ -41,8 +41,7 @@ function handleSettingsPage($pdo) {
     $substackTagsStmt = $pdo->query("SELECT DISTINCT category FROM feeds WHERE source_type = 'substack' AND category IS NOT NULL AND category != '' ORDER BY category");
     $allSubstackTags = $substackTagsStmt->fetchAll(PDO::FETCH_COLUMN);
     
-    $emailTagsStmt = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag");
-    $allEmailTags = $emailTagsStmt->fetchAll(PDO::FETCH_COLUMN);
+    $allEmailTags = esMailFilterTags($pdo);
     
     $senderTags = [];
     try {

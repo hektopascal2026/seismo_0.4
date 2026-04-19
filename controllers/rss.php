@@ -6,6 +6,13 @@
  * refreshing, caching items, tag management, search, and API endpoints.
  */
 
+/**
+ * Browser-like User-Agent for RSS HTTP fetches. Some publishers return an empty body for non-browser clients (e.g. Foraus).
+ */
+function seismo_rss_http_user_agent(): string {
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Seismo/0.4';
+}
+
 // ---------------------------------------------------------------------------
 // Pages
 // ---------------------------------------------------------------------------
@@ -73,6 +80,7 @@ function handleAddFeed($pdo) {
     
     $feed = new \SimplePie\SimplePie();
     $feed->set_feed_url($url);
+    $feed->set_useragent(seismo_rss_http_user_agent());
     $feed->enable_cache(false);
     $feed->init();
     $feed->handle_content_type();
@@ -129,6 +137,7 @@ function handleAddSubstack($pdo) {
     
     $feed = new \SimplePie\SimplePie();
     $feed->set_feed_url($feedUrl);
+    $feed->set_useragent(seismo_rss_http_user_agent());
     $feed->enable_cache(false);
     $feed->init();
     $feed->handle_content_type();
@@ -243,7 +252,9 @@ function refreshFeed($pdo, $feedId) {
     try {
         $simplepie = new \SimplePie\SimplePie();
         $simplepie->set_feed_url($feed['url']);
+        $simplepie->set_useragent(seismo_rss_http_user_agent());
         $simplepie->enable_cache(false);
+        $simplepie->set_timeout(20);
         $simplepie->init();
         $simplepie->handle_content_type();
         
@@ -275,6 +286,71 @@ function limitUtf8Bytes($value, $maxBytes) {
     return mb_strcut($value, 0, $maxBytes, 'UTF-8');
 }
 
+/**
+ * Best-effort permalink from a SimplePie item (some feeds omit <link> or use only guid).
+ */
+function rss_item_resolve_permalink(\SimplePie\Item $item): string {
+    $try = [];
+    $p = $item->get_permalink();
+    if ($p) {
+        $try[] = $p;
+    }
+    $a = $item->get_link(0, 'alternate');
+    if ($a) {
+        $try[] = $a;
+    }
+    foreach (['related', 'via', 'self'] as $rel) {
+        $ls = $item->get_links($rel);
+        if (is_array($ls)) {
+            foreach ($ls as $u) {
+                if ($u) {
+                    $try[] = $u;
+                }
+            }
+        }
+    }
+    foreach ($try as $u) {
+        $u = trim((string) $u);
+        if ($u !== '' && preg_match('#^https?://#i', $u)) {
+            return $u;
+        }
+    }
+    $guidTags = $item->get_item_tags(\SimplePie\SimplePie::NAMESPACE_RSS_20, 'guid');
+    if ($guidTags && isset($guidTags[0]['data'])) {
+        $g = trim($guidTags[0]['data']);
+        if ($g !== '' && preg_match('#^https?://#i', $g)) {
+            return $g;
+        }
+    }
+    foreach ([\SimplePie\SimplePie::NAMESPACE_ATOM_10, \SimplePie\SimplePie::NAMESPACE_ATOM_03] as $ns) {
+        $idTags = $item->get_item_tags($ns, 'id');
+        if ($idTags && isset($idTags[0]['data'])) {
+            $g = trim($idTags[0]['data']);
+            if ($g !== '' && preg_match('#^https?://#i', $g)) {
+                return $g;
+            }
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Resolved article URL for a feed_items row (DB may still be empty for malformed source items).
+ */
+function seismo_feed_item_resolved_link(array $item): string {
+    $link = trim((string) ($item['link'] ?? ''));
+    if ($link !== '') {
+        return $link;
+    }
+    $guid = trim((string) ($item['guid'] ?? ''));
+    if ($guid !== '' && preg_match('#^https?://#i', $guid)) {
+        return $guid;
+    }
+
+    return '';
+}
+
 function cacheFeedItems($pdo, $feedId, $simplepie) {
     $stmt = $pdo->prepare("INSERT INTO feed_items (feed_id, guid, title, link, description, content, author, published_date) 
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -291,11 +367,12 @@ function cacheFeedItems($pdo, $feedId, $simplepie) {
         $guid = $item->get_id() ?: md5($item->get_link());
         $published = $item->get_date('Y-m-d H:i:s') ?: date('Y-m-d H:i:s');
         
+        $resolved = rss_item_resolve_permalink($item);
         $stmt->execute([
             $feedId,
             limitUtf8Bytes($guid, 500),
             limitUtf8Bytes($item->get_title() ?: 'Untitled', 500),
-            limitUtf8Bytes($item->get_link() ?: '', 500),
+            limitUtf8Bytes($resolved, 500),
             limitUtf8Bytes($item->get_description() ?: '', 65535),
             limitUtf8Bytes($item->get_content() ?: '', 16777215),
             limitUtf8Bytes($item->get_author() ? $item->get_author()->get_name() : '', 255),
@@ -312,6 +389,7 @@ function refreshFeedViaSimplePieUrl($pdo, $feed) {
     $feedId = (int)$feed['id'];
     $simplepie = new \SimplePie\SimplePie();
     $simplepie->set_feed_url($feed['url']);
+    $simplepie->set_useragent(seismo_rss_http_user_agent());
     $simplepie->enable_cache(false);
     $simplepie->set_timeout(15);
     $simplepie->init();
@@ -374,7 +452,7 @@ function refreshAllFeeds($pdo) {
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 5,
-                CURLOPT_USERAGENT      => 'Seismo/0.4 (RSS reader)',
+                CURLOPT_USERAGENT      => seismo_rss_http_user_agent(),
                 CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
                 CURLOPT_ENCODING       => '',
             ]);
@@ -640,7 +718,7 @@ function handleApiAllTags($pdo) {
     header('Content-Type: application/json');
     $rssTags = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND (source_type = 'rss' OR source_type IS NULL) ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
     $substackTags = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND source_type = 'substack' ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
-    $emailTags = $pdo->query("SELECT DISTINCT tag FROM sender_tags WHERE tag IS NOT NULL AND tag != '' AND tag != 'unclassified' AND removed_at IS NULL ORDER BY tag")->fetchAll(PDO::FETCH_COLUMN);
+    $emailTags = esMailFilterTags($pdo);
     echo json_encode(['rss' => $rssTags, 'substack' => $substackTags, 'email' => $emailTags]);
 }
 
@@ -831,7 +909,7 @@ function runFeedDiagnostics(PDO $pdo): array {
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 5,
-                CURLOPT_USERAGENT      => 'Seismo/0.4 (RSS reader)',
+                CURLOPT_USERAGENT      => seismo_rss_http_user_agent(),
                 CURLOPT_ENCODING       => '',
             ]);
             curl_multi_add_handle($mh, $ch);

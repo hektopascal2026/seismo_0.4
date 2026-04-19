@@ -113,7 +113,28 @@ function srf_merged_config(): array
             'video_episodes_by_date_url' => 'https://api.srgssr.ch/videometadata/v2/episodes_by_date/{day}',
             'use_episodes_by_date' => false,
             'subtitle_lookup_url_template' => 'https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles?episode={urn}',
+            // Optional: limit Play Subtitles API to news-like rows (SRG has no stable genre flag). See config.json _subtitle_filters_hint.
+            'subtitle_filters' => [],
         ],
         srf_load_json_config()
     );
+}
+
+/**
+ * Same as srf_merged_config() but subtitle_filters may be overridden from the database
+ * (see Settings in the web UI). Used by CLI fetch and web sync.
+ */
+function srf_effective_config(PDO $pdo): array
+{
+    require_once SRF_ROOT . '/src/SubtitleFilterSettings.php';
+    $cfg = srf_merged_config();
+    $repo = new ItemRepository($pdo);
+    $raw = $repo->stateGet(SubtitleFilterSettings::STATE_KEY);
+    if ($raw !== null && $raw !== '') {
+        $dec = json_decode($raw, true);
+        if (is_array($dec)) {
+            $cfg['subtitle_filters'] = $dec;
+        }
+    }
+    return $cfg;
 }

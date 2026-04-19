@@ -9,6 +9,7 @@ require_once 'config.php';
 require_once 'vendor/autoload.php';
 require_once 'controllers/lex_jus.php';
 require_once 'controllers/scraper.php';
+require_once 'controllers/email_subscriptions.php';
 require_once 'controllers/mail.php';
 require_once 'controllers/rss.php';
 require_once 'controllers/dashboard.php';
@@ -23,11 +24,11 @@ $action = $_GET['action'] ?? 'index';
 $pdo = getDbConnection();
 
 // Release session lock early for read-only pages (prevents blocking concurrent requests).
-$readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'jus', 'mail', 'substack', 'magnitu', 'calendar', 'settings', 'about', 'beta', 'styleguide',
+$readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'jus', 'mail', 'mail_subscriptions', 'substack', 'magnitu', 'calendar', 'settings', 'about', 'beta', 'styleguide',
                     'api_tags', 'api_substack_tags', 'api_email_tags', 'api_all_tags', 'api_items', 'api_stats',
                     'download_rss_config', 'download_substack_config', 'download_lex_config',
                     'download_calendar_config',
-                    'magnitu_entries', 'magnitu_status'];
+                    'magnitu_entries', 'magnitu_status', 'unsubscribe_email_subscription'];
 if (in_array($action, $readOnlyActions)) {
     $flashSuccess = $_SESSION['success'] ?? null;
     $flashError   = $_SESSION['error']   ?? null;
@@ -187,6 +188,42 @@ switch ($action) {
 
     case 'api_email_tags':
         handleApiEmailTags($pdo);
+        break;
+
+    case 'mail_subscriptions':
+        handleEmailSubscriptionsPage($pdo);
+        break;
+
+    case 'add_email_subscription':
+        handleAddEmailSubscription($pdo);
+        break;
+
+    case 'edit_email_subscription':
+        handleEditEmailSubscription($pdo);
+        break;
+
+    case 'toggle_email_subscription':
+        handleToggleEmailSubscription($pdo);
+        break;
+
+    case 'delete_email_subscription':
+        handleDeleteEmailSubscription($pdo);
+        break;
+
+    case 'restore_email_subscription':
+        handleRestoreEmailSubscription($pdo);
+        break;
+
+    case 'rename_email_subscription_category':
+        handleRenameEmailSubscriptionCategory($pdo);
+        break;
+
+    case 'rebuild_email_subscriptions':
+        handleRebuildEmailSubscriptions($pdo);
+        break;
+
+    case 'unsubscribe_email_subscription':
+        handleUnsubscribeEmailSubscription($pdo);
         break;
 
     // ── Scraper ──────────────────────────────────────────────────

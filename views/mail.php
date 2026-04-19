@@ -35,6 +35,7 @@
             <a href="?action=lex" class="nav-link">Lex</a>
             <a href="?action=jus" class="nav-link">Jus</a>
             <a href="?action=mail" class="nav-link active" style="background-color: #FFDBBB; color: #000000;">Mail</a>
+            <a href="?action=mail_subscriptions" class="nav-link">Mail subs</a>
             <a href="?action=substack" class="nav-link">Substack</a>
             <a href="?action=scraper" class="nav-link">Scraper</a>
             <a href="?action=settings" class="nav-link">Settings</a>
@@ -70,6 +71,11 @@
             </div>
         </div>
         <?php endif; ?>
+
+        <p style="margin: 0 0 0.75rem 0;">
+            <a href="<?= getBasePath() ?>/index.php?action=mail_subscriptions" class="about-link">Manage subscriptions</a>
+            <span style="opacity: 0.7;"> — categories, pause, unsubscribe</span>
+        </p>
 
         <div class="latest-entries-section">
             <div class="section-title-row">

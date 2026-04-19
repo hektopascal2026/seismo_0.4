@@ -75,7 +75,7 @@ if (!defined('SEISMO_MOTHERSHIP_DB')) {
  * Local mode  → bare table name (no change to existing behaviour).
  * Satellite   → `{SEISMO_MOTHERSHIP_DB}`.{table}  for cross-DB reads.
  *
- * Use for: feed_items, feeds, lex_items, sender_tags, and the dynamic email table.
+ * Use for: feed_items, feeds, lex_items, sender_tags, email_subscriptions, and the dynamic email table.
  * Do NOT use for: entry_scores, magnitu_config, magnitu_labels (always local).
  */
 function entryTable(string $table): string {
@@ -102,7 +102,7 @@ function entryDbSchemaExpr(): string {
 /**
  * Current schema version — bump this when DDL changes are made
  */
-define('SCHEMA_VERSION', 16);
+define('SCHEMA_VERSION', 17);
 
 /**
  * Initialize database tables
@@ -310,6 +310,30 @@ function initDatabase() {
             throw $e;
         }
     }
+
+    // Email subscriptions (newsletter sources; domain-first with per-email overrides)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_subscriptions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        match_type ENUM('domain', 'email') NOT NULL,
+        match_value VARCHAR(255) NOT NULL,
+        display_name VARCHAR(255) NOT NULL,
+        category VARCHAR(100) DEFAULT NULL,
+        disabled TINYINT(1) NOT NULL DEFAULT 0,
+        auto_detected TINYINT(1) NOT NULL DEFAULT 1,
+        unsubscribe_url VARCHAR(1000) DEFAULT NULL,
+        unsubscribe_mailto VARCHAR(500) DEFAULT NULL,
+        unsubscribe_one_click TINYINT(1) NOT NULL DEFAULT 0,
+        first_seen_at DATETIME DEFAULT NULL,
+        last_seen_at DATETIME DEFAULT NULL,
+        item_count INT NOT NULL DEFAULT 0,
+        removed_at DATETIME DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_match (match_type, match_value),
+        INDEX idx_disabled (disabled),
+        INDEX idx_removed_at (removed_at),
+        INDEX idx_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     
     // Create lex_items table for EU + CH legislation tracking + JUS (case law)
     $pdo->exec("CREATE TABLE IF NOT EXISTS lex_items (

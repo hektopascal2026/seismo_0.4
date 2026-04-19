@@ -510,8 +510,24 @@ function handleMagnituEntries($pdo) {
             $sql .= " ORDER BY e.$dateCol DESC LIMIT " . (int)$limit;
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
+            $legacyDisStmt = $pdo->query("SELECT from_email FROM " . entryTable('sender_tags') . " WHERE disabled = 1 OR removed_at IS NOT NULL");
+            $legacyDisabledMagnitu = $legacyDisStmt ? $legacyDisStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+            $blockedSubsMagnitu = esGetBlockedSubscriptionLists($pdo);
             foreach ($stmt->fetchAll() as $row) {
                 $body = $row['text_body'] ?: strip_tags($row['html_body'] ?? '');
+                $fromRaw = (string)$row['from_email'];
+                $n = esNormalizeFromField($fromRaw);
+                if ($n['email'] !== '' && esShouldHideEmail($pdo, $n['email'], $blockedSubsMagnitu, $legacyDisabledMagnitu)) {
+                    continue;
+                }
+                $sub = $n['email'] !== '' ? esResolveSubscriptionRow($pdo, $n['email']) : null;
+                $senderTag = $row['sender_tag'];
+                if ($sub && empty($sub['removed_at']) && (int)$sub['disabled'] === 0) {
+                    $c = trim($sub['category'] ?? '');
+                    if ($c !== '') {
+                        $senderTag = $c;
+                    }
+                }
                 $entries[] = [
                     'entry_type' => 'email',
                     'entry_id' => (int)$row['id'],
@@ -522,7 +538,7 @@ function handleMagnituEntries($pdo) {
                     'author' => $row['from_name'] ?: $row['from_email'],
                     'published_date' => $row['entry_date'],
                     'source_name' => $row['from_name'] ?: $row['from_email'],
-                    'source_category' => $row['sender_tag'],
+                    'source_category' => $senderTag,
                     'source_type' => 'email',
                 ];
             }

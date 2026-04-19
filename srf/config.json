@@ -3,6 +3,7 @@
   "_openapi_video": "SRGSSR Video OpenAPI 3: server https://api.srgssr.ch/videometadata/v2 — GET /latest_episodes?bu=&pageSize= — GET /episodes_by_date/{day}?bu=&pageSize= (day = YYYY-MM-DD).",
   "_openapi_oauth": "Video OpenAPI security tokenUrl: https://srgssr-prod.apigee.net/oauth/v1/accesstoken?grant_type=client_credentials — default oauth_token_url uses this host; code also tries api.srgssr.ch.",
   "_openapi_subtitles": "Play Subtitles v2: server https://api.srgssr.ch/srgssr-play-subtitles/v2 — GET /subtitles?episode=<URN> (query param name is episode). Response: JSON array of {id, url}.",
+  "_subtitle_filters_hint": "subtitle_filters: allow_show_ids, allow_channel_ids (string[]), title_must_match_regex, title_must_not_match_regex (PCRE on title+description+show_title+channel_title). Both allowlists set => show OR channel match. {} or omit = all items. Skipped rows stored with empty subtitles so they are not retried. Tune regex for news (e.g. Tagesschau, Schweiz aktuell) and exclude sports (Fussball, Bundesliga).",
 
   "bu": "srf",
   "page_size": 30,
@@ -11,5 +12,7 @@
   "video_latest_episodes_url": "https://api.srgssr.ch/videometadata/v2/latest_episodes",
   "video_episodes_by_date_url": "https://api.srgssr.ch/videometadata/v2/episodes_by_date/{day}",
   "use_episodes_by_date": false,
-  "subtitle_lookup_url_template": "https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles?episode={urn}"
+  "subtitle_lookup_url_template": "https://api.srgssr.ch/srgssr-play-subtitles/v2/subtitles?episode={urn}",
+
+  "subtitle_filters": {}
 }
