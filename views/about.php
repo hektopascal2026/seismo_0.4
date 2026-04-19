@@ -361,6 +361,42 @@
                     </ul>
                 </div>
 
+                <!-- 0.4.3 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.4.3</span>
+                        Email Subscriptions
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Apr 2026</span>
+                    </div>
+                    <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+                        <li>Email newsletter senders are now first-class <strong>subscriptions</strong>, not just implicit tags on <code>sender_tags</code></li>
+                        <li>Domain-first matching (<code>@example.com</code>) with per-email overrides — one-time migration from <code>sender_tags</code>, no data loss</li>
+                        <li>New Mail subs page mirroring the RSS feeds UX: add, rename, categorize, pause, remove, restore, and per-source item counts</li>
+                        <li><code>List-Unsubscribe</code> header parsed on ingest (URL + mailto), with RFC 8058 one-click POST when available and a same-domain safety check</li>
+                        <li>Dashboard, Mail search, and Magnitu API now read tags and blocks from subscriptions while keeping <code>sender_tags</code> as a back-compat shim</li>
+                        <li>Sync runs inside <code>refreshEmails()</code>, so the existing IMAP cronjob keeps subscriptions up to date with no extra setup</li>
+                    </ul>
+                </div>
+
+                <!-- 0.5 -->
+                <div style="margin-bottom: 20px; padding: 10px 12px; border: 2px dashed #cccccc; background: #fafafa;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #d4e9ff; padding: 2px 6px; margin-right: 6px;">0.5</span>
+                        Seismo Satellites
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">in progress</span>
+                    </div>
+                    <p style="margin: 4px 0 6px 0;">
+                        Lightweight, topic-specific Seismo instances (e.g. "security", "digital policy") that share the mothership's scraping but run their own Magnitu profile, labels, and scores. The main feature of 0.5.
+                    </p>
+                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                        <li>Groundwork already in 0.4: <code>SEISMO_MOTHERSHIP_DB</code>, <code>entryTable()</code>, satellite-aware email-table resolution, and a satellite-ready Magnitu API</li>
+                        <li>0.5 adds the full satellite experience: per-instance identity, UI cues, setup docs, and an end-to-end mothership ⇄ satellite sync story</li>
+                        <li>No duplicate scraping: satellites cross-DB-read feeds, emails, lex, and calendar from the mothership; only scoring tables are local</li>
+                        <li>Each satellite pairs with its own Magnitu profile and its own API key — the API contract stays unchanged</li>
+                        <li>Fresh API key per satellite, explicit SELECT grant on the mothership DB, and clear boundaries between entry-source tables and scoring tables</li>
+                    </ul>
+                </div>
+
                 <!-- Magnitu -->
                 <div style="margin-bottom: 4px; margin-top: 28px; padding-top: 16px; border-top: 2px solid #eeeeee;">
                     <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
@@ -421,7 +457,7 @@
                 Built by <a href="https://hektopascal.org" class="about-link" target="_blank" rel="noopener">hektopascal.org</a>.
             </p>
             <p class="about-version" style="margin-top: 8px;">
-                Version 0.4.2 · Last updated: <?= $lastChangeDate ?>
+                Version 0.4.3 · Last updated: <?= $lastChangeDate ?>
             </p>
         </section>
     </div>
