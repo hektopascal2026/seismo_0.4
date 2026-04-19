@@ -3,8 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RSS - Seismo</title>
+    <title><?= ($feedsView ?? 'items') === 'feeds' ? 'RSS – Feeds' : 'RSS' ?> - Seismo</title>
     <link rel="stylesheet" href="<?= getBasePath() ?>/assets/css/style.css">
+    <style>
+        .rss-mode {
+            display: inline-flex;
+            border: 1px solid #000000;
+            background: #ffffff;
+            margin-bottom: 16px;
+        }
+        .rss-mode a {
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            text-decoration: none;
+            border-right: 1px solid #000000;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .rss-mode a:last-child { border-right: 0; }
+        .rss-mode a.active { background: #add8e6; }
+        .rss-mode a:hover { background: #e8f3fa; }
+        .rss-mode a.active:hover { background: #add8e6; }
+        .rss-mode .count { opacity: 0.7; font-weight: 500; font-size: 12px; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -20,7 +44,9 @@
                     </a>
                     RSS
                 </span>
-                <span class="top-bar-subtitle">RSS entries</span>
+                <span class="top-bar-subtitle">
+                    <?= ($feedsView ?? 'items') === 'feeds' ? 'Manage feeds' : 'Entries' ?>
+                </span>
             </div>
             <div class="top-bar-actions">
                 <a href="?action=refresh_all&from=feeds" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
@@ -39,6 +65,20 @@
             <div class="message message-error"><?= htmlspecialchars($_SESSION['error']) ?></div>
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
+
+        <!-- RSS sub-view switch: Items | Feeds -->
+        <div class="rss-mode" role="tablist" aria-label="RSS views">
+            <a href="?action=feeds" class="<?= ($feedsView ?? 'items') !== 'feeds' ? 'active' : '' ?>" role="tab">Items</a>
+            <a href="?action=feeds&amp;view=feeds" class="<?= ($feedsView ?? 'items') === 'feeds' ? 'active' : '' ?>" role="tab">
+                Feeds <span class="count">(<?= (int)($feedsActiveCount ?? 0) ?>)</span>
+            </a>
+        </div>
+
+        <?php if (($feedsView ?? 'items') === 'feeds'): ?>
+
+            <?php include __DIR__ . '/partials/feeds_manage_panel.php'; ?>
+
+        <?php else: ?>
 
         <?php if (!empty($categories) || isset($selectedCategory)): ?>
         <div class="category-filter-section">
@@ -134,16 +174,21 @@
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+
+        <?php endif; /* end items/feeds view branch */ ?>
+
     </div>
-    
+
     <script>
     (function() {
         var menuBtn = document.getElementById('menuToggle');
         var navDrawer = document.getElementById('navDrawer');
-        menuBtn.addEventListener('click', function() {
-            navDrawer.classList.toggle('open');
-            menuBtn.classList.toggle('active');
-        });
+        if (menuBtn && navDrawer) {
+            menuBtn.addEventListener('click', function() {
+                navDrawer.classList.toggle('open');
+                menuBtn.classList.toggle('active');
+            });
+        }
     })();
     </script>
     <script>

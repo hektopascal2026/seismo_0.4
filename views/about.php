@@ -365,6 +365,24 @@
                     </ul>
                 </div>
 
+                <!-- 0.4.4 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.4.4</span>
+                        Module-owned management UI
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Apr 2026</span>
+                    </div>
+                    <p style="margin: 4px 0 6px 0;">
+                        Each module now owns its own source-management UI directly on its tab, instead of burying it inside <em>Settings</em>. Settings becomes smaller and more focused on truly global configuration.
+                    </p>
+                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                        <li><strong>Mail</strong> tab got an inline <code>Items | Subscriptions</code> switch — manage email subscriptions without leaving Mail</li>
+                        <li><strong>RSS</strong> tab now has an inline <code>Items | Feeds</code> switch with the full add / tag / enable / disable / delete / config-file flow</li>
+                        <li>Legacy <code>from=settings</code> / <code>mail_subscriptions</code> URLs keep working via redirects, so old bookmarks don't break</li>
+                        <li>Substack and scraper configs remain in Settings for now — same module-by-module migration coming next</li>
+                    </ul>
+                </div>
+
                 <!-- 0.5 -->
                 <div style="margin-bottom: 20px; padding: 10px 12px; border: 2px dashed #cccccc; background: #fafafa;">
                     <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
@@ -444,7 +462,7 @@
                 Built by <a href="https://hektopascal.org" class="about-link" target="_blank" rel="noopener">hektopascal.org</a>.
             </p>
             <p class="about-version" style="margin-top: 8px;">
-                Version 0.4.3 · Last updated: <?= $lastChangeDate ?>
+                Version 0.4.4 · Last updated: <?= $lastChangeDate ?>
             </p>
         </section>
     </div>

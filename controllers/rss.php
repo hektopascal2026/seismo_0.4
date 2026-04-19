@@ -70,7 +70,11 @@ function handleRefreshAllSubstacks($pdo) {
 function handleAddFeed($pdo) {
     $url = filter_input(INPUT_POST, 'url', FILTER_SANITIZE_URL);
     $from = $_POST['from'] ?? $_GET['from'] ?? 'feeds';
-    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
+    $redirectUrl = $from === 'feeds_manage'
+        ? '?action=feeds&view=feeds'
+        : ($from === 'settings'
+            ? getBasePath() . '/index.php?action=settings&tab=basic'
+            : '?action=feeds');
     
     if (!$url) {
         $_SESSION['error'] = 'Please provide a valid URL';
@@ -182,7 +186,11 @@ function handleDeleteFeed($pdo) {
     $stmt->execute([$feedId]);
     
     $_SESSION['success'] = 'Feed deleted successfully';
-    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
+    $redirectUrl = $from === 'feeds_manage'
+        ? '?action=feeds&view=feeds'
+        : ($from === 'settings'
+            ? getBasePath() . '/index.php?action=settings&tab=basic'
+            : '?action=feeds');
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -190,25 +198,28 @@ function handleDeleteFeed($pdo) {
 function handleToggleFeed($pdo) {
     $feedId = (int)($_GET['id'] ?? 0);
     $from = $_GET['from'] ?? 'feeds';
-    
+    $redirectUrl = $from === 'feeds_manage'
+        ? '?action=feeds&view=feeds'
+        : ($from === 'settings'
+            ? getBasePath() . '/index.php?action=settings&tab=basic'
+            : '?action=feeds');
+
     $stmt = $pdo->prepare("SELECT disabled FROM feeds WHERE id = ?");
     $stmt->execute([$feedId]);
     $feed = $stmt->fetch();
-    
+
     if (!$feed) {
         $_SESSION['error'] = 'Feed not found';
-        $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
         header('Location: ' . $redirectUrl);
         return;
     }
-    
+
     $newStatus = $feed['disabled'] ? 0 : 1;
     $updateStmt = $pdo->prepare("UPDATE feeds SET disabled = ? WHERE id = ?");
     $updateStmt->execute([$newStatus, $feedId]);
-    
+
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Feed ' . $statusText . ' successfully';
-    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=feeds';
     header('Location: ' . $redirectUrl);
     exit;
 }
@@ -734,13 +745,34 @@ function handleApiAllTags($pdo) {
 // ---------------------------------------------------------------------------
 
 function handleFeedsPage($pdo) {
-    $selectedCategory = $_GET['category'] ?? null;
-    
+    $feedsView = (($_GET['view'] ?? '') === 'feeds') ? 'feeds' : 'items';
+
     $pdo->exec("UPDATE feeds SET category = 'unsortiert' WHERE (category IS NULL OR category = '') AND (source_type = 'rss' OR source_type IS NULL)");
-    
+
+    // Count of active RSS feeds — shown on the mode switch.
+    $feedsActiveCount = (int)$pdo->query("SELECT COUNT(*) FROM feeds WHERE (source_type = 'rss' OR source_type IS NULL) AND disabled = 0")->fetchColumn();
+
     $categoriesStmt = $pdo->query("SELECT DISTINCT category FROM feeds WHERE category IS NOT NULL AND category != '' AND (source_type = 'rss' OR source_type IS NULL) ORDER BY category");
     $categories = $categoriesStmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
+    if ($feedsView === 'feeds') {
+        // Feed-management mode: load the feed source list + all tags, skip items.
+        $feedsStmt = $pdo->query("SELECT * FROM feeds WHERE source_type = 'rss' OR source_type IS NULL ORDER BY created_at DESC");
+        $allFeeds = $feedsStmt->fetchAll();
+        $allTags  = $categories; // already distinct RSS categories
+
+        $lastRefreshStmt = $pdo->query("SELECT MAX(last_fetched) as last_refresh FROM feeds WHERE (source_type = 'rss' OR source_type IS NULL) AND last_fetched IS NOT NULL");
+        $lastRefreshRow = $lastRefreshStmt->fetch();
+        $lastRssRefreshDate = $lastRefreshRow['last_refresh'] ? date('d.m.Y H:i', strtotime($lastRefreshRow['last_refresh'])) : null;
+
+        $rssItems = [];
+        include 'views/feeds.php';
+        return;
+    }
+
+    // Items mode (default, unchanged).
+    $selectedCategory = $_GET['category'] ?? null;
+
     if ($selectedCategory) {
         $stmt = $pdo->prepare("
             SELECT fi.*, f.title as feed_title, f.category as feed_category
@@ -762,11 +794,11 @@ function handleFeedsPage($pdo) {
         ");
     }
     $rssItems = $stmt->fetchAll();
-    
+
     $lastRefreshStmt = $pdo->query("SELECT MAX(last_fetched) as last_refresh FROM feeds WHERE (source_type = 'rss' OR source_type IS NULL) AND last_fetched IS NOT NULL");
     $lastRefreshRow = $lastRefreshStmt->fetch();
     $lastRssRefreshDate = $lastRefreshRow['last_refresh'] ? date('d.m.Y H:i', strtotime($lastRefreshRow['last_refresh'])) : null;
-    
+
     include 'views/feeds.php';
 }
 
@@ -802,7 +834,7 @@ function handleUploadRssConfig($pdo) {
             $_SESSION['error'] = 'No file uploaded or upload error.';
         }
     }
-    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=basic');
+    header('Location: ' . getBasePath() . '/index.php?action=feeds&view=feeds');
     exit;
 }
 
