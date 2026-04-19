@@ -51,7 +51,7 @@ $allFeeds = $allFeeds ?? [];
 
 <p class="fmp-help">
     RSS feeds Seismo fetches. Add new URLs, tag them, enable/disable, or remove.
-    <a href="<?= getBasePath() ?>/index.php?action=settings&amp;tab=feed_diagnostics">Feed diagnostics</a> — test every feed's HTTP + parse status.
+    <a href="<?= getBasePath() ?>/index.php?action=settings&amp;tab=diagnostics">Feed diagnostics</a> — test every feed's HTTP + parse status.
 </p>
 
 <!-- Add feed -->

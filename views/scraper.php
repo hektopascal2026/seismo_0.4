@@ -64,7 +64,7 @@
 
             <?php if (empty($scraperItems)): ?>
                 <div class="empty-state">
-                    <p>No scraped entries yet. Configure URLs in <a href="?action=settings&tab=script">Settings &rarr; Script</a>, download the scraper script, and set up a cronjob on your hoster.</p>
+                    <p>No scraped entries yet. Configure URLs in <a href="?action=settings&tab=scraper">Settings &rarr; Scraper</a>, download the scraper script, and set up a cronjob on your hoster.</p>
                 </div>
             <?php else: ?>
                 <?php

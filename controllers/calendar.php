@@ -509,7 +509,7 @@ function rescoreCalendarEvents($pdo, $recipeData) {
  */
 function handleSaveCalendarConfig($pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ?action=settings&tab=calendar');
+        header('Location: ?action=settings&tab=leg');
         exit;
     }
 
@@ -546,7 +546,7 @@ function handleSaveCalendarConfig($pdo) {
     saveCalendarConfig($config);
 
     $_SESSION['success'] = 'Calendar settings saved.';
-    header('Location: ?action=settings&tab=calendar');
+    header('Location: ?action=settings&tab=leg');
     exit;
 }
 
@@ -570,7 +570,7 @@ function handleDownloadCalendarConfig($pdo) {
 function handleUploadCalendarConfig($pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['calendar_config_file']['tmp_name'])) {
         $_SESSION['error'] = 'No file uploaded.';
-        header('Location: ?action=settings&tab=calendar');
+        header('Location: ?action=settings&tab=leg');
         exit;
     }
 
@@ -578,13 +578,13 @@ function handleUploadCalendarConfig($pdo) {
     $config = json_decode($json, true);
     if ($config === null) {
         $_SESSION['error'] = 'Invalid JSON file.';
-        header('Location: ?action=settings&tab=calendar');
+        header('Location: ?action=settings&tab=leg');
         exit;
     }
 
     saveCalendarConfig($config);
     $_SESSION['success'] = 'Calendar config uploaded and applied.';
-    header('Location: ?action=settings&tab=calendar');
+    header('Location: ?action=settings&tab=leg');
     exit;
 }
 
@@ -593,7 +593,7 @@ function handleUploadCalendarConfig($pdo) {
  */
 function handleClearCalendarEvents($pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ?action=settings&tab=calendar');
+        header('Location: ?action=settings&tab=leg');
         exit;
     }
 
@@ -605,6 +605,6 @@ function handleClearCalendarEvents($pdo) {
         $_SESSION['error'] = 'Failed to clear calendar events: ' . $e->getMessage();
     }
 
-    header('Location: ?action=settings&tab=calendar');
+    header('Location: ?action=settings&tab=leg');
     exit;
 }

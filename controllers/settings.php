@@ -2,19 +2,40 @@
 /**
  * Settings Controller
  *
- * Renders the settings page with all tabs (Basic, Script, Lex, Magnitu)
- * and the static pages (About, Beta, Styleguide).
+ * Renders the settings page with all tabs — current order:
+ *   General, RSS, Mail, Scraper, Lex / Jus, Leg, Magnitu, LLM, Satellite,
+ *   Diagnostics, Styleguide.
+ *
+ * Also hosts the static pages About + Styleguide. The former Beta page is
+ * retired; handleBetaPage() redirects to Settings > LLM.
+ *
+ * Legacy tab slugs (basic, script, calendar, satellites, feed_diagnostics)
+ * are normalized at the top of handleSettingsPage() so old bookmarks keep
+ * working.
  */
 
 function handleSettingsPage($pdo) {
-    $settingsTab = $_GET['tab'] ?? 'basic';
+    $settingsTab = $_GET['tab'] ?? 'general';
+
+    // Legacy tab-slug compatibility. Old links/bookmarks using the pre-0.4.5
+    // slugs keep working; the pill nav and all new code use the new slugs.
+    $legacyTabMap = [
+        'basic'             => 'general', // RSS moved to ?action=feeds&view=feeds; Substack lives in tab=rss
+        'script'            => 'mail',    // Mail half of the old combined tab; scraper callers override below
+        'calendar'          => 'leg',
+        'satellites'        => 'satellite',
+        'feed_diagnostics'  => 'diagnostics',
+    ];
+    if (isset($legacyTabMap[$settingsTab])) {
+        $settingsTab = $legacyTabMap[$settingsTab];
+    }
 
     $feedDiagnosticsData = null;
-    if ($settingsTab === 'feed_diagnostics') {
+    if ($settingsTab === 'diagnostics') {
         if (FEED_DIAGNOSTIC_KEY !== '' && (string)($_GET['key'] ?? '') !== FEED_DIAGNOSTIC_KEY) {
             http_response_code(403);
             header('Content-Type: text/plain; charset=utf-8');
-            echo "403 Forbidden — set FEED_DIAGNOSTIC_KEY in config.local.php and pass the same value as ?key= (e.g. ?action=settings&tab=feed_diagnostics&key=…)\n";
+            echo "403 Forbidden — set FEED_DIAGNOSTIC_KEY in config.local.php and pass the same value as ?key= (e.g. ?action=settings&tab=diagnostics&key=…)\n";
             exit;
         }
         set_time_limit(600);
@@ -211,7 +232,7 @@ function handleSettingsPage($pdo) {
         }
     }
 
-    if ($settingsTab === 'feed_diagnostics') {
+    if ($settingsTab === 'diagnostics') {
         $fdT0 = microtime(true);
         $feedDiagnosticsData = runFeedDiagnostics($pdo);
         $fdElapsed = microtime(true) - $fdT0;
@@ -261,8 +282,10 @@ function handleAboutPage($pdo) {
 }
 
 function handleBetaPage() {
-    $lastChangeDate = date('d.m.Y', filemtime(__DIR__ . '/../index.php'));
-    include 'views/beta.php';
+    // Beta is retired — the AI View Generator now lives in Settings > LLM.
+    // Redirect any old bookmarks / links straight there.
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=llm');
+    exit;
 }
 
 function handleStyleguidePage() {

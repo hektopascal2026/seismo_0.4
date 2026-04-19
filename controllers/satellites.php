@@ -68,7 +68,7 @@ function getRemoteRefreshKey(): string {
 /** POST ?action=satellite_add — append a satellite to the registry. */
 function handleSatelliteAdd(PDO $pdo): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
 
@@ -79,7 +79,7 @@ function handleSatelliteAdd(PDO $pdo): void {
 
     if ($slug === '') {
         $_SESSION['error'] = 'Slug is required (letters, numbers, dashes).';
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
     if ($displayName === '') {
@@ -87,7 +87,7 @@ function handleSatelliteAdd(PDO $pdo): void {
     }
     if ($accent !== '' && !preg_match('/^#[0-9a-fA-F]{3,8}$/', $accent)) {
         $_SESSION['error'] = 'Accent colour must be a hex value like #4a90e2.';
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
 
@@ -95,7 +95,7 @@ function handleSatelliteAdd(PDO $pdo): void {
     foreach ($registry as $sat) {
         if (($sat['slug'] ?? '') === $slug) {
             $_SESSION['error'] = "Satellite '{$slug}' already exists. Use rotate key or remove first.";
-            header('Location: ?action=settings&tab=satellites');
+            header('Location: ?action=settings&tab=satellite');
             exit;
         }
     }
@@ -112,14 +112,14 @@ function handleSatelliteAdd(PDO $pdo): void {
     saveSatellitesRegistry($pdo, $registry);
 
     $_SESSION['success'] = "Satellite '{$slug}' added. Download its JSON to feed into seismo-generator.";
-    header('Location: ?action=settings&tab=satellites&highlight=' . urlencode($slug));
+    header('Location: ?action=settings&tab=satellite&highlight=' . urlencode($slug));
     exit;
 }
 
 /** POST ?action=satellite_remove&slug=… */
 function handleSatelliteRemove(PDO $pdo): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
     $slug = normaliseSatelliteSlug((string)($_POST['slug'] ?? ''));
@@ -127,14 +127,14 @@ function handleSatelliteRemove(PDO $pdo): void {
     $filtered = array_values(array_filter($registry, fn($s) => ($s['slug'] ?? '') !== $slug));
     saveSatellitesRegistry($pdo, $filtered);
     $_SESSION['success'] = "Satellite '{$slug}' removed from registry. The satellite's own database is untouched.";
-    header('Location: ?action=settings&tab=satellites');
+    header('Location: ?action=settings&tab=satellite');
     exit;
 }
 
 /** POST ?action=satellite_rotate_key&slug=… — rotate a single satellite's API key. */
 function handleSatelliteRotateKey(PDO $pdo): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
     $slug = normaliseSatelliteSlug((string)($_POST['slug'] ?? ''));
@@ -152,20 +152,20 @@ function handleSatelliteRotateKey(PDO $pdo): void {
 
     if (!$found) {
         $_SESSION['error'] = "Satellite '{$slug}' not found.";
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
 
     saveSatellitesRegistry($pdo, $registry);
     $_SESSION['success'] = "API key rotated for '{$slug}'. Download new JSON and re-deploy the satellite.";
-    header('Location: ?action=settings&tab=satellites&highlight=' . urlencode($slug));
+    header('Location: ?action=settings&tab=satellite&highlight=' . urlencode($slug));
     exit;
 }
 
 /** POST ?action=satellite_rotate_refresh_key — rotate the shared SEISMO_REMOTE_REFRESH_KEY advice. */
 function handleSatelliteRotateRefreshKey(PDO $pdo): void {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ?action=settings&tab=satellites');
+        header('Location: ?action=settings&tab=satellite');
         exit;
     }
     // We cannot write to config.local.php automatically — instead we stash a
@@ -173,7 +173,7 @@ function handleSatelliteRotateRefreshKey(PDO $pdo): void {
     // mothership's actual value still comes from the PHP constant.
     setMagnituConfig($pdo, 'satellites_suggested_refresh_key', generateSatelliteKey());
     $_SESSION['success'] = 'Generated a new suggested SEISMO_REMOTE_REFRESH_KEY. Paste it into mothership + satellite config.local.php.';
-    header('Location: ?action=settings&tab=satellites');
+    header('Location: ?action=settings&tab=satellite');
     exit;
 }
 

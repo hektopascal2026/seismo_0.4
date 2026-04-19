@@ -190,17 +190,32 @@
         <?php endif; ?>
 
         <!-- Settings Tab Bar -->
+        <?php
+            // Each row: [slug, label, active-bg-color]
+            $settingsPills = [
+                ['general',     'General',    '#ffffff'],
+                ['rss',         'RSS',        '#add8e6'],
+                ['mail',        'Mail',       '#FFDBBB'],
+                ['scraper',     'Scraper',    '#FFDBBB'],
+                ['lex',         'Lex / Jus',  '#f5f562'],
+                ['leg',         'Leg',        '#d4edda'],
+                ['magnitu',     'Magnitu',    '#FF6B6B'],
+                ['llm',         'LLM',        '#d4e9ff'],
+            ];
+            if (!isSatellite()) {
+                $settingsPills[] = ['satellite', 'Satellite', '#C5B4D1'];
+            }
+            $settingsPills[] = ['diagnostics', 'Diagnostics', '#e8e0f5'];
+            $settingsPills[] = ['styleguide',  'Styleguide',  '#f5f5f5'];
+        ?>
         <div class="tag-filter-list" style="margin-bottom: 16px;">
-            <a href="?action=settings&amp;tab=basic<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'basic' ? ' background-color: #add8e6;' : '' ?>">Basic</a>
-            <a href="?action=settings&amp;tab=script<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'script' ? ' background-color: #FFDBBB;' : '' ?>">Script</a>
-            <a href="?action=settings&amp;tab=calendar<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'calendar' ? ' background-color: #d4edda;' : '' ?>">Calendar</a>
-            <a href="?action=settings&amp;tab=lex<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
-            <a href="?action=settings&amp;tab=magnitu<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
-            <?php if (!isSatellite()): ?>
-            <a href="?action=settings&amp;tab=satellites<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'satellites' ? ' background-color: #C5B4D1;' : '' ?>">Satellites</a>
-            <?php endif; ?>
-            <a href="?action=settings&amp;tab=feed_diagnostics<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'feed_diagnostics' ? ' background-color: #e8e0f5;' : '' ?>">Feed diagnostics</a>
-            <a href="?action=settings&amp;tab=styleguide<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'styleguide' ? ' background-color: #f5f5f5;' : '' ?>">Styleguide</a>
+            <?php foreach ($settingsPills as [$pillSlug, $pillLabel, $pillColor]): ?>
+                <a href="?action=settings&amp;tab=<?= $pillSlug ?><?= $settingsKeyQuery ?>"
+                   class="tag-filter-pill"
+                   style="text-decoration: none;<?= $settingsTab === $pillSlug ? ' background-color: ' . $pillColor . ';' : '' ?>">
+                    <?= htmlspecialchars($pillLabel) ?>
+                </a>
+            <?php endforeach; ?>
         </div>
 
         <?php if (!empty($trippedFeeds) || !empty($trippedLexSources) || !empty($trippedCalendarSources)): ?>
@@ -236,12 +251,23 @@
         </div>
         <?php endif; ?>
 
-        <?php if ($settingsTab === 'feed_diagnostics'): ?>
+        <?php if ($settingsTab === 'general'): ?>
+        <?php include __DIR__ . '/partials/settings_tab_general.php'; ?>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'diagnostics'): ?>
+        <p style="font-size: 12px; margin-bottom: 12px; color: #555;">
+            Currently covers RSS feed URLs (HTTP + SimplePie parse). Scraper, IMAP, Lex/Jus and Leg (Parliament) diagnostics will land here in a later round.
+        </p>
         <?php include __DIR__ . '/settings_tab_feed_diagnostics.php'; ?>
         <?php endif; ?>
 
-        <?php if ($settingsTab === 'satellites' && !isSatellite()): ?>
+        <?php if ($settingsTab === 'satellite' && !isSatellite()): ?>
         <?php include __DIR__ . '/partials/settings_tab_satellites.php'; ?>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'llm'): ?>
+        <?php include __DIR__ . '/partials/settings_tab_llm.php'; ?>
         <?php endif; ?>
 
         <?php if ($settingsTab === 'magnitu'): ?>
@@ -380,10 +406,10 @@
         </section>
         <?php endif; ?>
 
-        <?php if ($settingsTab === 'basic'): ?>
+        <?php if ($settingsTab === 'rss'): ?>
         <p style="font-size: 12px; margin-bottom: 16px;">
-            Add and manage Substack newsletters here.
-            RSS feed sources moved to <a href="<?= getBasePath() ?>/index.php?action=feeds&amp;view=feeds">RSS &rsaquo; Feeds</a>.
+            RSS-family settings. <strong>RSS feed sources</strong> are managed directly on <a href="<?= getBasePath() ?>/index.php?action=feeds&amp;view=feeds">RSS &rsaquo; Feeds</a>.
+            Substack newsletters live here for now (Substack is RSS under the hood).
         </p>
 
         <!-- Substack Section -->
@@ -488,8 +514,11 @@
         </section>
         <?php endif; ?>
 
-        <?php if ($settingsTab === 'script'): ?>
-        <p style="font-size: 12px; margin-bottom: 16px;">Manage email sources and web page scrapers fetched by server-side scripts.</p>
+        <?php if ($settingsTab === 'mail'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">
+            Email fetching. Configure IMAP credentials and download the fetcher script to run on your server.
+            Newsletter subscriptions are managed on <a href="<?= getBasePath() ?>/index.php?action=mail&amp;view=subscriptions">Mail &rsaquo; Subscriptions</a>.
+        </p>
 
         <!-- Mail Section -->
         <section class="settings-section">
@@ -640,9 +669,16 @@
                 </div>
             <?php endif; ?>
         </section>
+        <?php endif; /* end tab=mail */ ?>
+
+        <?php if ($settingsTab === 'scraper'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">
+            Web page scraper. Add URLs, download the scraper script, and run it on a cron.
+            Scraped entries surface on <a href="<?= getBasePath() ?>/index.php?action=scraper">Scraper</a>.
+        </p>
 
         <!-- Scraper Section -->
-        <section class="settings-section" style="margin-top: 32px;">
+        <section class="settings-section">
             <h2 style="background-color: #FFDBBB; padding: 8px 14px; display: inline-block;">🌐 Scraper</h2>
             <p style="font-size: 12px; margin-bottom: 4px; line-height: 1.6;">
                 <strong>Setup:</strong>
@@ -750,11 +786,13 @@
         </section>
         <?php endif; ?>
 
-        <?php if ($settingsTab === 'calendar'): ?>
-        <p style="font-size: 12px; margin-bottom: 16px;">Configure calendar event sources — upcoming parliamentary business, sessions, and other scheduled events.</p>
+        <?php if ($settingsTab === 'leg'): ?>
+        <p style="font-size: 12px; margin-bottom: 16px;">
+            Legislative activity — upcoming parliamentary business, sessions, motions, interpellations, postulates. Forward-looking events that complement <em>Lex / Jus</em> (finished legal text).
+        </p>
 
         <section class="settings-section" id="calendar-settings">
-            <h2 style="background-color: #d4edda; padding: 8px 14px; display: inline-block;">Calendar</h2>
+            <h2 style="background-color: #d4edda; padding: 8px 14px; display: inline-block;">Leg</h2>
 
             <!-- Stats -->
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">

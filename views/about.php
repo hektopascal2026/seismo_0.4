@@ -383,6 +383,27 @@
                     </ul>
                 </div>
 
+                <!-- 0.4.5 -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                        <span style="font-family: monospace; background: #f5f562; padding: 2px 6px; margin-right: 6px;">0.4.5</span>
+                        Settings information architecture
+                        <span style="font-size: 11px; color: #666; margin-left: 8px;">Apr 2026</span>
+                    </div>
+                    <p style="margin: 4px 0 6px 0;">
+                        Settings is now organized around modules instead of a <em>Basic / Script</em> catch-all. One concept per tab, short and honest labels.
+                    </p>
+                    <ul style="margin: 0 0 0 0; padding-left: 16px;">
+                        <li><strong>Basic</strong> → <strong>General</strong> (thin overview + pointers to module tabs)</li>
+                        <li><strong>Script</strong> split into <strong>Mail</strong> (IMAP + fetcher) and <strong>Scraper</strong> (URLs + cron scripts)</li>
+                        <li>New <strong>RSS</strong> tab — Substack settings live here (Substack is RSS under the hood); RSS feed sources remain on <em>RSS &rsaquo; Feeds</em></li>
+                        <li><strong>Lex</strong> → <strong>Lex / Jus</strong>; <strong>Calendar</strong> → <strong>Leg</strong> (legislative / parliamentary activity, as opposed to finished legal text)</li>
+                        <li><strong>Satellites</strong> → <strong>Satellite</strong>; <strong>Feed diagnostics</strong> → <strong>Diagnostics</strong> (still RSS-only for now &mdash; honest disclaimer shown, scope expanding later)</li>
+                        <li>New <strong>LLM</strong> tab hosts the AI View Generator previously under the <em>Beta</em> nav entry; Beta nav item retired, <code>?action=beta</code> 302-redirects to <code>?action=settings&amp;tab=llm</code></li>
+                        <li>All legacy tab slugs (<code>basic</code>, <code>script</code>, <code>calendar</code>, <code>satellites</code>, <code>feed_diagnostics</code>) still resolve via a normalization map so bookmarks don't break</li>
+                    </ul>
+                </div>
+
                 <!-- 0.5 -->
                 <div style="margin-bottom: 20px; padding: 10px 12px; border: 2px dashed #cccccc; background: #fafafa;">
                     <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
@@ -462,7 +483,7 @@
                 Built by <a href="https://hektopascal.org" class="about-link" target="_blank" rel="noopener">hektopascal.org</a>.
             </p>
             <p class="about-version" style="margin-top: 8px;">
-                Version 0.4.4 · Last updated: <?= $lastChangeDate ?>
+                Version 0.4.5 · Last updated: <?= $lastChangeDate ?>
             </p>
         </section>
     </div>

@@ -6,8 +6,9 @@
  * the action names below) before including this partial so the current tab is
  * highlighted.
  *
- * In satellite mode, scraper / admin / Beta items are hidden — only Feed,
- * Magnitu, Settings, About remain.
+ * In satellite mode, scraper / admin items are hidden — only Feed, Magnitu,
+ * Settings, About remain. (Beta was retired in 0.4.5; its AI View Generator
+ * moved to Settings > LLM.)
  *
  * If SEISMO_BRAND_ACCENT is set, a :root { --seismo-accent: … } CSS variable
  * is emitted once per page; assets/css/style.css uses it as the default
@@ -31,7 +32,6 @@ $navItems = [
     ['scraper',            'Scraper',   '#FFDBBB', false],
     ['settings',           'Settings',  null,      true],
     ['about',              'About',     null,      true],
-    ['beta',               'Beta',      null,      false],
 ];
 
 $navHrefFor = static function (string $action): string {

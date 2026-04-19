@@ -256,7 +256,7 @@ function handleSaveMailConfig($pdo) {
         }
         $_SESSION['success'] = 'Mail configuration saved.';
     }
-    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=mail');
     exit;
 }
 
@@ -313,7 +313,7 @@ function handleDownloadMailScript($pdo) {
     $scriptPath = __DIR__ . '/../fetcher/mail/fetch_mail.php';
     if (!file_exists($scriptPath)) {
         $_SESSION['error'] = 'Mail script not found.';
-        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=mail');
         exit;
     }
     $scriptContent = file_get_contents($scriptPath);
@@ -358,7 +358,7 @@ function handleToggleSender($pdo) {
     
     if (empty($fromEmail)) {
         $_SESSION['error'] = 'Invalid sender email';
-        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=mail');
         return;
     }
     
@@ -380,7 +380,7 @@ function handleToggleSender($pdo) {
     
     $statusText = $newStatus ? 'disabled' : 'enabled';
     $_SESSION['success'] = 'Sender ' . $statusText . ' successfully';
-    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=mail');
     exit;
 }
 
@@ -390,7 +390,7 @@ function handleDeleteSender($pdo) {
     
     if (empty($fromEmail)) {
         $_SESSION['error'] = 'Invalid sender email';
-        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=mail');
         return;
     }
     
@@ -400,7 +400,7 @@ function handleDeleteSender($pdo) {
     esMirrorSenderDelete($pdo, $fromEmail);
     
     $_SESSION['success'] = "Sender removed from Seismo.\nFuture emails from this address will be tagged as \"unsortiert\" until you reassign them.\nTo stop receiving these emails, you need to manually unsubscribe from the sender's press releases.";
-    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=mail');
     exit;
 }
 

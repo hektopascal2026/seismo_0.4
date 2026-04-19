@@ -73,7 +73,7 @@ function handleAddFeed($pdo) {
     $redirectUrl = $from === 'feeds_manage'
         ? '?action=feeds&view=feeds'
         : ($from === 'settings'
-            ? getBasePath() . '/index.php?action=settings&tab=basic'
+            ? getBasePath() . '/index.php?action=settings&tab=rss'
             : '?action=feeds');
     
     if (!$url) {
@@ -123,7 +123,7 @@ function handleAddFeed($pdo) {
 function handleAddSubstack($pdo) {
     $url = trim(filter_input(INPUT_POST, 'url', FILTER_SANITIZE_URL) ?? '');
     $from = $_POST['from'] ?? 'substack';
-    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=basic' : '?action=substack';
+    $redirectUrl = $from === 'settings' ? getBasePath() . '/index.php?action=settings&tab=rss' : '?action=substack';
 
     if (!$url) {
         $_SESSION['error'] = 'Please provide a Substack URL';
@@ -189,7 +189,7 @@ function handleDeleteFeed($pdo) {
     $redirectUrl = $from === 'feeds_manage'
         ? '?action=feeds&view=feeds'
         : ($from === 'settings'
-            ? getBasePath() . '/index.php?action=settings&tab=basic'
+            ? getBasePath() . '/index.php?action=settings&tab=rss'
             : '?action=feeds');
     header('Location: ' . $redirectUrl);
     exit;
@@ -201,7 +201,7 @@ function handleToggleFeed($pdo) {
     $redirectUrl = $from === 'feeds_manage'
         ? '?action=feeds&view=feeds'
         : ($from === 'settings'
-            ? getBasePath() . '/index.php?action=settings&tab=basic'
+            ? getBasePath() . '/index.php?action=settings&tab=rss'
             : '?action=feeds');
 
     $stmt = $pdo->prepare("SELECT disabled FROM feeds WHERE id = ?");
@@ -866,7 +866,7 @@ function handleUploadSubstackConfig($pdo) {
             $_SESSION['error'] = 'No file uploaded or upload error.';
         }
     }
-    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=basic');
+    header('Location: ' . getBasePath() . '/index.php?action=settings&tab=rss');
     exit;
 }
 

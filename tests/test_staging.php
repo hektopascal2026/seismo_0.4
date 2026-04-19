@@ -395,27 +395,43 @@ assert_contains("Feeds page has category content", $r, 'feed');
 $r = req("$BASE?action=feed_diagnostics");
 assert_redirect("feed_diagnostics redirects to Settings tab", $r);
 
-$r = req("$BASE?action=settings&tab=feed_diagnostics");
+$r = req("$BASE?action=settings&tab=diagnostics");
 if ($r['status'] === 200) {
-    assert_contains("Feed diagnostics tab has report body", $r, 'Seismo feed diagnostics');
+    assert_contains("Diagnostics tab has report body", $r, 'Seismo feed diagnostics');
 } elseif ($r['status'] === 403) {
-    assert_contains("Feed diagnostics key gate when FEED_DIAGNOSTIC_KEY set", $r, 'Forbidden');
+    assert_contains("Diagnostics key gate when FEED_DIAGNOSTIC_KEY set", $r, 'Forbidden');
 } else {
     global $failed, $errors;
     $failed++;
-    $msg = "  ✗ Feed diagnostics tab — expected 200 or 403, got {$r['status']}";
+    $msg = "  ✗ Diagnostics tab — expected 200 or 403, got {$r['status']}";
     echo "$msg\n";
     $errors[] = $msg;
 }
 
+// Legacy tab slug still works (normalization in handleSettingsPage).
+$r = req("$BASE?action=settings&tab=feed_diagnostics");
+assert_contains("Legacy feed_diagnostics slug resolves to Diagnostics tab", $r, 'Diagnostics');
+
 $r = req("$BASE?action=mail");
 assert_body_size("Mail page has content", $r, 2000);
 
-$r = req("$BASE?action=settings&tab=basic");
-assert_contains("Settings basic has RSS section", $r, 'RSS');
+$r = req("$BASE?action=settings&tab=general");
+assert_contains("Settings general lists module pointers", $r, 'Where to find things');
 
-$r = req("$BASE?action=settings&tab=script");
-assert_contains("Settings script has mail section", $r, 'Mail');
+$r = req("$BASE?action=settings&tab=rss");
+assert_contains("Settings RSS hosts Substack section", $r, 'Substack');
+
+$r = req("$BASE?action=settings&tab=mail");
+assert_contains("Settings Mail shows IMAP form", $r, 'IMAP');
+
+$r = req("$BASE?action=settings&tab=scraper");
+assert_contains("Settings Scraper shows add-URL UI", $r, 'Scraper');
+
+$r = req("$BASE?action=settings&tab=llm");
+assert_contains("Settings LLM shows AI generator", $r, 'AI View Generator');
+
+$r = req("$BASE?action=beta");
+assert_redirect("Legacy ?action=beta redirects to Settings > LLM", $r);
 
 $r = req("$BASE?action=about");
 assert_contains("About page has Seismo info", $r, 'Seismo');

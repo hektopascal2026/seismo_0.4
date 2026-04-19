@@ -832,7 +832,7 @@ function handleDownloadRefreshScript($pdo) {
     $scriptPath = __DIR__ . '/../refresh_cron.php';
     if (!file_exists($scriptPath)) {
         $_SESSION['error'] = 'Refresh script not found.';
-        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=scraper');
         exit;
     }
     $content = file_get_contents($scriptPath);

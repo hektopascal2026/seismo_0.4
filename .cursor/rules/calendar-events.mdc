@@ -14,7 +14,7 @@ Seismo has a calendar events system for upcoming events (parliament sessions, mo
 - **Controller:** `controllers/calendar.php` — page handler, fetcher, settings actions, scoring
 - **View:** `views/calendar.php` — dedicated calendar page with date-grouped display
 - **Config:** `calendar_config.json` via `getCalendarConfig()` / `saveCalendarConfig()` in `config.php`
-- **Settings:** Tab at `?action=settings&tab=calendar`
+- **Settings:** Tab at `?action=settings&tab=leg` (legacy slug `tab=calendar` still redirects)
 
 ## Data sources
 

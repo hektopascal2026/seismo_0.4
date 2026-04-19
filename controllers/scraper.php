@@ -125,7 +125,7 @@ function handleAddScraper($pdo) {
             $_SESSION['error'] = 'Name and URL are required.';
         }
     }
-    header('Location: ?action=settings&tab=script');
+    header('Location: ?action=settings&tab=scraper');
     exit;
 }
 
@@ -140,7 +140,7 @@ function handleUpdateScraper($pdo) {
             $_SESSION['success'] = 'Scraper updated.';
         }
     }
-    header('Location: ?action=settings&tab=script');
+    header('Location: ?action=settings&tab=scraper');
     exit;
 }
 
@@ -159,7 +159,7 @@ function handleToggleScraper($pdo) {
             }
         }
     }
-    header('Location: ?action=settings&tab=script');
+    header('Location: ?action=settings&tab=scraper');
     exit;
 }
 
@@ -171,7 +171,7 @@ function handleRemoveScraper($pdo) {
             $_SESSION['success'] = 'Scraper removed.';
         }
     }
-    header('Location: ?action=settings&tab=script');
+    header('Location: ?action=settings&tab=scraper');
     exit;
 }
 
@@ -206,7 +206,7 @@ function handleDeleteAllScraperItems($pdo) {
         } catch (PDOException $e) {}
         $_SESSION['success'] = "Deleted {$count} scraped entries.";
     }
-    header('Location: ?action=settings&tab=script');
+    header('Location: ?action=settings&tab=scraper');
     exit;
 }
 
@@ -280,7 +280,7 @@ function handleDownloadScraperScript($pdo) {
     $scriptPath = __DIR__ . '/../fetcher/scraper/seismo_scraper.php';
     if (!file_exists($scriptPath)) {
         $_SESSION['error'] = 'Scraper script not found.';
-        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=script');
+        header('Location: ' . getBasePath() . '/index.php?action=settings&tab=scraper');
         exit;
     }
     $scriptContent = file_get_contents($scriptPath);
