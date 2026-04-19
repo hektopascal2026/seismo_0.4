@@ -41,7 +41,7 @@
             <button type="submit" class="btn btn-secondary">Mark as unsubscribed in Seismo only (pause)</button>
         </form>
 
-        <p style="margin-top: 2rem;"><a href="<?= getBasePath() ?>/index.php?action=mail_subscriptions">← Back to subscriptions</a></p>
+        <p style="margin-top: 2rem;"><a href="<?= getBasePath() ?>/index.php?action=mail&amp;view=subscriptions">← Back to subscriptions</a></p>
     </div>
 </body>
 </html>

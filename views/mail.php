@@ -3,8 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mail - Seismo</title>
+    <title><?= ($mailView ?? 'items') === 'subscriptions' ? 'Mail – Subscriptions' : 'Mail' ?> - Seismo</title>
     <link rel="stylesheet" href="<?= getBasePath() ?>/assets/css/style.css">
+    <style>
+        .mail-mode {
+            display: inline-flex;
+            border: 1px solid #000000;
+            background: #ffffff;
+            margin-bottom: 16px;
+        }
+        .mail-mode a {
+            padding: 7px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            text-decoration: none;
+            border-right: 1px solid #000000;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mail-mode a:last-child { border-right: 0; }
+        .mail-mode a.active { background: #FFDBBB; }
+        .mail-mode a:hover { background: #fff3e0; }
+        .mail-mode a.active:hover { background: #FFDBBB; }
+        .mail-mode .count {
+            opacity: 0.7;
+            font-weight: 500;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -19,7 +47,13 @@
                     </a>
                     Mail
                 </span>
-                <span class="top-bar-subtitle">Mail management</span>
+                <span class="top-bar-subtitle">
+                    <?php if (($mailView ?? 'items') === 'subscriptions'): ?>
+                        Manage subscriptions
+                    <?php else: ?>
+                        Inbox
+                    <?php endif; ?>
+                </span>
             </div>
             <div class="top-bar-actions">
                 <a href="?action=refresh_all&from=mail" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
@@ -27,21 +61,7 @@
             </div>
         </div>
 
-        <nav class="nav-drawer" id="navDrawer">
-            <a href="?action=index" class="nav-link">Feed</a>
-            <a href="?action=magnitu" class="nav-link">Magnitu</a>
-            <a href="?action=feeds" class="nav-link">RSS</a>
-            <a href="?action=calendar" class="nav-link">Calendar</a>
-            <a href="?action=lex" class="nav-link">Lex</a>
-            <a href="?action=jus" class="nav-link">Jus</a>
-            <a href="?action=mail" class="nav-link active" style="background-color: #FFDBBB; color: #000000;">Mail</a>
-            <a href="?action=mail_subscriptions" class="nav-link">Mail subs</a>
-            <a href="?action=substack" class="nav-link">Substack</a>
-            <a href="?action=scraper" class="nav-link">Scraper</a>
-            <a href="?action=settings" class="nav-link">Settings</a>
-            <a href="?action=about" class="nav-link">About</a>
-            <a href="?action=beta" class="nav-link">Beta</a>
-        </nav>
+        <?php $navActive = 'mail'; include __DIR__ . '/partials/nav.php'; ?>
 
         <?php if (isset($_SESSION['success'])): ?>
             <div class="message message-success"><?= htmlspecialchars($_SESSION['success']) ?></div>
@@ -53,118 +73,134 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <?php if (!empty($emailTags) || isset($selectedEmailTag)): ?>
-        <div class="category-filter-section">
-            <div class="category-filter">
-                <a href="?action=mail"
-                   class="category-btn <?= !$selectedEmailTag ? 'active' : '' ?>"
-                   <?= !$selectedEmailTag ? 'style="background-color: #FFDBBB;"' : '' ?>>
-                    All
-                </a>
-                <?php foreach ($emailTags as $tag): ?>
-                    <a href="?action=mail&email_tag=<?= urlencode($tag) ?>"
-                       class="category-btn <?= $selectedEmailTag === $tag ? 'active' : '' ?>"
-                       <?= $selectedEmailTag === $tag ? 'style="background-color: #FFDBBB;"' : '' ?>>
-                        <?= htmlspecialchars($tag) ?>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+        <!-- Mail sub-view switch: Items | Subscriptions -->
+        <div class="mail-mode" role="tablist" aria-label="Mail views">
+            <a href="?action=mail" class="<?= ($mailView ?? 'items') !== 'subscriptions' ? 'active' : '' ?>" role="tab">
+                Items
+            </a>
+            <a href="?action=mail&amp;view=subscriptions" class="<?= ($mailView ?? 'items') === 'subscriptions' ? 'active' : '' ?>" role="tab">
+                Subscriptions <span class="count">(<?= (int)($subsCounts['active'] ?? 0) ?>)</span>
+            </a>
         </div>
-        <?php endif; ?>
 
-        <p style="margin: 0 0 0.75rem 0;">
-            <a href="<?= getBasePath() ?>/index.php?action=mail_subscriptions" class="about-link">Manage subscriptions</a>
-            <span style="opacity: 0.7;"> — categories, pause, unsubscribe</span>
-        </p>
+        <?php if (($mailView ?? 'items') === 'subscriptions'): ?>
 
-        <div class="latest-entries-section">
-            <div class="section-title-row">
-                <h2 class="section-title">
-                    <?php if (!empty($lastMailRefreshDate)): ?>
-                        Refreshed: <?= htmlspecialchars($lastMailRefreshDate) ?>
-                    <?php else: ?>
-                        Refreshed: Never
-                    <?php endif; ?>
-                </h2>
-                <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
-            </div>
+            <?php include __DIR__ . '/partials/mail_subscriptions_panel.php'; ?>
 
-            <?php if (!empty($mailTableError)): ?>
-                <div class="message message-error">
-                    <strong>Error:</strong> <?= htmlspecialchars($mailTableError) ?>
+        <?php else: ?>
+
+            <?php if (!empty($emailTags) || isset($selectedEmailTag)): ?>
+            <div class="category-filter-section">
+                <div class="category-filter">
+                    <a href="?action=mail"
+                       class="category-btn <?= !$selectedEmailTag ? 'active' : '' ?>"
+                       <?= !$selectedEmailTag ? 'style="background-color: #FFDBBB;"' : '' ?>>
+                        All
+                    </a>
+                    <?php foreach ($emailTags as $tag): ?>
+                        <a href="?action=mail&email_tag=<?= urlencode($tag) ?>"
+                           class="category-btn <?= $selectedEmailTag === $tag ? 'active' : '' ?>"
+                           <?= $selectedEmailTag === $tag ? 'style="background-color: #FFDBBB;"' : '' ?>>
+                            <?= htmlspecialchars($tag) ?>
+                        </a>
+                    <?php endforeach; ?>
                 </div>
+            </div>
             <?php endif; ?>
 
-            <?php if (!empty($emails)): ?>
-                <?php foreach ($emails as $email): ?>
-                    <?php
-                        $dateValue = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? $email['date_sent'] ?? null;
-                        $createdAt = $dateValue ? date('d.m.Y H:i', strtotime($dateValue)) : '';
-                        
-                        $fromName = trim((string)($email['from_name'] ?? ''));
-                        $fromEmail = trim((string)($email['from_email'] ?? ''));
-                        $fromDisplay = $fromName !== '' ? $fromName : ($fromEmail !== '' ? $fromEmail : 'Unknown sender');
+            <div class="latest-entries-section">
+                <div class="section-title-row">
+                    <h2 class="section-title">
+                        <?php if (!empty($lastMailRefreshDate)): ?>
+                            Refreshed: <?= htmlspecialchars($lastMailRefreshDate) ?>
+                        <?php else: ?>
+                            Refreshed: Never
+                        <?php endif; ?>
+                    </h2>
+                    <button class="btn btn-secondary entry-expand-all-btn">expand all &#9660;</button>
+                </div>
 
-                        $subject = trim((string)($email['subject'] ?? ''));
-                        if ($subject === '') $subject = '(No subject)';
+                <?php if (!empty($mailTableError)): ?>
+                    <div class="message message-error">
+                        <strong>Error:</strong> <?= htmlspecialchars($mailTableError) ?>
+                    </div>
+                <?php endif; ?>
 
-                        $body = (string)($email['text_body'] ?? '');
-                        if ($body === '') {
-                            $body = strip_tags((string)($email['html_body'] ?? ''));
-                        }
-                        $body = trim(preg_replace('/\s+/', ' ', $body ?? ''));
-                        $bodyPreview = mb_substr($body, 0, 400);
-                        if (mb_strlen($body) > 400) $bodyPreview .= '...';
-                        $hasMore = mb_strlen($body) > 400;
-                    ?>
+                <?php if (!empty($emails)): ?>
+                    <?php foreach ($emails as $email): ?>
+                        <?php
+                            $dateValue = $email['date_received'] ?? $email['date_utc'] ?? $email['created_at'] ?? $email['date_sent'] ?? null;
+                            $createdAt = $dateValue ? date('d.m.Y H:i', strtotime($dateValue)) : '';
 
-                    <div class="entry-card">
-                        <div class="entry-header">
-                            <?php if (!empty($email['sender_tag']) && $email['sender_tag'] !== 'unclassified'): ?>
-                                <span class="entry-tag" style="background-color: #FFDBBB;"><?= htmlspecialchars($email['sender_tag']) ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <h3 class="entry-title"><?= htmlspecialchars($subject) ?></h3>
-                        <div class="entry-content entry-preview"><?= htmlspecialchars($bodyPreview) ?></div>
-                        <div class="entry-full-content" style="display:none"><?= htmlspecialchars($body) ?></div>
-                        <div class="entry-actions">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <?php if ($hasMore): ?>
-                                    <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
-                                <?php endif; ?>
-                                <?php if (isset($email['id'])): ?>
-                                    <a href="?action=delete_email&id=<?= (int)$email['id'] ?>&confirm=yes" 
-                                       class="btn btn-danger" 
-                                       onclick="return confirm('Are you sure you want to delete this email? This action cannot be undone.');"
-                                       >
-                                        Delete Email
-                                    </a>
+                            $fromName = trim((string)($email['from_name'] ?? ''));
+                            $fromEmail = trim((string)($email['from_email'] ?? ''));
+                            $fromDisplay = $fromName !== '' ? $fromName : ($fromEmail !== '' ? $fromEmail : 'Unknown sender');
+
+                            $subject = trim((string)($email['subject'] ?? ''));
+                            if ($subject === '') $subject = '(No subject)';
+
+                            $body = (string)($email['text_body'] ?? '');
+                            if ($body === '') {
+                                $body = strip_tags((string)($email['html_body'] ?? ''));
+                            }
+                            $body = trim(preg_replace('/\s+/', ' ', $body ?? ''));
+                            $bodyPreview = mb_substr($body, 0, 400);
+                            if (mb_strlen($body) > 400) $bodyPreview .= '...';
+                            $hasMore = mb_strlen($body) > 400;
+                        ?>
+
+                        <div class="entry-card">
+                            <div class="entry-header">
+                                <?php if (!empty($email['sender_tag']) && $email['sender_tag'] !== 'unclassified'): ?>
+                                    <span class="entry-tag" style="background-color: #FFDBBB;"><?= htmlspecialchars($email['sender_tag']) ?></span>
                                 <?php endif; ?>
                             </div>
-                            <?php if ($createdAt): ?>
-                                <span class="entry-date"><?= htmlspecialchars($createdAt) ?></span>
-                            <?php endif; ?>
+                            <h3 class="entry-title"><?= htmlspecialchars($subject) ?></h3>
+                            <div class="entry-content entry-preview"><?= htmlspecialchars($bodyPreview) ?></div>
+                            <div class="entry-full-content" style="display:none"><?= htmlspecialchars($body) ?></div>
+                            <div class="entry-actions">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <?php if ($hasMore): ?>
+                                        <button class="btn btn-secondary entry-expand-btn">expand &#9660;</button>
+                                    <?php endif; ?>
+                                    <?php if (isset($email['id'])): ?>
+                                        <a href="?action=delete_email&id=<?= (int)$email['id'] ?>&confirm=yes"
+                                           class="btn btn-danger"
+                                           onclick="return confirm('Are you sure you want to delete this email? This action cannot be undone.');"
+                                           >
+                                            Delete Email
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($createdAt): ?>
+                                    <span class="entry-date"><?= htmlspecialchars($createdAt) ?></span>
+                                <?php endif; ?>
+                            </div>
                         </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <p>No emails yet.</p>
                     </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <div class="empty-state">
-                    <p>No emails yet.</p>
-                </div>
-            <?php endif; ?>
-        </div>
+                <?php endif; ?>
+            </div>
+
+        <?php endif; ?>
     </div>
-    
+
     <script>
     (function() {
         var menuBtn = document.getElementById('menuToggle');
         var navDrawer = document.getElementById('navDrawer');
-        menuBtn.addEventListener('click', function() {
-            navDrawer.classList.toggle('open');
-            menuBtn.classList.toggle('active');
-        });
+        if (menuBtn && navDrawer) {
+            menuBtn.addEventListener('click', function() {
+                navDrawer.classList.toggle('open');
+                menuBtn.classList.toggle('active');
+            });
+        }
     })();
     </script>
+    <?php if (($mailView ?? 'items') !== 'subscriptions'): ?>
     <script>
     (function() {
         function collapseEntry(card, btn) {
@@ -185,7 +221,6 @@
             if (btn) btn.textContent = 'collapse \u25B2';
         }
 
-        // Per-entry toggle
         document.addEventListener('click', function(e) {
             var btn = e.target.closest('.entry-expand-btn');
             if (!btn) return;
@@ -199,7 +234,6 @@
             }
         });
 
-        // Global toggle
         document.addEventListener('click', function(e) {
             var btn = e.target.closest('.entry-expand-all-btn');
             if (!btn) return;
@@ -217,5 +251,6 @@
         });
     })();
     </script>
+    <?php endif; ?>
 </body>
 </html>

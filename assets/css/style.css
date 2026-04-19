@@ -155,7 +155,7 @@ body {
 }
 
 .nav-link.active {
-    background-color: #000000;
+    background-color: var(--seismo-accent, #000000);
     color: #ffffff;
 }
 

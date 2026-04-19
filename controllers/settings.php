@@ -220,6 +220,14 @@ function handleSettingsPage($pdo) {
         header('X-Robots-Tag: noindex, nofollow');
     }
 
+    // Satellites registry (mothership-only; Settings → Satellites tab uses these).
+    $satellitesRegistry = isSatellite() ? [] : getSatellitesRegistry($pdo);
+    $satellitesMothershipUrl = detectMothershipUrl();
+    $satellitesMothershipDb = detectMothershipDbName($pdo);
+    $satellitesRemoteRefreshKeyConfigured = (getRemoteRefreshKey() !== '');
+    $satellitesSuggestedRefreshKey = getMagnituConfig($pdo, 'satellites_suggested_refresh_key') ?: '';
+    $satellitesHighlightSlug = isset($_GET['highlight']) ? (string)$_GET['highlight'] : '';
+
     include 'views/settings.php';
 }
 

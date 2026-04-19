@@ -11,15 +11,42 @@
 // ---------------------------------------------------------------------------
 
 function handleMailPage($pdo) {
+    $mailView = (($_GET['view'] ?? '') === 'subscriptions') ? 'subscriptions' : 'items';
+
     $emails = [];
     $mailTableError = null;
     $lastMailRefreshDate = null;
     $showAll = isset($_GET['show_all']) || isset($_SESSION['email_refresh_count']);
     $limit = $showAll ? 500 : 50;
-    
+
     $emailTags = esMailFilterTags($pdo);
-    
+
     $selectedEmailTag = $_GET['email_tag'] ?? null;
+
+    // Counts used by the Items/Subscriptions mode switch in the header.
+    $subsCounts = ['active' => 0, 'removed' => 0];
+    try {
+        $subsT = esSubscriptionsTable();
+        $subsCounts['active']  = (int)$pdo->query("SELECT COUNT(*) FROM $subsT WHERE removed_at IS NULL")->fetchColumn();
+        $subsCounts['removed'] = (int)$pdo->query("SELECT COUNT(*) FROM $subsT WHERE removed_at IS NOT NULL")->fetchColumn();
+    } catch (PDOException $e) {
+        // Table may not exist yet on a fresh install; leave counts at 0.
+    }
+
+    if ($mailView === 'subscriptions') {
+        $subsData = esLoadSubscriptionsPageData($pdo);
+        // Expose each key as a local for the panel partial.
+        $showRemoved      = $subsData['showRemoved'];
+        $selectedCategory = $subsData['selectedCategory'];
+        $categories       = $subsData['categories'];
+        $subscriptions    = $subsData['subscriptions'];
+        $totalActive      = $subsData['totalActive'];
+        $disabledCount    = $subsData['disabledCount'];
+        $removedCount     = $subsData['removedCount'];
+        $lastChangeDate = date('d.m.Y', filemtime(__DIR__ . '/../index.php'));
+        include 'views/mail.php';
+        return;
+    }
     
     $disabledStmt = $pdo->query("SELECT from_email FROM sender_tags WHERE disabled = 1 OR removed_at IS NOT NULL");
     $legacyDisabledEmails = $disabledStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -458,6 +485,9 @@ function handleRenameEmailTag($pdo) {
 // ---------------------------------------------------------------------------
 
 function refreshEmails($pdo) {
+    if (isSatellite()) {
+        return;
+    }
     $isCli = (PHP_SAPI === 'cli');
     try {
         $tableName = getEmailTableName($pdo);

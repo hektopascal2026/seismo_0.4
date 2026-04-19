@@ -172,25 +172,12 @@
                 <span class="top-bar-subtitle">Manage sources and tags</span>
             </div>
             <div class="top-bar-actions">
-                <a href="?action=refresh_all&amp;from=settings" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
+                <?php $refreshFrom = 'settings'; $refreshStyle = 'icon'; include __DIR__ . '/partials/refresh_btn.php'; ?>
                 <button type="button" class="top-bar-btn" id="menuToggle" title="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
             </div>
         </div>
 
-        <nav class="nav-drawer" id="navDrawer">
-            <a href="?action=index" class="nav-link">Feed</a>
-            <a href="?action=magnitu" class="nav-link">Magnitu</a>
-            <a href="?action=feeds" class="nav-link">RSS</a>
-            <a href="?action=calendar" class="nav-link">Calendar</a>
-            <a href="?action=lex" class="nav-link">Lex</a>
-            <a href="?action=jus" class="nav-link">Jus</a>
-            <a href="?action=mail" class="nav-link">Mail</a>
-            <a href="?action=substack" class="nav-link">Substack</a>
-            <a href="?action=scraper" class="nav-link">Scraper</a>
-            <a href="?action=settings" class="nav-link active">Settings</a>
-            <a href="?action=about" class="nav-link">About</a>
-            <a href="?action=beta" class="nav-link">Beta</a>
-        </nav>
+        <?php $navActive = 'settings'; include __DIR__ . '/partials/nav.php'; ?>
 
         <?php if (isset($_SESSION['success'])): ?>
             <div class="message message-success"><?= nl2br(htmlspecialchars($_SESSION['success'])) ?></div>
@@ -209,6 +196,9 @@
             <a href="?action=settings&amp;tab=calendar<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'calendar' ? ' background-color: #d4edda;' : '' ?>">Calendar</a>
             <a href="?action=settings&amp;tab=lex<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'lex' ? ' background-color: #f5f562;' : '' ?>">Lex</a>
             <a href="?action=settings&amp;tab=magnitu<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'magnitu' ? ' background-color: #FF6B6B;' : '' ?>">Magnitu</a>
+            <?php if (!isSatellite()): ?>
+            <a href="?action=settings&amp;tab=satellites<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'satellites' ? ' background-color: #C5B4D1;' : '' ?>">Satellites</a>
+            <?php endif; ?>
             <a href="?action=settings&amp;tab=feed_diagnostics<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'feed_diagnostics' ? ' background-color: #e8e0f5;' : '' ?>">Feed diagnostics</a>
             <a href="?action=settings&amp;tab=styleguide<?= $settingsKeyQuery ?>" class="tag-filter-pill" style="text-decoration: none;<?= $settingsTab === 'styleguide' ? ' background-color: #f5f5f5;' : '' ?>">Styleguide</a>
         </div>
@@ -248,6 +238,10 @@
 
         <?php if ($settingsTab === 'feed_diagnostics'): ?>
         <?php include __DIR__ . '/settings_tab_feed_diagnostics.php'; ?>
+        <?php endif; ?>
+
+        <?php if ($settingsTab === 'satellites' && !isSatellite()): ?>
+        <?php include __DIR__ . '/partials/settings_tab_satellites.php'; ?>
         <?php endif; ?>
 
         <?php if ($settingsTab === 'magnitu'): ?>
@@ -672,7 +666,7 @@
                     </div>
                 </form>
                 <p style="margin-top: 12px; font-size: 14px;">
-                    <a href="<?= getBasePath() ?>/index.php?action=mail_subscriptions">Manage subscriptions</a>
+                    <a href="<?= getBasePath() ?>/index.php?action=mail&amp;view=subscriptions">Manage subscriptions</a>
                     <span style="opacity: 0.75;"> — newsletter sources, categories, pause, List-Unsubscribe</span>
                 </p>
             </div>

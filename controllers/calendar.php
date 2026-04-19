@@ -153,6 +153,9 @@ function handleRefreshCalendar($pdo) {
  * focusing on items likely to appear in upcoming sessions.
  */
 function refreshParliamentChEvents($pdo) {
+    if (isSatellite()) {
+        return 0;
+    }
     $cfg = getCalendarConfig()['parliament_ch'] ?? [];
     $apiBase = rtrim($cfg['api_base'] ?? 'https://ws.parlament.ch/odata.svc', '/');
     $lang = $cfg['language'] ?? 'DE';

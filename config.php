@@ -100,6 +100,70 @@ function entryDbSchemaExpr(): string {
 }
 
 /**
+ * Satellite-mode runtime flags. All default to off/empty on the mothership so existing
+ * behaviour is unchanged. Set these in a satellite's config.local.php (see
+ * config.local.php.example) to turn a lightweight Seismo instance on.
+ *
+ * SEISMO_SATELLITE_MODE       — master switch; hides scraper/admin nav, 404s fetcher
+ *                               actions, and makes the dashboard default to Magnitu-only
+ *                               entries (investigation_lead + important).
+ * SEISMO_BRAND_ACCENT         — hex colour (e.g. '#4a90e2') exposed as the CSS var
+ *                               `--accent` so per-satellite branding is possible.
+ * SEISMO_BRAND_TITLE          — string that replaces "Seismo" in the top-bar title.
+ * SEISMO_MOTHERSHIP_URL       — absolute URL of the mothership; the satellite's refresh
+ *                               button calls `<url>/?action=refresh_all_remote`.
+ * SEISMO_REMOTE_REFRESH_KEY   — shared secret.
+ *   On the SATELLITE: sent as `?key=` when the refresh button fires.
+ *   On the MOTHERSHIP: the expected value for refresh_all_remote (leave unset to
+ *   disable the endpoint entirely).
+ */
+if (!defined('SEISMO_SATELLITE_MODE')) {
+    define('SEISMO_SATELLITE_MODE', false);
+}
+if (!defined('SEISMO_BRAND_ACCENT')) {
+    define('SEISMO_BRAND_ACCENT', '');
+}
+if (!defined('SEISMO_BRAND_TITLE')) {
+    define('SEISMO_BRAND_TITLE', '');
+}
+if (!defined('SEISMO_MOTHERSHIP_URL')) {
+    define('SEISMO_MOTHERSHIP_URL', '');
+}
+if (!defined('SEISMO_REMOTE_REFRESH_KEY')) {
+    define('SEISMO_REMOTE_REFRESH_KEY', '');
+}
+
+/**
+ * True when this instance is a lightweight satellite (set via SEISMO_SATELLITE_MODE in
+ * config.local.php). Guards nav, router actions, fetchers, and cron.
+ */
+function isSatellite(): bool {
+    return defined('SEISMO_SATELLITE_MODE') && SEISMO_SATELLITE_MODE === true;
+}
+
+/**
+ * Title shown in the top bar. Defaults to "Seismo"; satellites can override via
+ * SEISMO_BRAND_TITLE to e.g. "Seismo Digital".
+ */
+function seismoBrandTitle(): string {
+    if (defined('SEISMO_BRAND_TITLE') && SEISMO_BRAND_TITLE !== '') {
+        return (string)SEISMO_BRAND_TITLE;
+    }
+    return 'Seismo';
+}
+
+/**
+ * Optional per-satellite accent colour (hex). Returns null when not set.
+ * Rendered as an inline `:root{--accent:…}` override by views/partials/nav.php.
+ */
+function seismoBrandAccent(): ?string {
+    if (defined('SEISMO_BRAND_ACCENT') && SEISMO_BRAND_ACCENT !== '') {
+        return (string)SEISMO_BRAND_ACCENT;
+    }
+    return null;
+}
+
+/**
  * Current schema version — bump this when DDL changes are made
  */
 define('SCHEMA_VERSION', 17);

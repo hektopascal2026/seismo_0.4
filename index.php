@@ -16,6 +16,7 @@ require_once 'controllers/dashboard.php';
 require_once 'controllers/magnitu.php';
 require_once 'controllers/settings.php';
 require_once 'controllers/calendar.php';
+require_once 'controllers/satellites.php';
 
 // Initialize database tables
 initDatabase();
@@ -23,12 +24,38 @@ initDatabase();
 $action = $_GET['action'] ?? 'index';
 $pdo = getDbConnection();
 
+// ── Satellite mode action guard ───────────────────────────────────
+// Satellites are read-only consumers of mothership entries; they have no
+// scrapers, no admin pages, no fetchers. Any action not in this explicit
+// allow-list is 404ed. Keep this list minimal — when adding satellite-visible
+// features, add their action here.
+if (isSatellite()) {
+    $satelliteAllowedActions = [
+        'index', 'magnitu', 'settings', 'about', 'styleguide',
+        'ai_view', 'ai_view_unified',
+        'toggle_favourite',
+        'refresh_all', 'refresh_all_remote',
+        'api_items', 'api_tags', 'api_all_tags', 'api_feeds',
+        'api_substack_tags', 'api_email_tags', 'api_stats',
+        'magnitu_entries', 'magnitu_scores', 'magnitu_recipe',
+        'magnitu_status', 'magnitu_labels',
+        'save_magnitu_config', 'regenerate_magnitu_key', 'clear_magnitu_scores',
+    ];
+    if (!in_array($action, $satelliteAllowedActions, true)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Not found (satellite mode): action '" . preg_replace('/[^a-z0-9_]/i', '', (string)$action) . "' is not available on this satellite.\n";
+        exit;
+    }
+}
+
 // Release session lock early for read-only pages (prevents blocking concurrent requests).
 $readOnlyActions = ['index', 'feeds', 'view_feed', 'lex', 'jus', 'mail', 'mail_subscriptions', 'substack', 'magnitu', 'calendar', 'settings', 'about', 'beta', 'styleguide',
                     'api_tags', 'api_substack_tags', 'api_email_tags', 'api_all_tags', 'api_items', 'api_stats',
                     'download_rss_config', 'download_substack_config', 'download_lex_config',
                     'download_calendar_config',
-                    'magnitu_entries', 'magnitu_status', 'unsubscribe_email_subscription'];
+                    'magnitu_entries', 'magnitu_status', 'unsubscribe_email_subscription',
+                    'refresh_all_remote'];
 if (in_array($action, $readOnlyActions)) {
     $flashSuccess = $_SESSION['success'] ?? null;
     $flashError   = $_SESSION['error']   ?? null;
@@ -394,6 +421,27 @@ switch ($action) {
     // ── Global Refresh (cross-cutting) ───────────────────────────
     case 'refresh_all':
         handleRefreshAll($pdo);
+        break;
+
+    case 'refresh_all_remote':
+        handleRefreshAllRemote($pdo);
+        break;
+
+    // ── Satellites registry (mothership-only) ────────────────────
+    case 'satellite_add':
+        handleSatelliteAdd($pdo);
+        break;
+    case 'satellite_remove':
+        handleSatelliteRemove($pdo);
+        break;
+    case 'satellite_rotate_key':
+        handleSatelliteRotateKey($pdo);
+        break;
+    case 'satellite_rotate_refresh_key':
+        handleSatelliteRotateRefreshKey($pdo);
+        break;
+    case 'satellite_download_json':
+        handleSatelliteDownloadJson($pdo);
         break;
 
     default:

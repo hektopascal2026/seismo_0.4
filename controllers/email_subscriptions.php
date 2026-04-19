@@ -503,9 +503,19 @@ function esAttachSubscription(PDO $pdo, array &$emails): void {
 // HTTP handlers
 // ---------------------------------------------------------------------------
 
-function handleEmailSubscriptionsPage(PDO $pdo) {
+/**
+ * Load all data needed to render the Mail subscriptions panel.
+ * Reads $_GET['show_removed'] and $_GET['category'] (same contract as before).
+ * Returned as an associative array so both the Mail page and any legacy
+ * standalone renderer can use it.
+ *
+ * @return array{showRemoved:bool,selectedCategory:?string,categories:array,subscriptions:array,totalActive:int,disabledCount:int,removedCount:int}
+ */
+function esLoadSubscriptionsPageData(PDO $pdo): array {
     $showRemoved = !empty($_GET['show_removed']);
     $selectedCategory = isset($_GET['category']) ? trim((string)$_GET['category']) : null;
+    if ($selectedCategory === '') { $selectedCategory = null; }
+
     $t = esSubscriptionsTable();
     $stmt = $pdo->query("SELECT DISTINCT category FROM $t WHERE category IS NOT NULL AND category != '' AND removed_at IS NULL ORDER BY category");
     $categories = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
@@ -517,25 +527,45 @@ function handleEmailSubscriptionsPage(PDO $pdo) {
         $params[] = $selectedCategory;
     }
     $sql = "SELECT * FROM $t WHERE $where ORDER BY last_seen_at DESC, display_name ASC";
-    $st = $params ? $pdo->prepare($sql) : null;
-    if ($st) {
+    if ($params) {
+        $st = $pdo->prepare($sql);
         $st->execute($params);
         $subscriptions = $st->fetchAll(PDO::FETCH_ASSOC);
     } else {
         $subscriptions = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    $totalStmt = $pdo->query("SELECT COUNT(*) FROM $t WHERE removed_at IS NULL");
-    $totalActive = (int)$totalStmt->fetchColumn();
-    $disStmt = $pdo->query("SELECT COUNT(*) FROM $t WHERE removed_at IS NULL AND disabled = 1");
-    $disabledCount = (int)$disStmt->fetchColumn();
+    $totalActive   = (int)$pdo->query("SELECT COUNT(*) FROM $t WHERE removed_at IS NULL")->fetchColumn();
+    $disabledCount = (int)$pdo->query("SELECT COUNT(*) FROM $t WHERE removed_at IS NULL AND disabled = 1")->fetchColumn();
+    $removedCount  = (int)$pdo->query("SELECT COUNT(*) FROM $t WHERE removed_at IS NOT NULL")->fetchColumn();
 
-    include __DIR__ . '/../views/mail_subscriptions.php';
+    return [
+        'showRemoved'      => $showRemoved,
+        'selectedCategory' => $selectedCategory,
+        'categories'       => $categories,
+        'subscriptions'    => $subscriptions,
+        'totalActive'      => $totalActive,
+        'disabledCount'    => $disabledCount,
+        'removedCount'     => $removedCount,
+    ];
+}
+
+/**
+ * Legacy URL handler. Subscriptions management now lives on the Mail tab
+ * under ?action=mail&view=subscriptions. Preserve query params so bookmarks
+ * and any still-in-flight links keep working.
+ */
+function handleEmailSubscriptionsPage(PDO $pdo) {
+    $q = ['action' => 'mail', 'view' => 'subscriptions'];
+    if (!empty($_GET['show_removed'])) { $q['show_removed'] = 1; }
+    if (!empty($_GET['category']))     { $q['category']     = (string)$_GET['category']; }
+    header('Location: ' . getBasePath() . '/index.php?' . http_build_query($q));
+    exit;
 }
 
 function handleAddEmailSubscription(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $matchType = ($_POST['match_type'] ?? '') === 'email' ? 'email' : 'domain';
@@ -544,19 +574,19 @@ function handleAddEmailSubscription(PDO $pdo) {
     $category = trim($_POST['category'] ?? '') ?: 'unsortiert';
     if ($matchValue === '') {
         $_SESSION['error'] = 'Match value is required.';
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     if ($matchType === 'email' && strpos($matchValue, '@') === false) {
         $_SESSION['error'] = 'Enter a full email address for a specific sender.';
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     if ($matchType === 'domain') {
         $matchValue = preg_replace('#^@#', '', $matchValue);
         if (strpos($matchValue, '@') !== false) {
             $_SESSION['error'] = 'Use a domain only (e.g. example.com), not an email.';
-            header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+            header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
             exit;
         }
     }
@@ -573,20 +603,20 @@ function handleAddEmailSubscription(PDO $pdo) {
     } catch (PDOException $e) {
         $_SESSION['error'] = 'Could not save: ' . $e->getMessage();
     }
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
     exit;
 }
 
 function handleEditEmailSubscription(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $id = (int)($_POST['id'] ?? 0);
     $displayName = trim($_POST['display_name'] ?? '');
     $category = trim($_POST['category'] ?? '');
     if ($id <= 0) {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $t = esSubscriptionsTable();
@@ -596,18 +626,18 @@ function handleEditEmailSubscription(PDO $pdo) {
         $id,
     ]);
     $_SESSION['success'] = 'Subscription updated.';
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
     exit;
 }
 
 function handleToggleEmailSubscription(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $id = (int)($_POST['id'] ?? 0);
     if ($id <= 0) {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $t = esSubscriptionsTable();
@@ -615,78 +645,78 @@ function handleToggleEmailSubscription(PDO $pdo) {
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $new = (int)$row['disabled'] ? 0 : 1;
     $pdo->prepare("UPDATE $t SET disabled = ? WHERE id = ?")->execute([$new, $id]);
     $_SESSION['success'] = $new ? 'Subscription paused.' : 'Subscription resumed.';
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
     exit;
 }
 
 function handleDeleteEmailSubscription(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $id = (int)($_POST['id'] ?? 0);
     if ($id <= 0) {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $t = esSubscriptionsTable();
     $pdo->prepare("UPDATE $t SET removed_at = NOW(), disabled = 1 WHERE id = ?")->execute([$id]);
     $_SESSION['success'] = 'Subscription removed. Future mail from this source will be hidden.';
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
     exit;
 }
 
 function handleRestoreEmailSubscription(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $id = (int)($_POST['id'] ?? 0);
     if ($id <= 0) {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $t = esSubscriptionsTable();
     $pdo->prepare("UPDATE $t SET removed_at = NULL, disabled = 0 WHERE id = ?")->execute([$id]);
     $_SESSION['success'] = 'Subscription restored.';
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions&show_removed=1');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions&show_removed=1');
     exit;
 }
 
 function handleRenameEmailSubscriptionCategory(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $old = trim($_POST['old_category'] ?? '');
     $new = trim($_POST['new_category'] ?? '');
     if ($old === '' || $new === '' || $old === $new) {
         $_SESSION['error'] = 'Invalid rename.';
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $t = esSubscriptionsTable();
     $pdo->prepare("UPDATE $t SET category = ? WHERE category = ? AND removed_at IS NULL")->execute([$new, $old]);
     $_SESSION['success'] = 'Category renamed.';
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
     exit;
 }
 
 function handleRebuildEmailSubscriptions(PDO $pdo) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     setMagnituConfig($pdo, 'email_subs_last_synced_id', '0');
     $n = esSyncNewEmails($pdo, 5000);
     $_SESSION['success'] = "Full sync processed {$n} new row(s). Stats rebuilt.";
-    header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+    header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
     exit;
 }
 
@@ -714,7 +744,7 @@ function handleUnsubscribeEmailSubscription(PDO $pdo) {
     $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
     if ($id <= 0) {
         $_SESSION['error'] = 'Invalid subscription.';
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
     $t = esSubscriptionsTable();
@@ -723,7 +753,7 @@ function handleUnsubscribeEmailSubscription(PDO $pdo) {
     $sub = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$sub || !empty($sub['removed_at'])) {
         $_SESSION['error'] = 'Subscription not found.';
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
 
@@ -733,7 +763,7 @@ function handleUnsubscribeEmailSubscription(PDO $pdo) {
         $url = $sub['unsubscribe_url'];
         if (!esUnsubscribeUrlAllowedForSubscription($sub, $url)) {
             $_SESSION['error'] = 'Unsubscribe URL is not on the expected domain; open it manually.';
-            header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+            header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
             exit;
         }
         $ch = curl_init($url);
@@ -755,14 +785,14 @@ function handleUnsubscribeEmailSubscription(PDO $pdo) {
         } else {
             $_SESSION['error'] = 'Provider returned HTTP ' . $code . '. Use the link below to unsubscribe manually.';
         }
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['mark_unsubscribed'] ?? '') === '1') {
         $pdo->prepare("UPDATE $t SET disabled = 1 WHERE id = ?")->execute([$id]);
         $_SESSION['success'] = 'Marked as unsubscribed (paused in Seismo).';
-        header('Location: ' . getBasePath() . '/index.php?action=mail_subscriptions');
+        header('Location: ' . getBasePath() . '/index.php?action=mail&view=subscriptions');
         exit;
     }
 

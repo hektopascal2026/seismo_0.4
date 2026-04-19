@@ -11,11 +11,39 @@ define('DB_PASS', 'CHANGE_ME');
 // define('FEED_DIAGNOSTIC_KEY', 'generate-a-long-random-string');
 
 // ---------------------------------------------------------------------------
+// Remote refresh endpoint (mothership only — leave unset on satellites)
+// ---------------------------------------------------------------------------
+// Shared secret that authorises `?action=refresh_all_remote`. When set, satellite
+// instances can trigger the same refresh pipeline as the web UI "Refresh All"
+// button by calling `<mothership>/?action=refresh_all_remote&key=<value>`.
+// Leave unset/empty to disable the endpoint (it will 404).
+// Generate with: `php -r "echo bin2hex(random_bytes(32));"`
+// define('SEISMO_REMOTE_REFRESH_KEY', 'generate-a-long-random-string');
+
+// ---------------------------------------------------------------------------
 // Satellite mode (multi-profile branching — leave commented out on mothership)
 // ---------------------------------------------------------------------------
+// A satellite is a lightweight Seismo instance that reads entries from the
+// mothership and only shows Magnitu-scored entries. Generate one with the
+// seismo-generator tool instead of hand-editing these values.
+//
 // Set this to the mothership's database name (same MySQL host/user) so this
 // instance reads entries (feed_items, feeds, lex_items, emails) from there
 // while keeping its own scoring tables (entry_scores, magnitu_config, etc.).
 // The DB_USER must have SELECT on the mothership DB.
 // Generate a fresh API key for this instance — do NOT reuse the mothership key.
 // define('SEISMO_MOTHERSHIP_DB', 'seismo_main');
+
+// Master switch. When true: scraper/admin nav links are hidden, fetcher actions
+// 404, cron refuses to run, and the dashboard defaults to investigation_lead +
+// important labels only.
+// define('SEISMO_SATELLITE_MODE', true);
+
+// Where the satellite's "Refresh" button calls. Must match the mothership URL
+// and the mothership must have SEISMO_REMOTE_REFRESH_KEY set to the same value.
+// define('SEISMO_MOTHERSHIP_URL', 'https://example.com/seismo');
+// define('SEISMO_REMOTE_REFRESH_KEY', 'same-value-as-on-mothership');
+
+// Optional branding (per-satellite look).
+// define('SEISMO_BRAND_TITLE', 'Seismo Digital');
+// define('SEISMO_BRAND_ACCENT', '#4a90e2');

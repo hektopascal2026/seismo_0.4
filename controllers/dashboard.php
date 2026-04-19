@@ -554,6 +554,23 @@ function buildDashboardIndexData(PDO $pdo, ?int $timelineItemCap = null): array 
 }
 
 function handleDashboard($pdo) {
+    if (isSatellite()) {
+        // Satellite timelines default to Magnitu's high-signal labels only
+        // (investigation_lead + important) — the entire purpose of a satellite
+        // is to surface what its topic profile considers relevant.
+        $data = buildDashboardIndexData($pdo, 800);
+        $data['allItems'] = array_values(array_filter($data['allItems'], function ($row) {
+            $sc = $row['score'] ?? null;
+            if (!is_array($sc)) {
+                return false;
+            }
+            $label = $sc['predicted_label'] ?? '';
+            return $label === 'investigation_lead' || $label === 'important';
+        }));
+        extract($data, EXTR_SKIP);
+        include 'views/index.php';
+        return;
+    }
     extract(buildDashboardIndexData($pdo), EXTR_SKIP);
     include 'views/index.php';
 }
@@ -605,32 +622,29 @@ function resetSourceFailure($pdo, $key) {
     setMagnituConfig($pdo, $key, '0');
 }
 
-function handleRefreshAll($pdo) {
-    set_time_limit(300);
-
-    $lastRefreshAt = getMagnituConfig($pdo, 'last_refresh_at');
-    if ($lastRefreshAt && (time() - (int)$lastRefreshAt) < 60) {
-        $remaining = 60 - (time() - (int)$lastRefreshAt);
-        $_SESSION['error'] = "Please wait {$remaining}s before refreshing again.";
-        $currentAction = $_GET['from'] ?? 'index';
-        header('Location: ?action=' . $currentAction);
-        exit;
-    }
-    setMagnituConfig($pdo, 'last_refresh_at', (string)time());
-
+/**
+ * Runs the full refresh pipeline (feeds, emails, lex/jus, calendar, Magnitu rescore)
+ * without any session/redirect side effects. Shared by the interactive
+ * handleRefreshAll (web UI) and handleRefreshAllRemote (satellite → mothership).
+ *
+ * @return array{0: string[], 1: bool} [messages, hasErrors]
+ */
+function refreshAllSources(PDO $pdo): array {
     $results = [];
+    $hasErrors = false;
 
     try {
         [$refreshed, $skipped, $feedFailed, $failedNames] = refreshAllFeeds($pdo);
         $msg = "{$refreshed} feeds refreshed";
         if ($skipped > 0) $msg .= " ({$skipped} tripped)";
-        if ($feedFailed > 0) $msg .= " ({$feedFailed} failed)";
+        if ($feedFailed > 0) { $msg .= " ({$feedFailed} failed)"; $hasErrors = true; }
         $results[] = $msg;
         if (!empty($failedNames)) {
             $results[] = 'Failed: ' . implode(', ', $failedNames);
         }
     } catch (\Exception $e) {
         $results[] = 'Feeds: ' . $e->getMessage();
+        $hasErrors = true;
     }
 
     try {
@@ -638,6 +652,7 @@ function handleRefreshAll($pdo) {
         $results[] = 'Emails refreshed';
     } catch (\Exception $e) {
         $results[] = 'Emails: ' . $e->getMessage();
+        $hasErrors = true;
     }
 
     $lexCfg = getLexConfig();
@@ -667,6 +682,7 @@ function handleRefreshAll($pdo) {
         } catch (\Exception $e) {
             recordSourceFailure($pdo, $failKey);
             $results[] = $src['emoji'] . ' ' . $src['label'] . ': ' . $e->getMessage();
+            $hasErrors = true;
         }
     }
 
@@ -684,6 +700,7 @@ function handleRefreshAll($pdo) {
             } catch (\Exception $e) {
                 recordSourceFailure($pdo, $failKey);
                 $results[] = 'Calendar: ' . $e->getMessage();
+                $hasErrors = true;
             }
         }
     }
@@ -699,7 +716,26 @@ function handleRefreshAll($pdo) {
         }
     } catch (\Exception $e) {
         $results[] = 'Scoring: ' . $e->getMessage();
+        $hasErrors = true;
     }
+
+    return [$results, $hasErrors];
+}
+
+function handleRefreshAll($pdo) {
+    set_time_limit(300);
+
+    $lastRefreshAt = getMagnituConfig($pdo, 'last_refresh_at');
+    if ($lastRefreshAt && (time() - (int)$lastRefreshAt) < 60) {
+        $remaining = 60 - (time() - (int)$lastRefreshAt);
+        $_SESSION['error'] = "Please wait {$remaining}s before refreshing again.";
+        $currentAction = $_GET['from'] ?? 'index';
+        header('Location: ?action=' . $currentAction);
+        exit;
+    }
+    setMagnituConfig($pdo, 'last_refresh_at', (string)time());
+
+    [$results, ] = refreshAllSources($pdo);
 
     $_SESSION['success'] = implode(' · ', $results);
     $currentAction = $_GET['from'] ?? 'index';
@@ -709,6 +745,66 @@ function handleRefreshAll($pdo) {
     }
     header('Location: ' . $redirectUrl);
     exit;
+}
+
+/**
+ * Satellite-callable refresh endpoint. Validates a shared secret via
+ * `?key=<SEISMO_REMOTE_REFRESH_KEY>`; on a mothership where that constant is
+ * unset/empty, the endpoint returns 404 (not advertised).
+ *
+ * Returns JSON {ok, messages[], elapsed_ms}. Does not use session storage so
+ * it's safe for cross-origin calls from a satellite's public page.
+ */
+function handleRefreshAllRemote($pdo) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $expected = defined('SEISMO_REMOTE_REFRESH_KEY') ? (string)SEISMO_REMOTE_REFRESH_KEY : '';
+    if ($expected === '') {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'remote refresh disabled']);
+        return;
+    }
+
+    // Satellites should never serve this — they have no fetchers.
+    if (isSatellite()) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'this instance is a satellite; call the mothership']);
+        return;
+    }
+
+    $provided = (string)($_GET['key'] ?? $_POST['key'] ?? '');
+    if (!hash_equals($expected, $provided)) {
+        http_response_code(401);
+        echo json_encode(['ok' => false, 'error' => 'invalid key']);
+        return;
+    }
+
+    set_time_limit(300);
+
+    // Soft rate-limit (same 60s window as the interactive button) to prevent
+    // satellites spamming the mothership.
+    $lastRefreshAt = getMagnituConfig($pdo, 'last_refresh_at');
+    if ($lastRefreshAt && (time() - (int)$lastRefreshAt) < 60) {
+        $remaining = 60 - (time() - (int)$lastRefreshAt);
+        http_response_code(429);
+        echo json_encode([
+            'ok' => false,
+            'error' => "rate limited, retry in {$remaining}s",
+            'retry_after' => $remaining,
+        ]);
+        return;
+    }
+    setMagnituConfig($pdo, 'last_refresh_at', (string)time());
+
+    $startedAt = microtime(true);
+    [$results, $hasErrors] = refreshAllSources($pdo);
+    $elapsedMs = (int)round((microtime(true) - $startedAt) * 1000);
+
+    echo json_encode([
+        'ok' => !$hasErrors,
+        'messages' => $results,
+        'elapsed_ms' => $elapsedMs,
+    ]);
 }
 
 function handleDownloadRefreshConfig($pdo) {

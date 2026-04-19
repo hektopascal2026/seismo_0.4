@@ -58,6 +58,11 @@ require $seismoDir . '/controllers/mail.php';
 require $seismoDir . '/controllers/rss.php';
 require $seismoDir . '/controllers/dashboard.php';
 
+if (isSatellite()) {
+    clog('ERROR', 'refresh_cron.php must not run on a satellite instance. The mothership owns scraping; the satellite reads entries via SEISMO_MOTHERSHIP_DB.');
+    exit(2);
+}
+
 initDatabase();
 $pdo = getDbConnection();
 

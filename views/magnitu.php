@@ -23,26 +23,13 @@
                 <span class="top-bar-subtitle">Relevance scoring</span>
             </div>
             <div class="top-bar-actions">
-                <a href="?action=refresh_all&from=magnitu" class="top-bar-btn" title="Refresh all sources"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></a>
+                <?php $refreshFrom = 'magnitu'; $refreshStyle = 'icon'; include __DIR__ . '/partials/refresh_btn.php'; ?>
                 <button type="button" class="top-bar-btn" id="menuToggle" title="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
             </div>
         </div>
 
         <!-- Navigation Drawer -->
-        <nav class="nav-drawer" id="navDrawer">
-            <a href="?action=index" class="nav-link">Feed</a>
-            <a href="?action=magnitu" class="nav-link active">Magnitu</a>
-            <a href="?action=feeds" class="nav-link">RSS</a>
-            <a href="?action=calendar" class="nav-link">Calendar</a>
-            <a href="?action=lex" class="nav-link">Lex</a>
-            <a href="?action=jus" class="nav-link">Jus</a>
-            <a href="?action=mail" class="nav-link">Mail</a>
-            <a href="?action=substack" class="nav-link">Substack</a>
-            <a href="?action=scraper" class="nav-link">Scraper</a>
-            <a href="?action=settings" class="nav-link">Settings</a>
-            <a href="?action=about" class="nav-link">About</a>
-            <a href="?action=beta" class="nav-link">Beta</a>
-        </nav>
+        <?php $navActive = 'magnitu'; include __DIR__ . '/partials/nav.php'; ?>
 
         <?php if (isset($_SESSION['success'])): ?>
             <div class="message message-success"><?= htmlspecialchars($_SESSION['success']) ?></div>

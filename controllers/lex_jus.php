@@ -407,6 +407,9 @@ function handleDownloadLexConfig($pdo) {
  * Queries for recent finalized secondary legislation (regulations, directives, decisions).
  */
 function refreshLexItems($pdo) {
+    if (isSatellite()) {
+        return 0;
+    }
     $config = getLexConfig();
     $euCfg = $config['eu'] ?? [];
     
@@ -493,6 +496,9 @@ function parseCelexType($celex) {
  * Queries for recent Acts (Bundesgesetze, Verordnungen, Bundesbeschlüsse, etc.).
  */
 function refreshFedlexItems($pdo) {
+    if (isSatellite()) {
+        return 0;
+    }
     $config = getLexConfig();
     $chCfg = $config['ch'] ?? [];
     
@@ -607,6 +613,9 @@ function parseFedlexType($typeUri) {
  * Returns the number of new/updated items.
  */
 function refreshRechtBundItems($pdo) {
+    if (isSatellite()) {
+        return 0;
+    }
     $config = getLexConfig();
     $deCfg = $config['de'] ?? [];
     
@@ -875,6 +884,9 @@ function fetchJusBootstrapActions($baseUrl, $spider, $maxFilesToScan = 30) {
  * @return int Number of items upserted
  */
 function refreshJusItems($pdo, $spider = 'CH_BGer') {
+    if (isSatellite()) {
+        return 0;
+    }
     $sourceKey = match($spider) {
         'CH_BGE' => 'ch_bge',
         'CH_BVGer' => 'ch_bvger',
@@ -1068,6 +1080,9 @@ function refreshJusItems($pdo, $spider = 'CH_BGer') {
  * Uses the SharePoint REST API to query the Pages list for recent press releases.
  */
 function refreshParlMmItems($pdo) {
+    if (isSatellite()) {
+        return 0;
+    }
     $config = getLexConfig();
     $cfg = $config['parl_mm'] ?? [];
     if (!($cfg['enabled'] ?? false)) return 0;
@@ -1181,6 +1196,9 @@ function refreshParlMmItems($pdo) {
  * (or LODA_DATE) fond for recent texts filtered by nature and date.
  */
 function refreshLegifranceItems($pdo) {
+    if (isSatellite()) {
+        return 0;
+    }
     $config = getLexConfig();
     $cfg = $config['fr'] ?? [];
     if (!($cfg['enabled'] ?? false)) return 0;

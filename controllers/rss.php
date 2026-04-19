@@ -241,6 +241,9 @@ function viewFeed($pdo, $feedId) {
 }
 
 function refreshFeed($pdo, $feedId) {
+    if (isSatellite()) {
+        return;
+    }
     $stmt = $pdo->prepare("SELECT * FROM feeds WHERE id = ?");
     $stmt->execute([$feedId]);
     $feed = $stmt->fetch();
@@ -423,6 +426,10 @@ function recordFeedFailure($pdo, $feedId, $error) {
  * Returns [int $refreshed, int $skipped, int $failed].
  */
 function refreshAllFeeds($pdo) {
+    if (isSatellite()) {
+        // Satellites never scrape — the mothership owns feed refreshes.
+        return [0, 0, 0, []];
+    }
     $stmt = $pdo->query("
         SELECT id, url, title, description, link
         FROM feeds

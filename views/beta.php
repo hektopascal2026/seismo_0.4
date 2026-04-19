@@ -51,20 +51,7 @@
             </div>
         </div>
 
-        <nav class="nav-drawer" id="navDrawer">
-            <a href="?action=index" class="nav-link">Feed</a>
-            <a href="?action=magnitu" class="nav-link">Magnitu</a>
-            <a href="?action=feeds" class="nav-link">RSS</a>
-            <a href="?action=calendar" class="nav-link">Calendar</a>
-            <a href="?action=lex" class="nav-link">Lex</a>
-            <a href="?action=jus" class="nav-link">Jus</a>
-            <a href="?action=mail" class="nav-link">Mail</a>
-            <a href="?action=substack" class="nav-link">Substack</a>
-            <a href="?action=scraper" class="nav-link">Scraper</a>
-            <a href="?action=settings" class="nav-link">Settings</a>
-            <a href="?action=about" class="nav-link">About</a>
-            <a href="?action=beta" class="nav-link active">Beta</a>
-        </nav>
+        <?php $navActive = 'beta'; include __DIR__ . '/partials/nav.php'; ?>
 
         <section class="beta-section">
             <h2>AI View Generator</h2>
