@@ -134,6 +134,15 @@ if (!defined('SEISMO_REMOTE_REFRESH_KEY')) {
 }
 
 /**
+ * When true, `refresh_cron.php` exits immediately (exit 0) without fetching, mail,
+ * Lex/Jus, or rescoring. Set in config.local.php for deprecated or read-only
+ * installs (e.g. staging) that should not ingest in the background.
+ */
+if (!defined('SEISMO_CRON_DISABLED')) {
+    define('SEISMO_CRON_DISABLED', false);
+}
+
+/**
  * True when this instance is a lightweight satellite (set via SEISMO_SATELLITE_MODE in
  * config.local.php). Guards nav, router actions, fetchers, and cron.
  */

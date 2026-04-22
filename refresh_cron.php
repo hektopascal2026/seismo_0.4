@@ -12,6 +12,9 @@
  *
  * Setup:  star/15 * * * * /usr/bin/php /path/to/refresh_cron.php
  *          (replace "star" with *)
+ *
+ * If SEISMO_CRON_DISABLED is true in config.local.php, exits immediately
+ * without ingesting (for deprecated / read-only instances).
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -46,9 +49,15 @@ function clog(string $level, string $msg): void {
     echo "[{$ts}] {$level}: {$msg}\n";
 }
 
+require_once $seismoDir . '/config.php';
+
+if (defined('SEISMO_CRON_DISABLED') && SEISMO_CRON_DISABLED) {
+    clog('INFO', 'Background refresh disabled (SEISMO_CRON_DISABLED in config.local.php). Exiting.');
+    exit(0);
+}
+
 clog('INFO', 'Starting Seismo refresh...');
 
-require_once $seismoDir . '/config.php';
 require $seismoDir . '/vendor/autoload.php';
 require $seismoDir . '/controllers/magnitu.php';
 require $seismoDir . '/controllers/lex_jus.php';

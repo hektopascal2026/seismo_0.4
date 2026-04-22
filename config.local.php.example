@@ -10,6 +10,10 @@ define('DB_PASS', 'CHANGE_ME');
 // Optional: protect Settings → Feed diagnostics with ?key= on the URL (same tab supports &format=text)
 // define('FEED_DIAGNOSTIC_KEY', 'generate-a-long-random-string');
 
+// Set to true on a deprecated or read-only copy so CLI `refresh_cron.php` does
+// not fetch feeds, mail, Lex/Jus, or rescore (it exits 0 immediately).
+// define('SEISMO_CRON_DISABLED', true);
+
 // ---------------------------------------------------------------------------
 // Remote refresh endpoint (mothership only — leave unset on satellites)
 // ---------------------------------------------------------------------------
